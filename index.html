@@ -160,6 +160,15 @@ tr:hover td{background:var(--cream)}
 .profile-redflag-title{font-size:13px;font-weight:600;color:var(--accent);margin-bottom:4px}
 .profile-tip-title{font-size:13px;font-weight:600;color:var(--teal);margin-bottom:4px}
 @media(max-width:768px){.sidebar{display:none}.main-inner{padding:16px}.metrics{grid-template-columns:repeat(2,1fr)}}
+
+@media print {
+  .sidebar,.page-header .btn,#toast{display:none!important}
+  .main{width:100%!important}
+  .card{box-shadow:none!important;border:1px solid #ede8df!important;break-inside:avoid}
+  body{background:white!important}
+  .quote-box,.red-flag{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  @page{margin:20mm;size:A4}
+}
 </style>
 </head>
 <body>
