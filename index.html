@@ -659,8 +659,7 @@ function openInvite(gid,gname){
   $("invite-result").style.display="none";$("email-count").textContent="0";
   openModal("modal-invite");
 }
-function countEmails(){$("email-count").textContent=$("invite-emails").value.split(/[
-,;]/).map(e=>e.trim()).filter(e=>e.includes("@")).length}
+function countEmails(){$("email-count").textContent=$("invite-emails").value.split(/[\n,;]/).map(e=>e.trim()).filter(e=>e.includes("@")).length}
 
 async function sendInvites(){
   const raw=$("invite-emails").value,expires=$("invite-expires").value;
@@ -747,8 +746,7 @@ async function loadGroupsFilter(){
   $("a-group").innerHTML="<option value="">Все группы</option>"+opts;
 }
 
-function countDirectEmails(){$("direct-email-count").textContent=$("direct-emails").value.split(/[
-,;]/).map(e=>e.trim()).filter(e=>e.includes("@")).length}
+function countDirectEmails(){$("direct-email-count").textContent=$("direct-emails").value.split(/[\n,;]/).map(e=>e.trim()).filter(e=>e.includes("@")).length}
 
 async function sendDirectInvites(){
   const raw=$("direct-emails").value; if(!raw.trim()){toast("Введите email",true);return}
