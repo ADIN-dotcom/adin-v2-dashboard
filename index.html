@@ -1026,18 +1026,20 @@ async function loadNIAnalytics() {
 
   // Results table
   const results = await api('/admin/participants?limit=100'+(group?'&group='+group:''));
-  if (results) {
+  if (results && results.participants) {
     $('ni-results-table').innerHTML = results.participants.length === 0
       ? '<div class="empty-state"><div class="empty-state-text">Нет результатов</div></div>'
-      : `<table><thead><tr><th>Участник</th><th>Тип</th><th>Уровень</th><th>Балл</th><th>Дата</th></tr></thead><tbody>
-        ${results.participants.map(p=>`<tr>
-          <td><strong>${fmt(p.name)}</strong><br><span style="font-size:11px;color:var(--ink-faint)">${fmt(p.email)}</span></td>
-          <td><span class="badge badge-navy">${fmt(p.type_name)}</span></td>
-          <td>${fmt(p.maturity_level_name)}</td>
-          <td><strong>${fmt(p.overall_score)}</strong>/100</td>
-          <td>${fmtDate(p.completed_at)}</td>
-        </tr>`).join('')}
-      </tbody></table>`;
+      : '<table><thead><tr><th>Участник</th><th>Тип</th><th>Уровень</th><th>Балл</th><th>Дата</th></tr></thead><tbody>' +
+        results.participants.map(p=>'<tr>' +
+          '<td><strong>'+fmt(p.name)+'</strong><br><span style="font-size:11px;color:var(--ink-faint)">'+fmt(p.email)+'</span></td>' +
+          '<td><span class="badge badge-navy">'+fmt(p.type_name)+'</span></td>' +
+          '<td>'+fmt(p.maturity_level_name)+'</td>' +
+          '<td><strong>'+fmt(p.overall_score)+'</strong>/100</td>' +
+          '<td>'+fmtDate(p.completed_at)+'</td>' +
+          '</tr>').join('') +
+        '</tbody></table>';
+  } else {
+    $('ni-results-table').innerHTML = '<div class="empty-state"><div class="empty-state-text">Нет результатов</div></div>';
   }
 }
 
