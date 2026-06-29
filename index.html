@@ -188,6 +188,14 @@ tr:hover td{background:var(--cream)}
 .info-box.teal{background:var(--teal-s);border-left:3px solid var(--teal);color:var(--ink-soft)}
 
 @media(max-width:768px){.sidebar{display:none}.main-inner{padding:16px}.metrics{grid-template-columns:repeat(2,1fr)}.form-row{grid-template-columns:1fr}.test-types{grid-template-columns:1fr}}
+
+@media print {
+  .sidebar,.page-header .btn,#toast{display:none!important}
+  .main{width:100%!important}
+  .card{box-shadow:none!important;border:1px solid #ede8df!important;break-inside:avoid}
+  body{background:white!important}
+  @page{margin:20mm;size:A4}
+}
 </style>
 </head>
 <body>
