@@ -742,8 +742,8 @@ async function exportCSV(){
 async function loadGroupsFilter(){
   const d=await api(API_NI+"/admin/groups"); if(!d) return;
   const opts=d.map(g=>`<option value="${g.id}">${g.name}</option>`).join("");
-  $("f-group").innerHTML="<option value="">Все группы</option>"+opts;
-  $("a-group").innerHTML="<option value="">Все группы</option>"+opts;
+  $("f-group").innerHTML='<option value="">Все группы</option>'+opts;
+  $("a-group").innerHTML='<option value="">Все группы</option>'+opts;
 }
 
 function countDirectEmails(){$("direct-email-count").textContent=$("direct-emails").value.split(/[\n,;]/).map(e=>e.trim()).filter(e=>e.includes("@")).length}
