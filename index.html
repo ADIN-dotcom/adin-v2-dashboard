@@ -705,7 +705,7 @@ async function loadParticipants(page){
   pPage=page||pPage;
   const params=new URLSearchParams({page:pPage,limit:50,group:$("f-group").value,type:$("f-type").value,level:$("f-level").value,country:$("f-country").value,from:$("f-from").value,to:$("f-to").value});
   $("ptbody").innerHTML="<tr><td colspan=8 style='text-align:center;padding:32px'><div class='spinner'></div></td></tr>";
-  const d=await api(API_NI+"/admin/participants?"+params); if(!d) return;
+  const d=await api(API_NI+"/v2/participants?"+params); if(!d) return;
   $("ptotal").textContent=d.total+" участников";
   $("ptbody").innerHTML=(d.participants||[]).map(p=>`<tr>
     <td><strong>${fmt(p.name)}</strong></td>
