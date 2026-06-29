@@ -747,8 +747,8 @@ async function loadParticipants(page) {
   const status = $('f-status').value;
   const params = new URLSearchParams({ page: pPage, limit: 50 });
   if (search) params.set('search', search);
-  if (group) params.set('group_id', group);
-  if (status) params.set('status', status);
+  if (group && group !== '') params.set('group_id', group);
+  if (status && status !== '') params.set('status', status);
 
   $('ptbody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px"><div class="spinner"></div></td></tr>';
   const d = await api('/v2/participants?' + params); if (!d) return;
@@ -1043,7 +1043,19 @@ async function loadNIAnalytics() {
 
 async function exportGroupCSV() {
   const group = $('ni-group-filter').value;
-  if (!group) { toast('Выберите группу для экспорта', true); return; }
+  // Если группа не выбрана — экспортируем всех через старый маршрут
+  if (!group) {
+    const url = API + '/admin/participants/export';
+    const r = await fetch(url, {headers:{'Authorization':'Bearer '+TOKEN}});
+    if (!r.ok) { toast('Ошибка экспорта', true); return; }
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'ni_results.csv'; a.click();
+    URL.revokeObjectURL(a.href);
+    toast('CSV скачан');
+    return;
+  }
   const url = API + '/v2/groups/'+group+'/export-csv';
   const r = await fetch(url, {headers:{'Authorization':'Bearer '+TOKEN}});
   if (!r.ok) { toast('Ошибка экспорта', true); return; }
