@@ -761,7 +761,7 @@ let moveSessionId=null;
 async function moveParticipant(sid,cur){
   moveSessionId=sid;$("move-participant-name").textContent="Текущая группа: "+(cur||"Без группы");
   const groups=await api(API_NI+"/admin/groups");
-  $("move-group-select").innerHTML="<option value="">Без группы</option>"+(groups||[]).map(g=>`<option value="${g.id}">${g.name}</option>`).join("");
+  $("move-group-select").innerHTML='<option value="">Без группы</option>'+(groups||[]).map(g=>`<option value="${g.id}">${g.name}</option>`).join("");
   openModal("modal-move-participant");
 }
 async function confirmMove(){
