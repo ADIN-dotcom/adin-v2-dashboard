@@ -1037,18 +1037,33 @@ async function loadNIAnalytics() {
   if (results && results.participants) {
     $('ni-results-table').innerHTML = results.participants.length === 0
       ? '<div class="empty-state"><div class="empty-state-text">Нет результатов</div></div>'
-      : '<table><thead><tr><th>Участник</th><th>Тип</th><th>Уровень</th><th>Балл</th><th>Дата</th></tr></thead><tbody>' +
+      : '<table><thead><tr><th>Участник</th><th>Тип</th><th>Уровень</th><th>Балл</th><th>Дата</th><th></th></tr></thead><tbody>' +
         results.participants.map(p=>'<tr>' +
           '<td><strong>'+fmt(p.name)+'</strong><br><span style="font-size:11px;color:var(--ink-faint)">'+fmt(p.email)+'</span></td>' +
           '<td><span class="badge badge-navy">'+fmt(p.type_name)+'</span></td>' +
           '<td>'+fmt(p.maturity_level_name)+'</td>' +
           '<td><strong>'+fmt(p.overall_score)+'</strong>/100</td>' +
           '<td>'+fmtDate(p.completed_at)+'</td>' +
+          '<td><button class="btn btn-ghost btn-sm" onclick="downloadNIPdf(\''+p.session_id+'\',\''+(p.name||'').replace(/'/g,"\\'")+'\')">⬇ PDF</button></td>' +
           '</tr>').join('') +
         '</tbody></table>';
   } else {
     $('ni-results-table').innerHTML = '<div class="empty-state"><div class="empty-state-text">Нет результатов</div></div>';
   }
+}
+
+async function downloadNIPdf(sessionId, name) {
+  toast('Генерируем PDF...');
+  const url = API + '/admin/participants/' + sessionId + '/report-pdf';
+  const r = await fetch(url, {headers:{'Authorization':'Bearer '+TOKEN}});
+  if (!r.ok) { toast('Ошибка генерации PDF', true); return; }
+  const blob = await r.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'report_' + (name||'participant') + '.pdf';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('PDF скачан');
 }
 
 async function exportGroupCSV() {
