@@ -1104,6 +1104,79 @@ async function loadPNProfiles() {
   $('pn-profiles-table').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--ink-faint)">Функция в разработке — профили появятся после прохождения опросников</td></tr>';
 }
 
+
+const PN_LABELS = {
+  questionnaire: {
+    groups: [
+      { question: 'Четыре результата, которых вы хотите достичь в самое ближайшее время', fields: ['result_1','result_2','result_3','result_4'] },
+      { question: 'Что мешает в вашем окружении достичь этих результатов', fields: ['obstacle_1','obstacle_2','obstacle_3','obstacle_4'] },
+      { question: 'Каких навыков или знаний вам не хватает, чтобы достичь этих результатов', fields: ['skill_1','skill_2','skill_3','skill_4'] },
+      { question: 'Ваши личные и профессиональные преимущества', fields: ['strength_1','strength_2','strength_3','strength_4'] },
+      { question: 'Что для вас действительно важно и ценно в этом мире', fields: ['value_1','value_2','value_3','value_4'] }
+    ],
+    single: [
+      { field: 'feeling_now', question: 'Как вы сейчас себя чувствуете' },
+      { field: 'time_waste', question: 'Что отнимает у вас время, не принося пользы' },
+      { field: 'outstanding_people', question: 'Чем выдающиеся люди отличаются от остальных' },
+      { field: 'best_advice', question: 'Лучший совет, который вам давали' },
+      { field: 'expectations', question: 'Ожидания от сотрудничества' }
+    ],
+    ab: [
+      { field: 'ab_q1', question: 'Как вы восстанавливаете силы', A: 'В компании друзей, на вечеринке или в чате', B: 'В одиночестве, за книгой, фильмом или прогулкой' },
+      { field: 'ab_q2', question: 'Как вы принимаете решения', A: 'Логика, факты, объективные данные', B: 'Чувства, ценности, эмоции' },
+      { field: 'ab_q3', question: 'Отношение к планированию', A: 'Всё расписано заранее', B: 'Гибкость и спонтанность' },
+      { field: 'ab_q4', question: 'В компании новых людей', A: 'Быстро завожу разговор', B: 'Сначала наблюдаю' },
+      { field: 'ab_q5', question: 'Если проект затянулся', A: 'Довожу до конца любой ценой', B: 'Могу переключиться' },
+      { field: 'ab_q6', question: 'Что важнее в общении', A: 'Содержание и смысл', B: 'Атмосфера и эмоции' }
+    ]
+  },
+  societe: {
+    groups: [
+      { question: 'Компания вашей мечты — четыре слова', fields: ['dream_word_1','dream_word_2','dream_word_3','dream_word_4'] },
+      { question: 'Компании-ориентиры', fields: ['benchmark_1','benchmark_2','benchmark_3'] },
+      { question: 'Идеальный коллега', fields: ['colleague_q_1','colleague_q_2','colleague_q_3','colleague_q_4'] },
+      { question: 'Условия для расцвета команды', fields: ['condition_1','condition_2','condition_3'] },
+      { question: 'Стиль управления', fields: ['mgmt_style_1','mgmt_style_2','mgmt_style_3'] },
+      { question: 'Идеальный руководитель', fields: ['leader_q_1','leader_q_2','leader_q_3','leader_q_4'] },
+      { question: 'Роль CEO/основателя', fields: ['ceo_role_1','ceo_role_2','ceo_role_3'] },
+      { question: 'Компания сейчас — четыре слова', fields: ['now_word_1','now_word_2','now_word_3','now_word_4'] },
+      { question: 'Принятие решений', fields: ['decision_1','decision_2','decision_3'] },
+      { question: 'Отношение к изменениям', fields: ['change_1','change_2','change_3','change_4','change_5'] },
+      { question: 'Ожидания от сотрудников', fields: ['expect_sub_1','expect_sub_2','expect_sub_3','expect_sub_4'] }
+    ]
+  }
+};
+
+function pnAnswersHtml(raw, type) {
+  if (!raw) return '';
+  if (typeof raw === 'string') { try { raw = JSON.parse(raw); } catch(e) { return ''; } }
+  var esc = function(v) { return (v == null ? '' : String(v)); };
+  var L = PN_LABELS[type];
+  var html = '';
+  (L.groups || []).forEach(function(g) {
+    var items = g.fields.map(function(f) { return raw[f]; }).filter(Boolean);
+    if (!items.length) return;
+    html += '<div style="margin-bottom:14px"><div style="font-size:13px;font-weight:600;color:#1a1a2e;margin-bottom:6px">' + g.question + '</div>' +
+      items.map(function(v) { return '<div style="font-size:13px;color:#4a4a6a;padding:3px 0 3px 12px;border-left:2px solid #ede8df;margin-bottom:2px">' + esc(v) + '</div>'; }).join('') +
+      '</div>';
+  });
+  (L.single || []).forEach(function(s) {
+    var v = raw[s.field];
+    if (!v) return;
+    html += '<div style="margin-bottom:14px"><div style="font-size:13px;font-weight:600;color:#1a1a2e;margin-bottom:4px">' + s.question + '</div><div style="font-size:13px;color:#4a4a6a;line-height:1.6">' + esc(v) + '</div></div>';
+  });
+  if (L.ab && L.ab.length) {
+    var abLines = L.ab.map(function(a) {
+      var choice = raw[a.field];
+      if (!choice) return '';
+      var text = choice === 'A' ? a.A : a.B;
+      return '<div style="font-size:13px;color:#4a4a6a;padding:3px 0"><strong>' + a.question + ':</strong> ' + text + '</div>';
+    }).filter(Boolean).join('');
+    if (abLines) html += '<div style="margin-top:8px"><div style="font-size:13px;font-weight:600;color:#1a1a2e;margin-bottom:6px">Типология A/B</div>' + abLines + '</div>';
+  }
+  return html;
+}
+
 async function openPNProfile(invitationId, name, company) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   $('page-pn-profile-detail').classList.add('active');
@@ -1142,6 +1215,8 @@ async function openPNProfile(invitationId, name, company) {
       ${(nm.key_quotes||[]).map(q=>`<div class="quote-box">${q}</div>`).join('')}
       ${nm.bridge_formula_seed ? `<div style="margin-top:12px"><div class="profile-item-label">Формула моста</div><div class="quote-box" style="border-color:var(--teal);font-size:14px;font-weight:500;margin-top:6px">${nm.bridge_formula_seed}</div></div>` : ''}
     </div>` : ''}
+    ${d.raw_questionnaire ? `<div class="card"><div class="card-title">Заполненная анкета — о себе</div>${pnAnswersHtml(d.raw_questionnaire,'questionnaire')}</div>` : ''}
+    ${d.raw_societe ? `<div class="card"><div class="card-title">Заполненная анкета — о компании</div>${pnAnswersHtml(d.raw_societe,'societe')}</div>` : ''}
     ${(l2?.red_flags||[]).length ? `
     <div class="card">
       <div class="card-title">Красные флаги</div>
