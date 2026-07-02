@@ -645,7 +645,7 @@ async function loadHome() {
     ? '<div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-text">Завершённых тестов пока нет</div></div>'
     : `<table><thead><tr><th>Участник</th><th>Тест</th><th>Результат</th><th>Дата</th></tr></thead><tbody>
       ${d.recent.map(r => `<tr>
-        <td><strong>${fmt(r.name)}</strong><br><span style="font-size:11px;color:var(--ink-faint)">${fmt(r.company)}</span></td>
+        <td style="cursor:pointer" onclick="openParticipantDetail(${r.participant_id})"><strong style="color:var(--navy)">${fmt(r.name)}</strong><br><span style="font-size:11px;color:var(--ink-faint)">${fmt(r.company)}</span></td>
         <td><span class="badge badge-${r.test_type === 'ni_test' ? 'navy' : 'teal'}">${TEST_LABELS[r.test_type] || r.test_type}</span></td>
         <td>${r.test_type === 'ni_test' ? `<strong>${fmt(r.overall_score)}</strong>/100 · ${fmt(r.dominant_type_name)}` : fmt(r.psychotype)}</td>
         <td>${fmtDate(r.completed_at)}</td>
