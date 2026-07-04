@@ -917,7 +917,7 @@ async function openParticipantDetail(id) {
       <div class="card">
         <div class="card-title">Данные участника</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          ${[['Email',d.email],['Компания',d.company],['Должность',d.position],['Страна',d.country],['Сфера',d.industry],['Возраст',d.age_range],['Пол',d.gender],['Образование',d.education]].map(([l,v])=>`
+          ${[['Email',d.email],['Компания',d.company],['Должность',d.position],['Страна',d.country],['Сфера',d.industry],['Возраст',d.age_range],['Пол',d.gender],['Образование',d.education],['Направление образования',d.education_field],['Семейное положение',d.marital_status],['Есть ли дети?',d.has_children],['Родной язык',d.lang_native],['Доп. язык',d.lang_additional],['Религия / традиция',d.religion]].map(([l,v])=>`
             <div><div class="profile-item-label">${l}</div><div class="profile-item-value">${fmt(v)}</div></div>`).join('')}
         </div>
         <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
