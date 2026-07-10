@@ -1176,7 +1176,18 @@ async function exportGroupCSV() {
   toast('CSV скачан');
 }
 
-function exportCSV() { exportGroupCSV(); }
+async function exportCSV() {
+  const group = $('f-group').value;
+  const url = group ? (API + '/v2/groups/' + group + '/export-csv') : (API + '/admin/participants/export');
+  const r = await fetch(url, {headers:{'Authorization':'Bearer '+TOKEN}});
+  if (!r.ok) { toast('Ошибка экспорта', true); return; }
+  const blob = await r.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'ni_results.csv'; a.click();
+  URL.revokeObjectURL(a.href);
+  toast('CSV скачан');
+}
 
 // ── PN PROFILES ───────────────────────────────────────────────
 async function loadPNProfiles() {
