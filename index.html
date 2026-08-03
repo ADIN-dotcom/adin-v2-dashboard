@@ -794,7 +794,7 @@ async function loadParticipants(page) {
           <br><span style="font-size:11px;color:var(--ink-faint)">${p.name ? p.email : ''}</span>
         </td>
         <td>${fmt(p.company)}</td>
-        <td>—</td>
+        <td>${(p.groups && p.groups.length) ? p.groups.map(g => g.name).join(', ') : '—'}</td>
         <td>${renderTestBadges(p.invitations)}</td>
         <td><span class="badge ${p.status==='active'?'badge-green':'badge-gray'}">${p.status==='active'?'Активный':'Архив'}</span></td>
         <td style="display:flex;gap:4px">
