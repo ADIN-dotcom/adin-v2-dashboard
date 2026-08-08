@@ -1559,13 +1559,13 @@ async function generateGroupNarrative() {
           <div style="font-size:15px;font-weight:700;color:${NS_FUTURE_COLOR[r.group_future_access]||'inherit'}">${r.group_future_access||'—'}</div>
         </div>
       </div>
-      ${r.result?.group_narrative_description ? `
+      ${r.group_narrative_description ? `
         <div style="margin-bottom:16px">
           <div style="font-size:12px;font-weight:700;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Нарративный статус группы</div>
-          ${r.result.group_narrative_description.dominant_narrative_story ? `<div style="padding:14px 16px;background:var(--cream);border-left:4px solid var(--navy);border-radius:6px;font-size:14px;line-height:1.7;margin-bottom:10px;color:var(--ink)">${r.result.group_narrative_description.dominant_narrative_story}</div>` : ''}
-          ${r.result.group_narrative_description.inner_reality ? `<div style="padding:14px 16px;background:var(--gold-s);border-left:4px solid var(--gold);border-radius:6px;font-size:14px;line-height:1.7;margin-bottom:10px;color:var(--ink)">${r.result.group_narrative_description.inner_reality}</div>` : ''}
-          ${r.result.group_narrative_description.common_ground ? `<div style="padding:14px 16px;background:var(--green-s);border-left:4px solid var(--green);border-radius:6px;font-size:14px;line-height:1.7;margin-bottom:10px;color:var(--ink)">${r.result.group_narrative_description.common_ground}</div>` : ''}
-          ${r.result.group_narrative_description.fractures ? `<div style="padding:14px 16px;background:var(--red-s);border-left:4px solid var(--red);border-radius:6px;font-size:14px;line-height:1.7;margin-bottom:10px;color:var(--ink)">${r.result.group_narrative_description.fractures}</div>` : ''}
+          ${r.group_narrative_description.dominant_narrative_story ? `<div style="padding:14px 16px;background:var(--cream);border-left:4px solid var(--navy);border-radius:6px;font-size:14px;line-height:1.7;margin-bottom:10px;color:var(--ink)">${r.group_narrative_description.dominant_narrative_story}</div>` : ''}
+          ${r.group_narrative_description.inner_reality ? `<div style="padding:14px 16px;background:var(--gold-s);border-left:4px solid var(--gold);border-radius:6px;font-size:14px;line-height:1.7;margin-bottom:10px;color:var(--ink)">${r.group_narrative_description.inner_reality}</div>` : ''}
+          ${r.group_narrative_description.common_ground ? `<div style="padding:14px 16px;background:var(--green-s);border-left:4px solid var(--green);border-radius:6px;font-size:14px;line-height:1.7;margin-bottom:10px;color:var(--ink)">${r.group_narrative_description.common_ground}</div>` : ''}
+          ${r.group_narrative_description.fractures ? `<div style="padding:14px 16px;background:var(--red-s);border-left:4px solid var(--red);border-radius:6px;font-size:14px;line-height:1.7;margin-bottom:10px;color:var(--ink)">${r.group_narrative_description.fractures}</div>` : ''}
         </div>
         <div style="font-size:12px;font-weight:700;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Для фасилитатора</div>
       ` : ''}
