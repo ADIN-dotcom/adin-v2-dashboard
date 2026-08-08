@@ -408,7 +408,20 @@ tr:hover td{background:var(--cream)}
       </div>
 
     </div>
-  </main>
+  
+      <div class="modal-bg" id="modal-narrative-detail">
+        <div class="modal" style="max-width:640px">
+          <div class="modal-title">
+            <span id="modal-ns-title">Нарративный статус</span>
+            <button class="modal-close" onclick="closeModal('modal-narrative-detail')">×</button>
+          </div>
+          <div id="modal-ns-content"></div>
+          <div class="modal-actions">
+            <button class="btn btn-ghost" onclick="closeModal('modal-narrative-detail')">Закрыть</button>
+          </div>
+        </div>
+      </div>
+</main>
 </div>
 
 <!-- МОДАЛЫ -->
@@ -1458,7 +1471,8 @@ function showNarrativeDetail(r) {
   const tips = (r.facilitator_tips || []).map(t => `<li style="margin-bottom:6px">${t}</li>`).join('');
   const readiness = r.module_readiness || {};
 
-  openModal(`
+    document.getElementById('modal-ns-title').textContent = (r.name || 'Участник') + ' · Нарративный статус';
+  document.getElementById('modal-ns-content').innerHTML = `
     <div style="max-width:600px">
       <div style="margin-bottom:16px">
         <div style="font-size:20px;font-weight:700;color:var(--navy)">${fmt(r.name)}</div>
@@ -1488,7 +1502,8 @@ function showNarrativeDetail(r) {
       ${r.bridge_formula_seed ? `<div style="padding:10px 14px;background:var(--green-s);border-left:3px solid var(--green);border-radius:4px;font-size:13px;margin-bottom:12px">💡 Зерно формулы моста: <em>${r.bridge_formula_seed}</em></div>` : ''}
       ${tips ? `<div class="card" style="padding:12px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Советы фасилитатору</div><ul style="padding-left:16px">${tips}</ul></div>` : ''}
     </div>
-  `);
+  `;
+  openModal('modal-narrative-detail');
 }
 
 async function generateGroupNarrative() {
