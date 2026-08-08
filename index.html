@@ -564,6 +564,11 @@ tr:hover td{background:var(--cream)}
           <div class="test-type-name">SOCIETE</div>
           <div class="test-type-desc">Опросник о компании</div>
         </button>
+        <button class="test-type-btn" onclick="selectTestType('narrative_status',this)">
+          <div class="test-type-icon">🔮</div>
+          <div class="test-type-name">Нарр. статус</div>
+          <div class="test-type-desc">Нарратив будущего</div>
+        </button>
       </div>
     </div>
     <div class="field"><label>Группа (необязательно)</label>
@@ -636,7 +641,8 @@ const TEST_LABELS = {
   ni_test: 'НИ-тест',
   profils_questionnaire: 'Questionnaire',
   profils_societe: 'SOCIETE',
-  profils_both: 'Profils (оба)'
+  profils_both: 'Profils (оба)',
+  narrative_status: 'Нарр. статус'
 };
 const STATUS_LABELS = { pending:'Ожидает', sent:'Отправлен', opened:'Открыт', completed:'Завершён', expired:'Истёк' };
 const STATUS_BADGES = { pending:'badge-gray', sent:'badge-gold', opened:'badge-navy', completed:'badge-green', expired:'badge-accent' };
