@@ -1440,7 +1440,7 @@ async function loadNarrativeStatus() {
           <th></th>
         </tr></thead>
         <tbody>${d.map(r => `<tr>
-          <td><strong>${fmt(r.name)}</strong><br><span style="font-size:11px;color:var(--ink-faint)">${fmt(r.email)}</span></td>
+          <td><strong>${fmt(r.name) || "Участник"}</strong><br><span style="font-size:11px;color:var(--ink-faint)">${fmt(r.email) || "—"}</span></td>
           <td><strong>${NS_NARRATIVE_LABELS[r.dominant_narrative] || r.dominant_narrative || '—'}</strong></td>
           <td style="color:var(--ink-faint)">${NS_NARRATIVE_LABELS[r.secondary_narrative] || r.secondary_narrative || '—'}</td>
           <td style="color:${NS_AGENTIVITY_COLOR[r.agentivity]||'inherit'};font-weight:500">${r.agentivity || '—'}</td>
