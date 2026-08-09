@@ -1163,11 +1163,28 @@ async function loadNIAnalytics() {
           '<td>'+fmt(p.maturity_level_name)+'</td>' +
           '<td><strong>'+fmt(p.overall_score)+'</strong>/100</td>' +
           '<td>'+fmtDate(p.completed_at)+'</td>' +
-          '<td><button class="btn btn-ghost btn-sm" onclick="downloadNIPdf(\''+p.session_id+'\',\''+(p.name||'').replace(/'/g,"\\'")+'\')">⬇ PDF</button></td>' +
+          '<td><button class="btn btn-ghost btn-sm" onclick="downloadNIPdf(\''+p.session_id+'\',\''+(p.name||'').replace(/'/g,"\\'")+'\')">⬇ PDF</button><button class="btn btn-ghost btn-sm" style="color:var(--teal)" onclick="regeneratePersonal(p.session_id,this)" title="Перегенерировать">&#x1F504;</button></td>' +
           '</tr>').join('') +
         '</tbody></table>';
   } else {
     $('ni-results-table').innerHTML = '<div class="empty-state"><div class="empty-state-text">Нет результатов</div></div>';
+  }
+}
+
+async function regeneratePersonal(sessionId, btn) {
+  if (!sessionId) { toast('Нет session_id', true); return; }
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳';
+  const r = await fetch(API + '/admin/participants/' + sessionId + '/regenerate-personal', {
+    method: 'POST',
+    headers: {'Authorization': 'Bearer ' + TOKEN}
+  });
+  btn.disabled = false; btn.textContent = orig;
+  if (r.ok) {
+    toast('✅ Текст перегенерирован — скачайте PDF');
+  } else {
+    const d = await r.json().catch(()=>({}));
+    toast('Ошибка: ' + (d.error || r.status), true);
   }
 }
 
