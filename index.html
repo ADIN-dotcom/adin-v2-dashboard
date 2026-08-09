@@ -1163,12 +1163,20 @@ async function loadNIAnalytics() {
           '<td>'+fmt(p.maturity_level_name)+'</td>' +
           '<td><strong>'+fmt(p.overall_score)+'</strong>/100</td>' +
           '<td>'+fmtDate(p.completed_at)+'</td>' +
-          '<td><button class="btn btn-ghost btn-sm" onclick="downloadNIPdf(\''+p.session_id+'\',\''+(p.name||'').replace(/'/g,"\\'")+'\')">⬇ PDF</button><button class="btn btn-ghost btn-sm" style="color:var(--teal)" onclick="regeneratePersonal(p.session_id,this)" title="Перегенерировать">&#x1F504;</button></td>' +
+          '<td>' + makePdfBtns(p.session_id, p.name) + '</td>' +
           '</tr>').join('') +
         '</tbody></table>';
   } else {
     $('ni-results-table').innerHTML = '<div class="empty-state"><div class="empty-state-text">Нет результатов</div></div>';
   }
+}
+
+function makePdfBtns(sessionId, name) {
+  var sid = (sessionId || '').toString();
+  var nm  = (name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  var pdf = "<button class=\"btn btn-ghost btn-sm\" onclick=\"downloadNIPdf('" + sid + "','" + nm + "')\">⬇ PDF</button>";
+  var regen = "<button class=\"btn btn-ghost btn-sm\" style=\"color:var(--teal);margin-left:4px\" onclick=\"regeneratePersonal('" + sid + "',this)\" title=\"Перегенерировать\">&#x1F504;</button>";
+  return pdf + regen;
 }
 
 async function regeneratePersonal(sessionId, btn) {
