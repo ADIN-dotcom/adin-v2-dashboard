@@ -1518,9 +1518,11 @@ async function generateGroupNarrative() {
 
   const btn = document.getElementById('btn-group-narrative');
   btn.disabled = true; btn.textContent = 'Анализируем…';
+  document.getElementById('ns-group-report').style.display = 'none';
+  document.getElementById('ns-group-report').innerHTML = '';
 
   const d = await api('/narrative-status/group/' + groupId + '/analyze', { method: 'POST' });
-  btn.disabled = false; btn.textContent = '&#128302; Групповой анализ';
+  btn.disabled = false; btn.textContent = '🔮 Групповой анализ';
 
   if (!d || !d.success) { toast('Ошибка группового анализа'); return; }
 
