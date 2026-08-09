@@ -320,9 +320,12 @@ tr:hover td{background:var(--cream)}
       <div id="page-ni-analytics" class="page">
         <div class="page-header">
           <div><div class="page-title">Аналитика НИ-теста</div><div class="page-sub">Результаты и распределения</div></div>
-          <select id="ni-group-filter" onchange="loadNIAnalytics()" style="padding:8px 12px;border:1.5px solid var(--cream-d);border-radius:8px;font-size:13px">
-            <option value="">Все группы</option>
-          </select>
+          <div style="display:flex;gap:8px;align-items:center">
+            <div class="search-box"><input type="text" id="ni-search" placeholder="Поиск по имени или email..." oninput="debounce(()=>loadNIAnalytics(),350)" style="width:220px"></div>
+            <select id="ni-group-filter" onchange="loadNIAnalytics()" style="padding:8px 12px;border:1.5px solid var(--cream-d);border-radius:8px;font-size:13px">
+              <option value="">Все группы</option>
+            </select>
+          </div>
         </div>
         <div class="metrics" id="ni-metrics"></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
@@ -686,7 +689,7 @@ function nav(page) {
   if (page === 'home') loadHome();
   if (page === 'groups') loadGroups();
   if (page === 'participants') loadParticipants(1);
-  if (page === 'ni-analytics') loadNIAnalytics();
+  if (page === 'ni-analytics') { loadNIGroupFilter(); loadNIAnalytics(); }
   if (page === 'pn-profiles') loadPNProfiles();
   if (page === 'settings') loadSettings();
   if (page === 'narrative-status') loadNarrativeStatus();
@@ -860,7 +863,7 @@ async function loadGroupsFilter() {
     'f-group': allGroups,
     'new-p-group': noGroup,
     'inv-group': noGroup,
-    'ni-group-filter': allGroups,
+    // 'ni-group-filter': загружается отдельно через loadNIGroupFilter
     'pn-group-filter': allGroups,
     'move-to-gid': noGroup
   };
@@ -1109,9 +1112,18 @@ async function sendInvitation() {
 }
 
 // ── NI ANALYTICS ─────────────────────────────────────────────
+async function loadNIGroupFilter() {
+  const d = await api('/admin/groups');
+  if (!d) return;
+  const sel = $('ni-group-filter');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Все группы</option>' +
+    d.map(g => '<option value="' + g.id + '">' + g.name + '</option>').join('');
+}
+
 async function loadNIAnalytics() {
   const group = $('ni-group-filter').value;
-  const q = group ? '?group='+group : '';
+  const q = group ? '?group_uuid='+group : '';
   const [overview, comps] = await Promise.all([
     api('/admin/analytics/overview'+q),
     api('/admin/analytics/competencies'+q)
@@ -1152,7 +1164,9 @@ async function loadNIAnalytics() {
   }).join('')||'<div style="color:var(--ink-faint)">Нет данных</div>';
 
   // Results table
-  const results = await api('/admin/participants?limit=100'+(group?'&group='+group:''));
+  const niSearch = $('ni-search') ? $('ni-search').value : '';
+  const search = niSearch ? '&search='+encodeURIComponent(niSearch) : '';
+  const results = await api('/admin/participants?limit=100'+(group?'&group_uuid='+group:'')+search);
   if (results && results.participants) {
     $('ni-results-table').innerHTML = results.participants.length === 0
       ? '<div class="empty-state"><div class="empty-state-text">Нет результатов</div></div>'
