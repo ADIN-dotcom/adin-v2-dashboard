@@ -577,6 +577,15 @@ tr:hover td{background:var(--cream)}
     <div class="field"><label>Группа (необязательно)</label>
       <select id="inv-group"><option value="">Без группы</option></select>
     </div>
+    <div class="field" id="inv-lang-field" style="display:none">
+      <label>Язык теста</label>
+      <select id="inv-lang">
+        <option value="ru">Русский</option>
+        <option value="en">English</option>
+        <option value="fr">Français</option>
+        <option value="hy">Հայերեն</option>
+      </select>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-invite')">Отмена</button>
       <button class="btn btn-navy" id="inv-send-btn" onclick="sendInvitation()" disabled>Отправить →</button>
@@ -1075,6 +1084,9 @@ function selectTestType(type, btn) {
   document.querySelectorAll('.test-type-btn').forEach(b => b.classList.remove('selected'));
   btn.classList.add('selected');
   $('inv-send-btn').disabled = false;
+  // Язык реально влияет только на НИ-тест и Нарративный статус (Profils
+  // Narratifs пока сознательно не локализован — см. sendV2Invitation в email.js).
+  $('inv-lang-field').style.display = (type === 'ni_test' || type === 'narrative_status') ? '' : 'none';
 }
 
 function quickInvite(pid, name) {
@@ -1083,6 +1095,8 @@ function quickInvite(pid, name) {
   $('inv-participant-name').textContent = name;
   selectedTestType = null;
   $('inv-send-btn').disabled = true;
+  $('inv-lang').value = 'ru';
+  $('inv-lang-field').style.display = 'none';
   document.querySelectorAll('.test-type-btn').forEach(b => b.classList.remove('selected'));
   openModal('modal-invite');
 }
@@ -1100,7 +1114,8 @@ async function sendInvitation() {
   const d = await api('/v2/invitations', {method:'POST', body:{
     participant_id: parseInt(pid),
     group_id: gid ? parseInt(gid) : null,
-    test_type: selectedTestType
+    test_type: selectedTestType,
+    language: $('inv-lang').value
   }});
   $('inv-send-btn').disabled = false;
   $('inv-send-btn').textContent = 'Отправить →';
