@@ -549,6 +549,10 @@ tr:hover td{background:var(--cream)}
     <div class="field"><label>Email участников (по одному в строке)</label>
       <textarea id="kf-emails" rows="6" style="width:100%;padding:10px;border:1.5px solid var(--cream-d);border-radius:8px;font-family:inherit;font-size:14px;box-sizing:border-box" placeholder="a@company.com&#10;b@company.com"></textarea>
     </div>
+    <div class="field"><label>Группа</label>
+      <select id="kf-group"><option value="">— без группы —</option></select>
+      <div style="font-size:12px;color:var(--ink-faint);margin-top:4px">Выберите группу — тогда приглашённые попадут в неё, и групповой отчёт соберётся автоматически.</div>
+    </div>
     <div class="field"><label>Тип теста</label>
       <select id="kf-test-type">
         <option value="ni_test">НИ-тест</option>
@@ -927,6 +931,7 @@ async function loadGroupsFilter() {
     'f-group': allGroups,
     'new-p-group': noGroup,
     'inv-group': noGroup,
+    'kf-group': '<option value="">— без группы —</option>',
     // 'ni-group-filter': загружается отдельно через loadNIGroupFilter
     'pn-group-filter': allGroups,
     'move-to-gid': noGroup
@@ -1235,9 +1240,10 @@ async function downloadFullReport(code) {
 async function downloadKeyfile() {
   const emails = $('kf-emails').value.trim();
   if (!emails) { toast('Вставьте email', true); return; }
+  const groupSel = ($('kf-group') && $('kf-group').value) || null;
+  if (!groupSel && !confirm('Группа не выбрана — приглашённые не попадут ни в одну группу, и групповой отчёт по ним не соберётся. Продолжить без группы?')) return;
   const btn = $('kf-btn'); btn.disabled = true; btn.textContent = 'Формируем...';
   try {
-    const groupSel = ($('f-group') && $('f-group').value) || null;
     const r = await fetch(API + '/v2/invite-keyfile', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
