@@ -269,6 +269,8 @@ tr:hover td{background:var(--cream)}
           <div style="display:flex;gap:8px">
             <button class="btn btn-ghost btn-sm" id="export-btn" onclick="exportCSV()" style="display:none">⬇ CSV</button>
             <button class="btn btn-ghost btn-sm" onclick="openModal('modal-keyfile')">🔑 Ключ-файл</button>
+            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('kf-file-names').click()" title="Загрузить свой ключ-файл, чтобы видеть имена. Файл читается локально в браузере и на сервер не отправляется.">📂 Имена</button>
+            <input type="file" id="kf-file-names" accept=".csv,text/csv" style="display:none" onchange="loadKeyfileNames(this)">
             <button class="btn btn-navy" onclick="openModal('modal-add-participant')">+ Добавить</button>
           </div>
         </div>
@@ -871,8 +873,8 @@ async function loadParticipants(page) {
     ? '<tr><td colspan="6"><div class="empty-state"><div class="empty-state-icon">👥</div><div class="empty-state-text">Участников не найдено</div></div></td></tr>'
     : d.participants.map(p => `<tr>
         <td>
-          <strong style="cursor:pointer;color:var(--navy)" onclick="openParticipantDetail(${p.id})">${fmt(p.name) === '—' ? p.email : p.name}</strong>
-          <br><span style="font-size:11px;color:var(--ink-faint)">${p.name ? p.email : ''}</span>
+          <strong style="cursor:pointer;color:var(--navy)" onclick="openParticipantDetail(${p.id})">${fmt(p.name) === '—' ? (kfName(p) || p.email || ('Код #'+p.id)) : p.name}</strong>
+          <br><span style="font-size:11px;color:var(--ink-faint)">${p.name ? p.email : (kfName(p) ? '(имя из ключ-файла)' : '')}</span>
         </td>
         <td>${fmt(p.company)}</td>
         <td>${(p.groups && p.groups.length) ? p.groups.map(g => g.name).join(', ') : '—'}</td>
@@ -1137,6 +1139,62 @@ function quickInvite(pid, name) {
 
 function openInviteParticipant() {
   quickInvite(currentParticipantId, $('pd-title').textContent);
+}
+
+// ── Ключ-файл имён (клиентская подстановка) ─────────────────────────────────
+// email↔код держим ТОЛЬКО в браузере фасилитатора; на сервер не отправляется.
+window.KEYFILE = {};
+function splitCsv(line) {
+  const out = []; let cur = ''; let q = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { if (q && line[i+1] === '"') { cur += '"'; i++; } else q = !q; }
+    else if (ch === ',' && !q) { out.push(cur); cur = ''; }
+    else cur += ch;
+  }
+  out.push(cur); return out;
+}
+function loadKeyfileNames(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const lines = String(reader.result || '').split(/\r?\n/).filter(l => l.trim());
+      if (!lines.length) { toast('Пустой файл', true); return; }
+      const head = splitCsv(lines[0]).map(c => c.toLowerCase().trim());
+      const hasHeader = head.some(c => c.includes('email') || c.includes('code') || c.includes('код'));
+      let ei = 0, ci = 1;
+      if (hasHeader) {
+        const e = head.findIndex(c => c.includes('email'));
+        const c = head.findIndex(c => c.includes('code') || c.includes('token') || c.includes('код') || c.includes('токен'));
+        if (e >= 0) ei = e; if (c >= 0) ci = c;
+      }
+      const map = {};
+      for (let i = hasHeader ? 1 : 0; i < lines.length; i++) {
+        const cols = splitCsv(lines[i]);
+        const email = (cols[ei] || '').trim();
+        const code = (cols[ci] || '').trim().toUpperCase();
+        if (email && code) map[code] = email;
+      }
+      window.KEYFILE = map;
+      toast('Ключ-файл загружен: ' + Object.keys(map).length + ' записей (только в этом браузере)');
+      if (typeof loadParticipants === 'function') loadParticipants(pPage || 1);
+    } catch (e) { toast('Не удалось разобрать файл', true); }
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+// Имя по ключ-файлу: ищем любой код/токен участника в KEYFILE.
+function kfName(p) {
+  if (!window.KEYFILE || !p || !Array.isArray(p.invitations)) return null;
+  for (const inv of p.invitations) {
+    const c = inv && inv.code ? String(inv.code).toUpperCase() : null;
+    const t = inv && inv.token ? String(inv.token).toUpperCase() : null;
+    if (c && window.KEYFILE[c]) return window.KEYFILE[c];
+    if (t && window.KEYFILE[t]) return window.KEYFILE[t];
+  }
+  return null;
 }
 
 // Обезличенные приглашения: список email → CSV-ключ-файл (без сохранения email, без писем)
