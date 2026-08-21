@@ -268,6 +268,7 @@ tr:hover td{background:var(--cream)}
           <div><div class="page-title" id="ptitle">Участники</div><div class="page-sub" id="psub">Все участники системы</div></div>
           <div style="display:flex;gap:8px">
             <button class="btn btn-ghost btn-sm" id="export-btn" onclick="exportCSV()" style="display:none">⬇ CSV</button>
+            <button class="btn btn-ghost btn-sm" onclick="openModal('modal-keyfile')">🔑 Ключ-файл</button>
             <button class="btn btn-navy" onclick="openModal('modal-add-participant')">+ Добавить</button>
           </div>
         </div>
@@ -536,6 +537,39 @@ tr:hover td{background:var(--cream)}
 </div>
 
 <!-- Отправить тест -->
+<div class="modal-bg" id="modal-keyfile">
+  <div class="modal">
+    <div class="modal-title">
+      <span>Обезличенные приглашения → ключ-файл</span>
+      <button class="modal-close" onclick="closeModal('modal-keyfile')">×</button>
+    </div>
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px">Вставьте email по одному в строке. Система создаст коды/ссылки <b>без сохранения email</b> и отдаст CSV-ключ-файл — раздайте его участникам сами (письма не рассылаются). Связку «email ↔ код» храните у себя.</p>
+    <div class="field"><label>Email участников (по одному в строке)</label>
+      <textarea id="kf-emails" rows="6" style="width:100%;padding:10px;border:1.5px solid var(--cream-d);border-radius:8px;font-family:inherit;font-size:14px;box-sizing:border-box" placeholder="a@company.com&#10;b@company.com"></textarea>
+    </div>
+    <div class="field"><label>Тип теста</label>
+      <select id="kf-test-type">
+        <option value="ni_test">НИ-тест</option>
+        <option value="narrative_status">Нарративный статус</option>
+        <option value="profils_questionnaire">Profils — Questionnaire</option>
+        <option value="profils_societe">Profils — SOCIETE</option>
+      </select>
+    </div>
+    <div class="field"><label>Язык теста</label>
+      <select id="kf-lang">
+        <option value="ru">Русский</option>
+        <option value="en">English</option>
+        <option value="fr">Français</option>
+        <option value="hy">Հայերեն</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-keyfile')">Отмена</button>
+      <button class="btn btn-navy" id="kf-btn" onclick="downloadKeyfile()">Скачать ключ-файл</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modal-invite">
   <div class="modal">
     <div class="modal-title">
@@ -1103,6 +1137,38 @@ function quickInvite(pid, name) {
 
 function openInviteParticipant() {
   quickInvite(currentParticipantId, $('pd-title').textContent);
+}
+
+// Обезличенные приглашения: список email → CSV-ключ-файл (без сохранения email, без писем)
+async function downloadKeyfile() {
+  const emails = $('kf-emails').value.trim();
+  if (!emails) { toast('Вставьте email', true); return; }
+  const btn = $('kf-btn'); btn.disabled = true; btn.textContent = 'Формируем...';
+  try {
+    const groupSel = ($('f-group') && $('f-group').value) || null;
+    const r = await fetch(API + '/v2/invite-keyfile', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        emails,
+        group_id: groupSel,
+        test_type: $('kf-test-type').value,
+        language: $('kf-lang').value
+      })
+    });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); toast('Ошибка: ' + (e.error || r.status), true); return; }
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'keyfile.csv'; a.click();
+    URL.revokeObjectURL(a.href);
+    closeModal('modal-keyfile');
+    toast('Ключ-файл скачан — раздайте коды участникам');
+  } catch (e) {
+    toast('Ошибка соединения', true);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Скачать ключ-файл';
+  }
 }
 
 async function sendInvitation() {
