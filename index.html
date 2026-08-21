@@ -274,7 +274,7 @@ tr:hover td{background:var(--cream)}
             <button class="btn btn-navy" onclick="openModal('modal-add-participant')">+ Добавить</button>
           </div>
         </div>
-        <div class="search-box"><input type="text" id="p-search" placeholder="Поиск по имени или email..." oninput="debounce(()=>loadParticipants(1),350)"></div>
+        <div class="search-box"><input type="text" id="p-search" placeholder="Поиск: код · или имя/email при загруженном ключ-файле" oninput="debounce(()=>loadParticipants(1),350)"></div>
         <div class="filters">
           <div>
             <label style="font-size:11px;color:var(--ink-faint);display:block;margin-bottom:4px">Группа</label>
@@ -861,17 +861,33 @@ async function loadParticipants(page) {
   const search = $('p-search').value;
   const group = $('f-group').value;
   const status = $('f-status').value;
+  const kfActive = window.KEYFILE && Object.keys(window.KEYFILE).length > 0;
+  const clientSearch = !!(search && kfActive); // имя/email ищем в браузере по ключ-файлу
   const params = new URLSearchParams({ page: pPage, limit: 50 });
-  if (search) params.set('search', search);
+  if (search && !kfActive) params.set('search', search); // серверный поиск — только без ключ-файла
+  if (clientSearch) { params.set('limit', '1000'); params.set('page', '1'); }
   if (group && group !== '') params.set('group_id', group);
   if (status && status !== '') params.set('status', status);
 
   $('ptbody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px"><div class="spinner"></div></td></tr>';
   const d = await api('/v2/participants?' + params); if (!d) return;
 
-  $('ptbody').innerHTML = d.participants.length === 0
+  let rows = d.participants;
+  if (clientSearch) {
+    const q = search.toLowerCase();
+    rows = rows.filter(p => {
+      if ((kfName(p) || '').toLowerCase().includes(q)) return true;
+      if ((p.name || '').toLowerCase().includes(q) || (p.email || '').toLowerCase().includes(q)) return true;
+      if (Array.isArray(p.invitations) && p.invitations.some(i =>
+        (i.code && String(i.code).toLowerCase().includes(q)) ||
+        (i.token && String(i.token).toLowerCase().includes(q)))) return true;
+      return false;
+    });
+  }
+
+  $('ptbody').innerHTML = rows.length === 0
     ? '<tr><td colspan="6"><div class="empty-state"><div class="empty-state-icon">👥</div><div class="empty-state-text">Участников не найдено</div></div></td></tr>'
-    : d.participants.map(p => `<tr>
+    : rows.map(p => `<tr>
         <td>
           <strong style="cursor:pointer;color:var(--navy)" onclick="openParticipantDetail(${p.id})">${fmt(p.name) === '—' ? (kfName(p) || p.email || ('Код #'+p.id)) : p.name}</strong>
           <br><span style="font-size:11px;color:var(--ink-faint)">${p.name ? p.email : (kfName(p) ? '(имя из ключ-файла)' : '')}</span>
@@ -889,7 +905,9 @@ async function loadParticipants(page) {
 
   const pages = d.pages || 1;
   let pg = '';
-  if (pages > 1) {
+  if (clientSearch) {
+    pg = `<span class="pg-info">Найдено по ключ-файлу: ${rows.length}</span>`;
+  } else if (pages > 1) {
     if (pPage > 1) pg += `<button class="pg-btn" onclick="loadParticipants(${pPage-1})">← Пред.</button>`;
     pg += `<span class="pg-info">Стр. ${pPage} из ${pages} · ${d.total} участников</span>`;
     if (pPage < pages) pg += `<button class="pg-btn" onclick="loadParticipants(${pPage+1})">След. →</button>`;
