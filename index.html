@@ -898,8 +898,9 @@ async function loadParticipants(page) {
         <td><span class="badge ${p.status==='active'?'badge-green':'badge-gray'}">${p.status==='active'?'Активный':'Архив'}</span></td>
         <td style="display:flex;gap:4px">
           <button class="btn btn-ghost btn-sm" onclick="openParticipantDetail(${p.id})">→</button>
-          <button class="btn btn-navy btn-sm" onclick="quickInvite(${p.id},'${(p.name||p.email).replace(/'/g,"\\'")}')">📧</button>
-          <button class="btn btn-ghost-red btn-sm" onclick="deleteParticipant(${p.id},'${(p.name||p.email).replace(/'/g,"\\'")}')">🗑</button>
+          ${(function(){var c=((p.invitations||[]).filter(function(i){return i.type==='ni_test'&&i.code;})[0]||{}).code;return c?`<button class="btn btn-ghost btn-sm" onclick="downloadFullReport('${c}')" title="Полный PDF-отчёт (НИ-тест)">📄</button>`:'';})()}
+          <button class="btn btn-navy btn-sm" onclick="quickInvite(${p.id},'${(p.name||p.email||('#'+p.id)).replace(/'/g,"\\'")}')">📧</button>
+          <button class="btn btn-ghost-red btn-sm" onclick="deleteParticipant(${p.id},'${(p.name||p.email||('#'+p.id)).replace(/'/g,"\\'")}')">🗑</button>
         </td>
       </tr>`).join('');
 
@@ -1024,7 +1025,7 @@ async function openParticipantDetail(id) {
         <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-ghost btn-sm" onclick="openMoveParticipant(${d.id})">↔ Переместить</button>
           <button class="btn btn-ghost btn-sm" onclick="archiveParticipant(${d.id},'${d.status}')">${d.status==='active'?'📦 Архивировать':'📂 Активировать'}</button>
-          <button class="btn btn-ghost-red btn-sm" onclick="deleteParticipant(${d.id},'${(d.name||d.email).replace(/'/g,"\\'")}')">🗑 Удалить</button>
+          <button class="btn btn-ghost-red btn-sm" onclick="deleteParticipant(${d.id},'${(d.name||d.email||('#'+d.id)).replace(/'/g,"\\'")}')">🗑 Удалить</button>
         </div>
       </div>
       <div class="card">
@@ -1213,6 +1214,21 @@ function kfName(p) {
     if (t && window.KEYFILE[t]) return window.KEYFILE[t];
   }
   return null;
+}
+
+// Полный PDF-отчёт по коду (фасилитатор). Auth через Bearer, скачивание blob.
+async function downloadFullReport(code) {
+  if (!code) { toast('Нет кода НИ-теста', true); return; }
+  toast('Готовим отчёт...');
+  try {
+    const r = await fetch(API + '/v2/report-pdf/' + encodeURIComponent(code), { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); toast('Отчёт недоступен: ' + (e.error || r.status), true); return; }
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'ADIN_full_' + code + '.pdf'; a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (e) { toast('Ошибка соединения', true); }
 }
 
 // Обезличенные приглашения: список email → CSV-ключ-файл (без сохранения email, без писем)
