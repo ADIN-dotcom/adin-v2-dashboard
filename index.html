@@ -268,10 +268,13 @@ tr:hover td{background:var(--cream)}
           <div><div class="page-title" id="ptitle">Участники</div><div class="page-sub" id="psub">Все участники системы</div></div>
           <div style="display:flex;gap:8px">
             <button class="btn btn-ghost btn-sm" id="export-btn" onclick="exportCSV()" style="display:none">⬇ CSV</button>
+            <button class="btn btn-ghost btn-sm" onclick="openModal('modal-keyfile')">🔑 Ключ-файл</button>
+            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('kf-file-names').click()" title="Загрузить свой ключ-файл, чтобы видеть имена. Файл читается локально в браузере и на сервер не отправляется.">📂 Имена</button>
+            <input type="file" id="kf-file-names" accept=".csv,text/csv" style="display:none" onchange="loadKeyfileNames(this)">
             <button class="btn btn-navy" onclick="openModal('modal-add-participant')">+ Добавить</button>
           </div>
         </div>
-        <div class="search-box"><input type="text" id="p-search" placeholder="Поиск по имени или email..." oninput="debounce(()=>loadParticipants(1),350)"></div>
+        <div class="search-box"><input type="text" id="p-search" placeholder="Поиск: код · или имя/email при загруженном ключ-файле" oninput="debounce(()=>loadParticipants(1),350)"></div>
         <div class="filters">
           <div>
             <label style="font-size:11px;color:var(--ink-faint);display:block;margin-bottom:4px">Группа</label>
@@ -536,6 +539,39 @@ tr:hover td{background:var(--cream)}
 </div>
 
 <!-- Отправить тест -->
+<div class="modal-bg" id="modal-keyfile">
+  <div class="modal">
+    <div class="modal-title">
+      <span>Обезличенные приглашения → ключ-файл</span>
+      <button class="modal-close" onclick="closeModal('modal-keyfile')">×</button>
+    </div>
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px">Вставьте email по одному в строке. Система создаст коды/ссылки <b>без сохранения email</b> и отдаст CSV-ключ-файл — раздайте его участникам сами (письма не рассылаются). Связку «email ↔ код» храните у себя.</p>
+    <div class="field"><label>Email участников (по одному в строке)</label>
+      <textarea id="kf-emails" rows="6" style="width:100%;padding:10px;border:1.5px solid var(--cream-d);border-radius:8px;font-family:inherit;font-size:14px;box-sizing:border-box" placeholder="a@company.com&#10;b@company.com"></textarea>
+    </div>
+    <div class="field"><label>Тип теста</label>
+      <select id="kf-test-type">
+        <option value="ni_test">НИ-тест</option>
+        <option value="narrative_status">Нарративный статус</option>
+        <option value="profils_questionnaire">Profils — Questionnaire</option>
+        <option value="profils_societe">Profils — SOCIETE</option>
+      </select>
+    </div>
+    <div class="field"><label>Язык теста</label>
+      <select id="kf-lang">
+        <option value="ru">Русский</option>
+        <option value="en">English</option>
+        <option value="fr">Français</option>
+        <option value="hy">Հայերեն</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-keyfile')">Отмена</button>
+      <button class="btn btn-navy" id="kf-btn" onclick="downloadKeyfile()">Скачать ключ-файл</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modal-invite">
   <div class="modal">
     <div class="modal-title">
@@ -825,20 +861,36 @@ async function loadParticipants(page) {
   const search = $('p-search').value;
   const group = $('f-group').value;
   const status = $('f-status').value;
+  const kfActive = window.KEYFILE && Object.keys(window.KEYFILE).length > 0;
+  const clientSearch = !!(search && kfActive); // имя/email ищем в браузере по ключ-файлу
   const params = new URLSearchParams({ page: pPage, limit: 50 });
-  if (search) params.set('search', search);
+  if (search && !kfActive) params.set('search', search); // серверный поиск — только без ключ-файла
+  if (clientSearch) { params.set('limit', '1000'); params.set('page', '1'); }
   if (group && group !== '') params.set('group_id', group);
   if (status && status !== '') params.set('status', status);
 
   $('ptbody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px"><div class="spinner"></div></td></tr>';
   const d = await api('/v2/participants?' + params); if (!d) return;
 
-  $('ptbody').innerHTML = d.participants.length === 0
+  let rows = d.participants;
+  if (clientSearch) {
+    const q = search.toLowerCase();
+    rows = rows.filter(p => {
+      if ((kfName(p) || '').toLowerCase().includes(q)) return true;
+      if ((p.name || '').toLowerCase().includes(q) || (p.email || '').toLowerCase().includes(q)) return true;
+      if (Array.isArray(p.invitations) && p.invitations.some(i =>
+        (i.code && String(i.code).toLowerCase().includes(q)) ||
+        (i.token && String(i.token).toLowerCase().includes(q)))) return true;
+      return false;
+    });
+  }
+
+  $('ptbody').innerHTML = rows.length === 0
     ? '<tr><td colspan="6"><div class="empty-state"><div class="empty-state-icon">👥</div><div class="empty-state-text">Участников не найдено</div></div></td></tr>'
-    : d.participants.map(p => `<tr>
+    : rows.map(p => `<tr>
         <td>
-          <strong style="cursor:pointer;color:var(--navy)" onclick="openParticipantDetail(${p.id})">${fmt(p.name) === '—' ? p.email : p.name}</strong>
-          <br><span style="font-size:11px;color:var(--ink-faint)">${p.name ? p.email : ''}</span>
+          <strong style="cursor:pointer;color:var(--navy)" onclick="openParticipantDetail(${p.id})">${fmt(p.name) === '—' ? (kfName(p) || p.email || ('Код #'+p.id)) : p.name}</strong>
+          <br><span style="font-size:11px;color:var(--ink-faint)">${p.name ? p.email : (kfName(p) ? '(имя из ключ-файла)' : '')}</span>
         </td>
         <td>${fmt(p.company)}</td>
         <td>${(p.groups && p.groups.length) ? p.groups.map(g => g.name).join(', ') : '—'}</td>
@@ -853,7 +905,9 @@ async function loadParticipants(page) {
 
   const pages = d.pages || 1;
   let pg = '';
-  if (pages > 1) {
+  if (clientSearch) {
+    pg = `<span class="pg-info">Найдено по ключ-файлу: ${rows.length}</span>`;
+  } else if (pages > 1) {
     if (pPage > 1) pg += `<button class="pg-btn" onclick="loadParticipants(${pPage-1})">← Пред.</button>`;
     pg += `<span class="pg-info">Стр. ${pPage} из ${pages} · ${d.total} участников</span>`;
     if (pPage < pages) pg += `<button class="pg-btn" onclick="loadParticipants(${pPage+1})">След. →</button>`;
@@ -1103,6 +1157,94 @@ function quickInvite(pid, name) {
 
 function openInviteParticipant() {
   quickInvite(currentParticipantId, $('pd-title').textContent);
+}
+
+// ── Ключ-файл имён (клиентская подстановка) ─────────────────────────────────
+// email↔код держим ТОЛЬКО в браузере фасилитатора; на сервер не отправляется.
+window.KEYFILE = {};
+function splitCsv(line) {
+  const out = []; let cur = ''; let q = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { if (q && line[i+1] === '"') { cur += '"'; i++; } else q = !q; }
+    else if (ch === ',' && !q) { out.push(cur); cur = ''; }
+    else cur += ch;
+  }
+  out.push(cur); return out;
+}
+function loadKeyfileNames(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const lines = String(reader.result || '').split(/\r?\n/).filter(l => l.trim());
+      if (!lines.length) { toast('Пустой файл', true); return; }
+      const head = splitCsv(lines[0]).map(c => c.toLowerCase().trim());
+      const hasHeader = head.some(c => c.includes('email') || c.includes('code') || c.includes('код'));
+      let ei = 0, ci = 1;
+      if (hasHeader) {
+        const e = head.findIndex(c => c.includes('email'));
+        const c = head.findIndex(c => c.includes('code') || c.includes('token') || c.includes('код') || c.includes('токен'));
+        if (e >= 0) ei = e; if (c >= 0) ci = c;
+      }
+      const map = {};
+      for (let i = hasHeader ? 1 : 0; i < lines.length; i++) {
+        const cols = splitCsv(lines[i]);
+        const email = (cols[ei] || '').trim();
+        const code = (cols[ci] || '').trim().toUpperCase();
+        if (email && code) map[code] = email;
+      }
+      window.KEYFILE = map;
+      toast('Ключ-файл загружен: ' + Object.keys(map).length + ' записей (только в этом браузере)');
+      if (typeof loadParticipants === 'function') loadParticipants(pPage || 1);
+    } catch (e) { toast('Не удалось разобрать файл', true); }
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+// Имя по ключ-файлу: ищем любой код/токен участника в KEYFILE.
+function kfName(p) {
+  if (!window.KEYFILE || !p || !Array.isArray(p.invitations)) return null;
+  for (const inv of p.invitations) {
+    const c = inv && inv.code ? String(inv.code).toUpperCase() : null;
+    const t = inv && inv.token ? String(inv.token).toUpperCase() : null;
+    if (c && window.KEYFILE[c]) return window.KEYFILE[c];
+    if (t && window.KEYFILE[t]) return window.KEYFILE[t];
+  }
+  return null;
+}
+
+// Обезличенные приглашения: список email → CSV-ключ-файл (без сохранения email, без писем)
+async function downloadKeyfile() {
+  const emails = $('kf-emails').value.trim();
+  if (!emails) { toast('Вставьте email', true); return; }
+  const btn = $('kf-btn'); btn.disabled = true; btn.textContent = 'Формируем...';
+  try {
+    const groupSel = ($('f-group') && $('f-group').value) || null;
+    const r = await fetch(API + '/v2/invite-keyfile', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        emails,
+        group_id: groupSel,
+        test_type: $('kf-test-type').value,
+        language: $('kf-lang').value
+      })
+    });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); toast('Ошибка: ' + (e.error || r.status), true); return; }
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'keyfile.csv'; a.click();
+    URL.revokeObjectURL(a.href);
+    closeModal('modal-keyfile');
+    toast('Ключ-файл скачан — раздайте коды участникам');
+  } catch (e) {
+    toast('Ошибка соединения', true);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Скачать ключ-файл';
+  }
 }
 
 async function sendInvitation() {
