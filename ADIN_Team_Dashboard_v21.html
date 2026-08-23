@@ -1,0 +1,1679 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ADIN · Аналитическая карта команды</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#1E3A5F;--navy-mid:#2d5a8e;--navy-s:#dce8f5;
+  --red:#C8432A;--red-s:#fee2e2;
+  --green:#2D6A4F;--green-s:#e8f3ec;
+  --gold:#c9a84c;--gold-s:#fff8e1;
+  --purple:#5A2D82;--purple-s:#ead8f5;
+  --orange:#E07B2A;--orange-s:#fef0e0;
+  --cream:#f8f6f0;--cream-d:#ede8df;
+  --ink:#1a1a2e;--ink-soft:#4a4a6a;--ink-faint:#8888a8;
+  --white:#fff;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
+  background:var(--cream);color:var(--ink);min-height:100vh}
+
+/* ── HEADER ── */
+.header{background:var(--navy);padding:20px 32px;display:flex;
+  align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.header-left{display:flex;align-items:center;gap:16px}
+.logo-txt{color:#fff;font-size:24px;font-weight:700;letter-spacing:.02em}
+.logo-sub{color:#9aafc8;font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+.header-right{color:#9aafc8;font-size:13px;text-align:right}
+
+/* ── UPLOAD ZONE ── */
+.upload-zone{max-width:700px;margin:48px auto;text-align:center;padding:0 20px}
+.upload-box{border:2px dashed var(--cream-d);border-radius:16px;
+  padding:48px 32px;background:#fff;cursor:pointer;transition:all .2s}
+.upload-box:hover{border-color:var(--navy-mid);background:var(--navy-s)}
+.upload-icon{font-size:48px;margin-bottom:16px}
+.upload-box h2{font-size:20px;color:var(--navy);margin-bottom:8px}
+.upload-box p{color:var(--ink-faint);font-size:14px}
+#file-input{display:none}
+.btn-upload{display:inline-block;margin-top:20px;padding:12px 28px;
+  background:var(--navy);color:#fff;border-radius:8px;font-size:15px;
+  font-weight:500;cursor:pointer;border:none;font-family:inherit;
+  transition:background .18s}
+.btn-upload:hover{background:var(--navy-mid)}
+
+/* ── DASHBOARD ── */
+#dashboard{display:none;padding:24px 32px;max-width:1400px;margin:0 auto}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:4px;margin-bottom:24px;background:#fff;
+  padding:6px;border-radius:10px;box-shadow:0 1px 8px rgba(26,26,46,.06)}
+.tab{padding:9px 20px;border-radius:7px;font-size:14px;font-weight:500;
+  cursor:pointer;color:var(--ink-soft);transition:all .15s;border:none;
+  background:transparent;font-family:inherit}
+.tab.active{background:var(--navy);color:#fff}
+.tab:hover:not(.active){background:var(--cream)}
+.tab-content{display:none}.tab-content.active{display:block}
+
+/* ── ПЕЧАТЬ / PDF ── */
+@page {
+  size: landscape;
+  margin: 12mm;
+}
+
+/* Печатные шапка/подвал — на экране не показываются, встраиваются в поток
+   каждой страницы через JS (injectPrintChrome) прямо перед печатью. Не
+   используем position:fixed — в части браузеров/PDF-движков он не повторяется
+   на каждой странице надёжно, из-за чего шапка/подвал могли пропадать вовсе. */
+.print-header, .print-footer, .print-subheader, .print-hr, .print-section-title { display: none; }
+
+@media print {
+  /* Без этого браузер по умолчанию не печатает цветные фоны и заливки —
+     все цветные плашки, точки на матрице и полосы графиков станут ч/б. */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  /* Скрываем всё интерактивное — кнопки, вкладки, загрузку, обычную экранную
+     шапку и панель инструментов текстового отчёта (AI/скачать/ключ) */
+  .tabs, .upload-zone, #pdf-btn, #keyfile-btn, .btn-upload, .header, .narrative-toolbar, #narrative-ai-status { display:none !important; }
+
+  .print-header {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 8px;
+    font-family: 'Segoe UI', Arial, sans-serif;
+  }
+  .print-header img { height: 44px; display: block; }
+  .print-header-motto { font-size: 14px; font-style: italic; color: var(--ink-faint); text-align: right; max-width: 60%; }
+  .print-header-team { font-size: 15px; font-weight: 700; color: var(--navy); white-space: nowrap; }
+
+  /* Явная разделительная линия — отдельный элемент, не border на шапке,
+     чтобы отступы до и после можно было задать независимо */
+  .print-hr { display: block !important; border: none; border-top: 2px solid var(--navy); margin: 4px 0 12px; }
+
+  /* Вторая строка на обложке: название компании (крупно) + отметка о
+     конфиденциальности (обычным размером) */
+  .print-subheader { display: block !important; margin: 0 0 16px; font-family: 'Segoe UI', Arial, sans-serif; }
+  .print-subheader-company { font-size: 20px; font-weight: 800; color: var(--navy); margin-bottom: 3px; }
+  .print-subheader-note { font-size: 13px; color: var(--ink-faint); }
+
+  /* Заголовок раздела на странице «Аналитическое заключение» — под линией,
+     крупнее обычного заголовка вкладки */
+  .print-section-title { display: block !important; font-size: 22px; font-weight: 700; color: var(--navy); margin: 0 0 16px; font-family: 'Segoe UI', Arial, sans-serif; }
+
+  .print-footer {
+    display: block !important;
+    margin-top: 14px;
+    padding-top: 8px;
+    border-top: 0.75px solid var(--cream-d);
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 11px;
+    color: var(--ink-faint);
+    text-align: center;
+  }
+
+  /* Фоновые подписи квадрантов матрицы — в печати контейнер часто уже, чем на
+     экране, крупный шрифт из renderMatrix() накладывается друг на друга */
+  .matrix-watermark { font-size:11px !important; max-width:45% !important; line-height:1.2 !important; }
+  /* Показываем ВСЕ вкладки сразу, а не только активную */
+  .tab-content { display:block !important; page-break-after: always; break-after: page; }
+  .tab-content:last-child { page-break-after: auto; break-after: auto; }
+  /* Заголовок каждой вкладки — чтобы в PDF было видно, где какой раздел начинается */
+  .tab-content::before {
+    content: attr(data-print-title);
+    display: block;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--navy);
+    border-bottom: 2px solid var(--navy);
+    padding-bottom: 8px;
+    margin-bottom: 16px;
+  }
+  #dashboard { display:block !important; max-width:100%; padding:0; }
+  /* На «Обзоре» и «Аналитическом заключении» заголовок формируется вручную
+     через injectPrintChrome() в правильном порядке (после шапки/линии),
+     обычный автозаголовок здесь отключаем, чтобы не дублировался и не
+     выезжал раньше шапки. */
+  #tab-overview::before, #tab-narrative::before { content: none; display: none; }
+  body { background:#fff; }
+  .card { box-shadow:none !important; border:1px solid var(--cream-d); break-inside: avoid; }
+  .matrix-dot[data-tip] { position:absolute !important; } /* точки матрицы не должны съезжать */
+  .tooltip { display:none !important; }
+}
+
+/* ── METRICS ── */
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:16px;margin-bottom:24px}
+.metric{background:#fff;border-radius:12px;padding:20px;
+  box-shadow:0 1px 8px rgba(26,26,46,.05)}
+.metric-val{font-size:36px;font-weight:700;line-height:1;margin-bottom:4px}
+.metric-lbl{font-size:11px;color:var(--ink-faint);text-transform:uppercase;
+  letter-spacing:.06em}
+.metric-sub{font-size:12px;color:var(--ink-soft);margin-top:4px}
+
+/* ── GRID ── */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:20px}
+@media(max-width:900px){.grid-2,.grid-3{grid-template-columns:1fr}}
+
+/* ── CARDS ── */
+.card{background:#fff;border-radius:12px;padding:20px;
+  box-shadow:0 1px 8px rgba(26,26,46,.05);margin-bottom:20px}
+.card-title{font-size:16px;font-weight:600;color:var(--ink);margin-bottom:16px}
+
+/* ── МАТРИЦА ── */
+.matrix{position:relative;width:100%;padding-bottom:100%;background:#fff;
+  border:2px solid var(--cream-d);border-radius:12px;overflow:hidden}
+.matrix-inner{position:absolute;inset:0;padding:8px}
+.matrix-axis-h{position:absolute;top:50%;left:0;right:0;height:1px;
+  background:var(--cream-d)}
+.matrix-axis-v{position:absolute;left:50%;top:0;bottom:0;width:1px;
+  background:var(--cream-d)}
+.matrix-label{position:absolute;font-size:10px;color:var(--ink-faint);
+  font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.matrix-dot{position:absolute;transform:translate(-50%,-50%);
+  width:36px;height:36px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-size:10px;font-weight:700;color:#fff;
+  cursor:pointer;transition:transform .2s;z-index:2;border:2px solid rgba(255,255,255,.4)}
+.matrix-dot:hover{transform:translate(-50%,-50%) scale(1.2);z-index:10}
+.matrix-dot-count{position:absolute;top:-4px;right:-4px;width:16px;height:16px;
+  border-radius:50%;background:var(--ink);color:#fff;font-size:9px;
+  display:flex;align-items:center;justify-content:center;font-weight:700}
+.quad-label{position:absolute;font-size:20px;opacity:.08;font-weight:900;
+  pointer-events:none}
+
+/* ── BAR CHARTS ── */
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.bar-label{font-size:13px;color:var(--ink-soft);width:160px;flex-shrink:0}
+.bar-track{flex:1;height:24px;background:var(--cream);border-radius:4px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;display:flex;align-items:center;
+  padding:0 8px;font-size:12px;font-weight:600;color:#fff;transition:width 1s ease}
+.bar-count{font-size:13px;color:var(--ink-soft);width:50px;text-align:right;flex-shrink:0}
+
+/* ── РАДАР ── */
+.radar-wrap{display:flex;justify-content:center;align-items:center;min-height:280px}
+svg.radar{overflow:visible}
+
+/* ── ТАБЛИЦА ── */
+.data-table{width:100%;border-collapse:collapse;font-size:13px}
+.data-table th{background:var(--navy);color:#fff;padding:10px 12px;
+  text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+.data-table td{padding:10px 12px;border-bottom:1px solid var(--cream-d)}
+.data-table tr:hover td{background:var(--cream)}
+.badge{display:inline-flex;padding:3px 10px;border-radius:50px;
+  font-size:11px;font-weight:600}
+.badge-A{background:var(--navy-s);color:var(--navy)}
+.badge-B{background:var(--green-s);color:var(--green)}
+.badge-C{background:var(--red-s);color:var(--red)}
+.badge-D{background:var(--purple-s);color:var(--purple)}
+.badge-1{background:var(--red-s);color:var(--red)}
+.badge-2{background:var(--gold-s);color:#7b5800}
+.badge-3{background:var(--green-s);color:var(--green)}
+.badge-4{background:var(--navy-s);color:var(--navy)}
+
+/* ── ЗОНЫ ── */
+.zone{border-radius:10px;padding:16px;margin-bottom:12px}
+.zone-risk{background:var(--red-s);border-left:4px solid var(--red)}
+.zone-conflict{background:var(--orange-s);border-left:4px solid var(--orange)}
+.zone-resource{background:var(--green-s);border-left:4px solid var(--green)}
+.zone-title{font-size:14px;font-weight:600;margin-bottom:6px}
+.zone-items{font-size:13px;color:var(--ink-soft);line-height:1.7}
+
+/* ── МИНИ ПРОГРЕСС ── */
+.mini-bar{height:6px;background:var(--cream-d);border-radius:3px;overflow:hidden;
+  display:inline-block;width:80px;vertical-align:middle;margin-left:6px}
+.mini-fill{height:100%;border-radius:3px}
+
+/* ── TOOLTIP ── */
+.tooltip{position:fixed;background:var(--navy);color:#fff;padding:10px 14px;
+  border-radius:8px;font-size:13px;z-index:1000;pointer-events:none;
+  opacity:0;transition:opacity .15s;max-width:260px;line-height:1.5}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div>
+      <div class="logo-txt">ADIN</div>
+      <div class="logo-sub">Association de l'Intelligence Narrative®</div>
+    </div>
+  </div>
+  <div class="header-right">
+    Аналитическая карта команды<br>
+    <span id="team-name" style="color:#fff;font-weight:600"></span>
+    <button id="keyfile-btn" onclick="document.getElementById('keyfile-input').click()"
+      style="margin-left:16px;padding:6px 14px;background:rgba(255,255,255,.15);
+      color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:6px;
+      font-size:13px;font-weight:500;cursor:pointer;font-family:inherit"
+      onmouseover="this.style.background='rgba(255,255,255,.25)'"
+      onmouseout="this.style.background='rgba(255,255,255,.15)'">
+      🔑 Имена
+    </button>
+    <button id="pdf-btn" onclick="printReport()"
+      style="margin-left:8px;padding:6px 14px;background:rgba(255,255,255,.15);
+      color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:6px;
+      font-size:13px;font-weight:500;cursor:pointer;font-family:inherit"
+      onmouseover="this.style.background='rgba(255,255,255,.25)'"
+      onmouseout="this.style.background='rgba(255,255,255,.15)'">
+      📄 PDF-отчёт
+    </button>
+  </div>
+</div>
+
+<!-- ЗАГРУЗКА -->
+<div class="upload-zone" id="upload-zone">
+  <div class="upload-box" onclick="document.getElementById('file-input').click()"
+       ondragover="e=>{e.preventDefault();this.style.borderColor='var(--navy)'}"
+       ondragleave="this.style.borderColor=''"
+       ondrop="e=>{e.preventDefault();handleFile(e.dataTransfer.files[0])}">
+    <div class="upload-icon">📊</div>
+    <h2>Загрузить данные команды</h2>
+    <p>Скачайте CSV из дашборда ADIN (раздел «Участники» → «Скачать CSV»)<br>
+       и загрузите его сюда</p>
+    <button class="btn-upload">Выбрать файл CSV</button>
+    <p style="margin-top:12px;font-size:12px">или перетащите файл в эту область</p>
+  </div>
+  <input type="file" id="file-input" accept=".csv" onchange="handleFile(this.files[0])">
+
+  <div style="max-width:640px;margin:20px auto 0;padding:16px 20px;background:var(--cream-s,#f7f4ee);border:1px solid var(--cream-d,#e5ded2);border-radius:10px;text-align:left;font-size:13px;line-height:1.5">
+    <b>🔑 Ключ-файл (имена участников)</b><br>
+    Если данные обезличены (в CSV есть колонка «Код», но нет имён), загрузите свой ключ-файл
+    «код ↔ имя» — имена подставятся в отчёт локально, в общую базу они не сохраняются.
+    <div style="margin-top:10px">
+      <button class="btn-upload" style="margin-top:0;padding:8px 18px;font-size:13px"
+        onclick="document.getElementById('keyfile-input').click()">Загрузить ключ-файл</button>
+      <span id="keyfile-status" style="margin-left:12px;color:var(--teal,#2D6A4F);font-weight:600"></span>
+    </div>
+    <input type="file" id="keyfile-input" accept=".csv" style="display:none"
+      onchange="handleKeyfile(this.files[0])">
+  </div>
+</div>
+
+<!-- ДАШБОРД -->
+<div id="dashboard">
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('overview')">🏠 Обзор</button>
+    <button class="tab" onclick="switchTab('matrix')">🗺 Матрица типов</button>
+    <button class="tab" onclick="switchTab('levels')">📈 Уровни зрелости</button>
+    <button class="tab" onclick="switchTab('temporal')">⏱ Ориентация</button>
+    <button class="tab" onclick="switchTab('competencies')">⭐ Компетенции</button>
+    <button class="tab" onclick="switchTab('zones')">⚠️ Зоны анализа</button>
+    <button class="tab" onclick="switchTab('participants')">👥 Участники</button>
+    <button class="tab" onclick="switchTab('narrative')">📋 Заключение</button>
+  </div>
+
+  <!-- ОБЗОР -->
+  <div id="tab-overview" class="tab-content active" data-print-title="Обзор команды">
+    <div class="metrics" id="metrics-overview"></div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Распределение типов</div>
+        <div id="chart-types"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Уровни зрелости</div>
+        <div id="chart-levels-mini"></div>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Компетенции команды — средние баллы</div>
+        <div id="chart-comps-mini"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Временная ориентация — средние значения</div>
+        <div id="chart-temporal-mini"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- МАТРИЦА -->
+  <div id="tab-matrix" class="tab-content" data-print-title="Матрица нарративных типов">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Матрица нарративных типов</div>
+        <div style="position:relative;padding-bottom:100%">
+          <div style="position:absolute;inset:0">
+            <div class="matrix" id="matrix-chart" style="position:absolute;inset:0;padding:0"></div>
+          </div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:12px;flex-wrap:wrap">
+          <span style="font-size:12px;color:var(--ink-faint)">
+            <span style="color:var(--navy);font-weight:700">●</span> Аналитик
+            <span style="color:var(--green);font-weight:700;margin-left:8px">●</span> Стратег
+            <span style="color:var(--red);font-weight:700;margin-left:8px">●</span> Критик
+            <span style="color:var(--purple);font-weight:700;margin-left:8px">●</span> Драматург
+          </span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Детали матрицы</div>
+        <div id="matrix-detail"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- УРОВНИ -->
+  <div id="tab-levels" class="tab-content" data-print-title="Уровни зрелости">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Распределение по уровням</div>
+        <div id="chart-levels-full"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Уровень по типам</div>
+        <div id="chart-levels-by-type"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Критические профили (уровень 1)</div>
+      <div id="critical-profiles"></div>
+    </div>
+  </div>
+
+  <!-- ОРИЕНТАЦИЯ -->
+  <div id="tab-temporal" class="tab-content" data-print-title="Временная ориентация (ZTPI)">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Командный профиль ZTPI</div>
+        <div id="chart-temporal-full"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Интерпретация командного профиля</div>
+        <div id="temporal-interpretation"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- КОМПЕТЕНЦИИ -->
+  <div id="tab-competencies" class="tab-content" data-print-title="Компетенции">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Радар команды</div>
+        <div class="radar-wrap" id="radar-chart"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Компетенции по типам</div>
+        <div id="comps-by-type"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ЗОНЫ -->
+  <div id="tab-zones" class="tab-content" data-print-title="Зоны анализа — риски, конфликты, ресурсы">
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-title" style="color:var(--red)">⚠️ Зоны риска</div>
+        <div id="zones-risk"></div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--orange)">🔥 Зоны конфликтов</div>
+        <div id="zones-conflict"></div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--green)">💎 Скрытые ресурсы</div>
+        <div id="zones-resource"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Сводная таблица анализа</div>
+      <div id="zones-summary"></div>
+    </div>
+  </div>
+
+  <!-- УЧАСТНИКИ -->
+  <div id="tab-participants" class="tab-content" data-print-title="Участники">
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="padding:16px 20px;display:flex;gap:12px;align-items:center;
+           border-bottom:1px solid var(--cream-d);flex-wrap:wrap">
+        <select id="filter-type" onchange="renderParticipants()"
+          style="padding:7px 10px;border:1px solid var(--cream-d);border-radius:6px;
+          font-size:13px;font-family:inherit">
+          <option value="">Все типы</option>
+          <option value="Аналитик">Аналитик</option>
+          <option value="Стратег">Стратег</option>
+          <option value="Критик">Критик</option>
+          <option value="Драматург">Драматург</option>
+        </select>
+        <select id="filter-level" onchange="renderParticipants()"
+          style="padding:7px 10px;border:1px solid var(--cream-d);border-radius:6px;
+          font-size:13px;font-family:inherit">
+          <option value="">Все уровни</option>
+          <option value="1">Уровень 1</option>
+          <option value="2">Уровень 2</option>
+          <option value="3">Уровень 3</option>
+          <option value="4">Уровень 4</option>
+        </select>
+        <span id="p-count" style="font-size:13px;color:var(--ink-faint);margin-left:auto"></span>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="data-table">
+          <thead><tr>
+            <th>Имя</th><th>Тип</th><th>Уровень</th><th>Ориентация</th>
+            <th>Балл НИ</th><th>Осозн.</th><th>Авторство</th><th>Резонанс</th>
+            <th>Переосм.</th><th>Воплощ.</th>
+          </tr></thead>
+          <tbody id="participants-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-narrative" class="tab-content" data-print-title="Аналитическое заключение">
+    <div class="card" style="max-width:900px;margin:0 auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+        <div class="card-title" style="margin:0">Аналитическое заключение</div>
+        <div class="narrative-toolbar" style="display:flex;gap:8px;align-items:center">
+          <span id="narrative-mode-label" onclick="restoreShortNarrative()"
+            style="font-size:12px;color:var(--ink-faint);cursor:pointer;text-decoration:underline"
+            title="Нажмите, чтобы вернуться к краткому описанию">Краткое описание</span>
+          <button id="ai-narrative-btn" onclick="generateDeepNarrative()"
+            style="padding:6px 14px;background:#fff;color:var(--navy);border:1px solid var(--navy);
+            border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit">
+            🤖 Глубокое описание (AI)
+          </button>
+          <button onclick="downloadNarrativeTxt()"
+            style="padding:6px 14px;background:var(--navy);color:#fff;border:none;
+            border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit">
+            ⬇ Скачать как текст
+          </button>
+          <button onclick="openDashboardKeySettings()" title="Ключ доступа к AI-генерации"
+            style="padding:6px 10px;background:transparent;color:var(--ink-faint);border:1px solid var(--cream-d);
+            border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit">⚙</button>
+        </div>
+      </div>
+      <div id="narrative-ai-status" style="display:none;margin-bottom:12px"></div>
+      <div id="narrative-content" style="font-size:14px;line-height:1.7;color:var(--ink)"></div>
+    </div>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// ДАННЫЕ
+// ═══════════════════════════════════════════════════════════
+let DATA = [];
+let KEYMAP = {};        // код -> {name, email} из ключ-файла фасилитатора
+let LAST_RAW = null;    // последний распарсенный CSV с данными (для повторной сшивки после загрузки ключ-файла)
+
+const TYPE_COLOR = {
+  'Аналитик':'#1E3A5F','Стратег':'#2D6A4F',
+  'Критик':'#C8432A','Драматург':'#5A2D82'
+};
+const TYPE_KEY = {
+  'Аналитик':'A','Стратег':'B','Критик':'C','Драматург':'D'
+};
+const LEVEL_COLOR = ['','#C8432A','#E07B2A','#2D6A4F','#1E3A5F'];
+const COMP_NAMES = ['Осознанности','Авторства','Резонанса','Переосмысления','Воплощения'];
+const COMP_KEYS = ['Осознанности','Авторства','Резонанса','Переосмысления','Воплощения'];
+const ZTPI_NAMES = ['PN','PP','NF','NH','F'];
+const ZTPI_COLORS = ['#C8432A','#2D6A4F','#E07B2A','#5A2D82','#1E3A5F'];
+
+// ═══════════════════════════════════════════════════════════
+// CSV ПАРСЕР
+// ═══════════════════════════════════════════════════════════
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return [];
+
+  // Определяем разделитель по первой строке: считаем запятые и точки с запятой
+  // вне кавычек, берём тот, которого больше. Бэкенд ADIN отдаёт CSV через запятую,
+  // но файлы, пересохранённые через Excel с русской локалью, часто используют ";".
+  function detectDelimiter(line) {
+    let commas = 0, semicolons = 0, inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') inQuotes = !inQuotes;
+      else if (!inQuotes && ch === ',') commas++;
+      else if (!inQuotes && ch === ';') semicolons++;
+    }
+    return semicolons > commas ? ';' : ',';
+  }
+  const delimiter = detectDelimiter(lines[0]);
+
+  // Парсер с учётом кавычек
+  function parseLine(line) {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuotes && line[i+1] === '"') { current += '"'; i++; }
+        else inQuotes = !inQuotes;
+      } else if (ch === delimiter && !inQuotes) {
+        result.push(current.trim()); current = '';
+      } else {
+        current += ch;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  }
+
+  const headers = parseLine(lines[0]);
+  console.log('CSV delimiter:', delimiter, '| headers:', headers);
+
+  return lines.slice(1).map(line => {
+    const vals = parseLine(line);
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = vals[i] || ''; });
+    return obj;
+  // Держим строку, если есть ЛЮБОЕ непустое поле (первая колонка «Имя» в обезличенных
+  // данных пустая — раньше это отсекало все строки; теперь строка проходит по «Код» и др.).
+  }).filter(r => Object.values(r).some(v => v && String(v).trim() !== ''));
+}
+
+function mapRow(row) {
+  // Ищем колонки по возможным названиям
+  const get = (...keys) => {
+    for (const k of keys) {
+      const found = Object.keys(row).find(h => h.toLowerCase().includes(k.toLowerCase()));
+      if (found && row[found]) return row[found];
+    }
+    return '';
+  };
+  const getNum = (...keys) => parseFloat(get(...keys)) || 0;
+  // Точное совпадение (без includes) — нужно для однобуквенных колонок вроде "F",
+  // которые иначе случайно находятся внутри "NF" через обычный поиск по подстроке.
+  const getExact = (...keys) => {
+    for (const k of keys) {
+      const found = Object.keys(row).find(h => h.trim().toLowerCase() === k.toLowerCase());
+      if (found && row[found]) return parseFloat(row[found]) || 0;
+    }
+    return 0;
+  };
+
+  return {
+    name:        get('имя','name'),
+    email:       get('email','mail'),
+    code:        get('код','code'),
+    group:       get('группа','group'),
+    type:        get('название типа','type_name','тип'),
+    typeKey:     get('доминирующий тип','dominant_type','тип key'),
+    level:       getNum('уровень зрелости','maturity_level') ||
+                 parseInt(get('уровень (название)','уровень зрелости')) || 0,
+    levelName:   get('уровень (название)','maturity_level_name','уровень'),
+    temporal:    get('название ориентации','temporal_dominant_name','ориентация'),
+    pn:          getNum('pn','PN'),
+    pp:          getNum('pp','PP'),
+    nf:          getNum('nf','NF'),
+    nh:          getNum('nh','NH'),
+    f:           getExact('f') || getNum('temporal_f'),
+    scoreAnalytic:   getNum('балл аналитик'),
+    scoreStrateg:    getNum('балл стратег'),
+    scoreCritic:     getNum('балл критик'),
+    scoreDramaturg:  getNum('балл драматург'),
+    awareness:   getNum('осознанности','awareness','comp_awareness'),
+    authorship:  getNum('авторства','authorship','comp_authorship'),
+    resonance:   getNum('резонанса','resonance','comp_resonance'),
+    reframing:   getNum('переосмысления','reframing','comp_reframing'),
+    embodiment:  getNum('воплощения','embodiment','comp_embodiment'),
+    score:       getNum('балл ni','overall_score','балл'),
+  };
+}
+
+// ═══════════════════════════════════════════════════════════
+// ФАЙЛ
+// ═══════════════════════════════════════════════════════════
+// Подставляет имя/email из ключ-файла по коду, если в данных их нет (обезличенный CSV)
+function applyName(r) {
+  if ((!r.name && !r.email) && r.code && KEYMAP[r.code]) {
+    r.name  = KEYMAP[r.code].name  || r.name;
+    r.email = KEYMAP[r.code].email || r.email;
+  }
+  // Пока ключ-файл не загружен — показываем код, чтобы отчёт не был пустым
+  if (!r.name && !r.email && r.code) r.name = 'Код ' + r.code;
+  return r;
+}
+
+// Собирает DATA из последнего CSV: маппинг строк + подстановка имён из ключ-файла.
+// Строка проходит, если есть имя, email ИЛИ код (для обезличенных данных без ключ-файла).
+function buildData() {
+  if (!LAST_RAW) return [];
+  return LAST_RAW.map(mapRow).map(applyName).filter(r => r.name || r.email || r.code);
+}
+
+// Загрузка ключ-файла фасилитатора (код ↔ имя). Имена в общую базу не сохраняются —
+// связка живёт только у фасилитатора и подставляется в отчёт локально в браузере.
+function handleKeyfile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const rows = parseCSV(e.target.result);
+    KEYMAP = {};
+    let n = 0;
+    rows.forEach(row => {
+      const find = (...keys) => {
+        for (const k of keys) {
+          const h = Object.keys(row).find(x => x.trim().toLowerCase() === k.toLowerCase());
+          if (h && row[h]) return String(row[h]).trim();
+        }
+        return '';
+      };
+      const code = find('код','code');
+      if (!code) return;
+      KEYMAP[code] = { name: find('имя','name'), email: find('email','mail') };
+      n++;
+    });
+    const st = document.getElementById('keyfile-status');
+    if (st) st.textContent = n ? ('🔑 Ключ-файл: ' + n + ' имён загружено') : '';
+    // Если данные уже загружены — пересобрать и перерисовать с именами
+    if (LAST_RAW && DATA.length) { DATA = buildData(); renderAll(); }
+    alert(n
+      ? ('Ключ-файл загружен: ' + n + ' имён. ' + (LAST_RAW ? 'Имена подставлены в отчёт.' : 'Теперь загрузите CSV с данными группы.'))
+      : 'В ключ-файле не найдена колонка «Код»/«code». Проверьте файл.');
+  };
+  reader.readAsText(file, 'utf-8');
+}
+
+function handleFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    // Определяем кодировку (UTF-8 BOM или Windows-1251)
+    let text = e.target.result;
+    // Попробуем как UTF-8, если нечитаемо — попробуем cp1251
+    LAST_RAW = parseCSV(text);
+    DATA = buildData();
+
+    if (DATA.length === 0) {
+      alert('Не удалось прочитать данные из файла. Проверьте что это CSV из дашборда ADIN.');
+      return;
+    }
+
+    // Проверка: файл должен относиться к одной группе, иначе групповой отчёт будет некорректным
+    const groupValues = [...new Set(DATA.map(r => r.group).filter(g => g))];
+    let groupWarning = '';
+    if (groupValues.length > 1) {
+      groupWarning = `⚠️ В файле обнаружено ${groupValues.length} разных групп (${groupValues.join(', ')}). ` +
+        `Похоже, загружен не групповой CSV, а общий экспорт по нескольким группам — весь отчёт ниже будет ` +
+        `посчитан по смешанным данным. Проверьте, что при выгрузке в разделе «Участники» была выбрана ровно одна группа.`;
+    } else if (groupValues.length === 0) {
+      groupWarning = `⚠️ В файле не найдена колонка группы. Проверьте, что это CSV из раздела «Участники» ` +
+        `с выбранной группой, а не файл другого формата.`;
+    }
+    if (groupWarning) alert(groupWarning);
+
+    document.getElementById('upload-zone').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    document.getElementById('team-name').textContent =
+      DATA[0].group ? 'Группа: ' + DATA[0].group : DATA.length + ' участников';
+
+    // Постоянный баннер — виден, даже если alert() закрыли не читая
+    let banner = document.getElementById('group-warning-banner');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'group-warning-banner';
+      banner.className = 'zone zone-risk';
+      banner.style.margin = '0 0 16px';
+      banner.style.fontWeight = '600';
+      document.getElementById('dashboard').prepend(banner);
+    }
+    banner.style.display = groupWarning ? 'block' : 'none';
+    banner.textContent = groupWarning;
+
+    renderAll();
+  };
+  reader.readAsText(file, 'utf-8');
+}
+
+// ═══════════════════════════════════════════════════════════
+// НАВИГАЦИЯ
+// ═══════════════════════════════════════════════════════════
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    const tabs = ['overview','matrix','levels','temporal','competencies','zones','participants','narrative'];
+    t.classList.toggle('active', tabs[i] === name);
+  });
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+}
+
+// Логотип для печатной шапки (встроен как base64, чтобы файл дашборда
+// оставался самодостаточным — без внешних ссылок на картинки).
+const PRINT_LOGO_ADIN_B64 = 'data:image/jpeg;base64,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';
+const PRINT_LOGO_GTIN_B64 = 'data:image/jpeg;base64,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';
+const PRINT_MOTTO = 'Celui qui ne peut pas changer sa conscience, ne peut rien changer.';
+
+// Вставляет шапку (логотип + девиз) и подвал (копирайт) в начало и конец
+// КАЖДОЙ вкладки отдельно — не через position:fixed (он не везде надёжно
+// повторяется на каждой печатной странице), а как обычный контент в потоке
+// документа. Так шапка/подвал гарантированно печатаются на каждом листе
+// независимо от браузера. Вызывается один раз перед печатью; повторный вызов
+// не дублирует блоки (проверка по классу .print-chrome-injected).
+//
+// Три разных варианта шапки:
+//  - страница «Обзор» (первая): логотип ADIN + девиз в первой строке,
+//    название компании + отметка о конфиденциальности — во второй строке;
+//  - страница «Аналитическое заключение»: логотип GTIN вместо ADIN;
+//  - все остальные страницы: логотип ADIN + название команды + девиз в одну строку.
+function injectPrintChrome() {
+  document.querySelectorAll('.tab-content').forEach(tab => {
+    if (tab.classList.contains('print-chrome-injected')) return;
+    tab.classList.add('print-chrome-injected');
+
+    const isOverview = tab.id === 'tab-overview';
+    const isNarrative = tab.id === 'tab-narrative';
+
+    // Логотип ADIN — только на первой странице (Обзор). Логотип GTIN — только
+    // на странице «Аналитическое заключение». На всех остальных страницах
+    // (Матрица, Уровни, Ориентация, Компетенции, Зоны, Участники) логотипа
+    // и шапки нет вообще — только их обычный заголовок раздела через
+    // data-print-title (см. .tab-content::before в CSS).
+    if (!isOverview && !isNarrative) {
+      const footer = document.createElement('div');
+      footer.className = 'print-footer';
+      footer.textContent = '© ' + new Date().getFullYear() + ' Association de l\'Intelligence Narrative®. Все права защищены. Документ конфиденциален — предназначен только для внутреннего использования заказчиком.';
+      tab.appendChild(footer);
+      return;
+    }
+
+    // --- Строка 1: логотип ---
+    const header = document.createElement('div');
+    header.className = 'print-header';
+    if (isOverview) {
+      // Только на первой странице: логотип ADIN слева, девиз справа
+      header.innerHTML = '<img src="' + PRINT_LOGO_ADIN_B64 + '" alt="ADIN">' +
+        '<div class="print-header-motto">«' + PRINT_MOTTO + '»</div>';
+    } else {
+      // Только на странице заключения: логотип GTIN, больше ничего в этой строке
+      header.innerHTML = '<img src="' + PRINT_LOGO_GTIN_B64 + '" alt="GTIN">';
+    }
+    tab.insertBefore(header, tab.firstChild);
+    let lastInserted = header;
+
+    // --- Линия — на обложке и на странице заключения ---
+    const hr = document.createElement('hr');
+    hr.className = 'print-hr';
+    tab.insertBefore(hr, lastInserted.nextSibling);
+    lastInserted = hr;
+
+    // --- Строка 2: под линией ---
+    if (isOverview) {
+      const teamLabel = (DATA && DATA[0] && DATA[0].group) ? DATA[0].group : '';
+      const subheader = document.createElement('div');
+      subheader.className = 'print-subheader';
+      subheader.innerHTML =
+        (teamLabel ? '<div class="print-subheader-company">' + teamLabel + '</div>' : '') +
+        '<div class="print-subheader-note">Документ конфиденциален — предназначен только для внутреннего использования заказчиком</div>';
+      tab.insertBefore(subheader, lastInserted.nextSibling);
+      lastInserted = subheader;
+
+      const title = document.createElement('div');
+      title.className = 'print-section-title';
+      title.textContent = tab.getAttribute('data-print-title') || '';
+      tab.insertBefore(title, lastInserted.nextSibling);
+    } else {
+      const title = document.createElement('div');
+      title.className = 'print-section-title';
+      title.textContent = tab.getAttribute('data-print-title') || '';
+      tab.insertBefore(title, lastInserted.nextSibling);
+    }
+
+    // --- Подвал — на каждой странице без исключения ---
+    const footer = document.createElement('div');
+    footer.className = 'print-footer';
+    footer.textContent = '© ' + new Date().getFullYear() + ' Association de l\'Intelligence Narrative®. Все права защищены. Документ конфиденциален — предназначен только для внутреннего использования заказчиком.';
+    tab.appendChild(footer);
+  });
+}
+
+// Печать всех вкладок как единый PDF-отчёт. Перед вызовом системного диалога
+// печати вставляем шапку/подвал на каждую страницу (см. injectPrintChrome).
+function printReport() {
+  injectPrintChrome();
+  window.print();
+}
+
+// ═══════════════════════════════════════════════════════════
+// УТИЛИТЫ
+// ═══════════════════════════════════════════════════════════
+function avg(arr, key) {
+  const vals = arr.map(r => r[key]).filter(v => v > 0);
+  return vals.length ? vals.reduce((a,b) => a+b, 0) / vals.length : 0;
+}
+
+function countBy(arr, key) {
+  const map = {};
+  arr.forEach(r => { const v = r[key]||'—'; map[v] = (map[v]||0)+1; });
+  return map;
+}
+
+function barChart(container, items, maxVal=null) {
+  const max = maxVal || Math.max(...items.map(i => i.val), 1);
+  container.innerHTML = items.map(item => `
+    <div class="bar-row">
+      <div class="bar-label">${item.label}</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${Math.round(item.val/max*100)}%;
+          background:${item.color||'var(--navy-mid)'}">
+          ${item.val > max*0.15 ? (Number.isInteger(item.val)?item.val:item.val.toFixed(1)) : ''}
+        </div>
+      </div>
+      <div class="bar-count">${item.suffix||item.val}</div>
+    </div>
+  `).join('');
+}
+
+function tooltip(el, text) {
+  const t = document.getElementById('tooltip');
+  el.addEventListener('mousemove', e => {
+    t.style.opacity = '1';
+    t.style.left = (e.clientX+14)+'px';
+    t.style.top = (e.clientY-10)+'px';
+    t.innerHTML = text;
+  });
+  el.addEventListener('mouseleave', () => t.style.opacity = '0');
+}
+
+// ═══════════════════════════════════════════════════════════
+// РЕНДЕР
+// ═══════════════════════════════════════════════════════════
+function renderAll() {
+  renderOverview();
+  renderMatrix();
+  renderLevels();
+  renderTemporal();
+  renderCompetencies();
+  renderZones();
+  renderParticipants();
+  renderNarrative();
+}
+
+// ── ОБЗОР ──────────────────────────────────────────────────
+function renderOverview() {
+  const n = DATA.length;
+  const avgScore = avg(DATA, 'score').toFixed(1);
+  const avgLevel = avg(DATA, 'level').toFixed(1);
+  const types = countBy(DATA, 'type');
+  const topType = Object.entries(types).sort((a,b)=>b[1]-a[1])[0]||['—',0];
+  const pct1 = Math.round((DATA.filter(r=>r.level===1).length/n)*100);
+
+  document.getElementById('metrics-overview').innerHTML = [
+    {v:n, l:'Участников', s:'в команде'},
+    {v:avgScore, l:'Средний балл НИ', s:'из 100'},
+    {v:avgLevel, l:'Средний уровень', s:'зрелости'},
+    {v:topType[0], l:'Доминирующий тип', s:topType[1]+' чел. ('+Math.round(topType[1]/n*100)+'%)'},
+    {v:pct1+'%', l:'На уровне 1', s:'зона риска'},
+  ].map(m=>`
+    <div class="metric">
+      <div class="metric-val" style="color:var(--navy)">${m.v}</div>
+      <div class="metric-lbl">${m.l}</div>
+      <div class="metric-sub">${m.s}</div>
+    </div>`).join('');
+
+  // Типы
+  const typeItems = Object.entries(types).sort((a,b)=>b[1]-a[1]).map(([k,v])=>({
+    label:k, val:v, color:TYPE_COLOR[k]||'#888',
+    suffix: v+' ('+Math.round(v/n*100)+'%)'
+  }));
+  barChart(document.getElementById('chart-types'), typeItems, n);
+
+  // Уровни
+  const lvls = {1:0,2:0,3:0,4:0};
+  DATA.forEach(r => { if(r.level>=1&&r.level<=4) lvls[r.level]++; });
+  barChart(document.getElementById('chart-levels-mini'), [
+    {label:'1 — Пассивный', val:lvls[1], color:'#C8432A', suffix:lvls[1]+' чел.'},
+    {label:'2 — Осознанный', val:lvls[2], color:'#E07B2A', suffix:lvls[2]+' чел.'},
+    {label:'3 — Активный',   val:lvls[3], color:'#2D6A4F', suffix:lvls[3]+' чел.'},
+    {label:'4 — Системный',  val:lvls[4], color:'#1E3A5F', suffix:lvls[4]+' чел.'},
+  ], n);
+
+  // Компетенции
+  barChart(document.getElementById('chart-comps-mini'), [
+    {label:'Осознанности',   val:Math.round(avg(DATA,'awareness')),   color:'#1E3A5F', suffix:Math.round(avg(DATA,'awareness'))+'%'},
+    {label:'Авторства',      val:Math.round(avg(DATA,'authorship')),  color:'#2D6A4F', suffix:Math.round(avg(DATA,'authorship'))+'%'},
+    {label:'Резонанса',      val:Math.round(avg(DATA,'resonance')),   color:'#5A2D82', suffix:Math.round(avg(DATA,'resonance'))+'%'},
+    {label:'Переосмысления', val:Math.round(avg(DATA,'reframing')),   color:'#E07B2A', suffix:Math.round(avg(DATA,'reframing'))+'%'},
+    {label:'Воплощения',     val:Math.round(avg(DATA,'embodiment')),  color:'#C8432A', suffix:Math.round(avg(DATA,'embodiment'))+'%'},
+  ], 100);
+
+  // Временная ориентация
+  barChart(document.getElementById('chart-temporal-mini'), [
+    {label:'Прошлое-негат. (PN)', val:parseFloat(avg(DATA,'pn').toFixed(1)), color:'#C8432A'},
+    {label:'Прошлое-позит. (PP)', val:parseFloat(avg(DATA,'pp').toFixed(1)), color:'#2D6A4F'},
+    {label:'Настоящ.-фатал. (NF)',val:parseFloat(avg(DATA,'nf').toFixed(1)), color:'#E07B2A'},
+    {label:'Настоящ.-гедон. (NH)',val:parseFloat(avg(DATA,'nh').toFixed(1)), color:'#5A2D82'},
+    {label:'Будущее (F)',         val:parseFloat(avg(DATA,'f').toFixed(1)),  color:'#1E3A5F'},
+  ], 15);
+}
+
+// ── МАТРИЦА ────────────────────────────────────────────────
+function renderMatrix() {
+  // Позиции квадрантов по канонической модели (книга «Четыре способа быть человеком»):
+  // Ось X (qx, left%): способ работы — аналитический (лево, мало) ↔ синтетический (право, много)
+  // Ось Y (qy, top%): ориентация нарратива — внутренняя (верх, мало) ↔ внешняя (низ, много)
+  // Аналитик = внутренняя+аналитический; Критик = внешняя+аналитический;
+  // Драматург = внутренняя+синтетический; Стратег = внешняя+синтетический
+  const POSITIONS = {
+    'Аналитик': {qx:0.25, qy:0.25},
+    'Драматург':{qx:0.75, qy:0.25},
+    'Критик':   {qx:0.25, qy:0.75},
+    'Стратег':  {qx:0.75, qy:0.75},
+  };
+
+  // Непрерывное положение по реальным баллам участника (не фиксированная точка типа).
+  // X = доля «синтетических» архетипов (Стратег+Драматург) от суммы всех четырёх баллов.
+  // Y = доля «внешних» архетипов (Критик+Стратег) от суммы всех четырёх баллов.
+  // Если сырых баллов по архетипам нет в CSV (старый экспорт) — используется
+  // прежняя фиксированная точка по доминирующему типу, чтобы не ломать совместимость.
+  function continuousPos(r) {
+    const total = (r.scoreAnalytic||0) + (r.scoreStrateg||0) + (r.scoreCritic||0) + (r.scoreDramaturg||0);
+    if (total <= 0) {
+      const fallback = POSITIONS[r.type] || {qx:.5, qy:.5};
+      return fallback;
+    }
+    const x = ((r.scoreStrateg||0) + (r.scoreDramaturg||0)) / total;
+    const y = ((r.scoreCritic||0)  + (r.scoreStrateg||0))  / total;
+    return {qx: x, qy: y};
+  }
+  const hasContinuousData = DATA.some(r => (r.scoreAnalytic||0)+(r.scoreStrateg||0)+(r.scoreCritic||0)+(r.scoreDramaturg||0) > 0);
+
+  // Группируем по типу (для цвета точек и сводки под матрицей)
+  const byType = {};
+  DATA.forEach(r => {
+    if (!r.type) return;
+    if (!byType[r.type]) byType[r.type] = [];
+    byType[r.type].push(r);
+  });
+
+  const matrix = document.getElementById('matrix-chart');
+  // position НЕ трогаем — в разметке уже задано position:absolute;inset:0,
+  // и это единственный способ, которым контейнер получает реальную высоту от
+  // родительской обёртки. Если поставить position:relative поверх, inset:0
+  // перестаёт растягивать бокс (для relative он не задаёт размер), высота
+  // схлопывается в 0, и все точки внутри становятся невидимыми из-за overflow:hidden.
+  matrix.style.background = '#fff';
+  matrix.style.border = '2px solid var(--cream-d)';
+  matrix.style.borderRadius = '12px';
+  matrix.style.overflow = 'hidden';
+
+  let html = `
+    <div style="position:absolute;top:50%;left:0;right:0;height:1px;background:var(--cream-d)"></div>
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--cream-d)"></div>
+    <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
+      font-size:10px;color:var(--ink-faint);font-weight:600;letter-spacing:.06em;text-transform:uppercase">
+      ← Аналитическое · Синтетическое →</div>
+    <div style="position:absolute;left:8px;top:50%;transform:translateY(-50%) rotate(-90deg);
+      font-size:10px;color:var(--ink-faint);font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+      white-space:nowrap">Внутреннее ↑ · Внешнее ↓</div>
+    <div class="matrix-watermark" style="position:absolute;top:16px;left:16px;font-size:16px;opacity:.06;font-weight:900">АНАЛИТИК</div>
+    <div class="matrix-watermark" style="position:absolute;top:16px;right:16px;font-size:16px;opacity:.06;font-weight:900;text-align:right">ДРАМАТУРГ</div>
+    <div class="matrix-watermark" style="position:absolute;bottom:28px;left:16px;font-size:16px;opacity:.06;font-weight:900">КРИТИК</div>
+    <div class="matrix-watermark" style="position:absolute;bottom:28px;right:16px;font-size:16px;opacity:.06;font-weight:900;text-align:right">СТРАТЕГ</div>
+    ${!hasContinuousData ? `<div style="position:absolute;top:8px;right:8px;background:#FFF8E1;color:#7B5800;
+      font-size:10px;padding:4px 8px;border-radius:6px;font-weight:600">
+      ⚠ нет сырых баллов по архетипам в файле — показаны точки по типу, не по человеку</div>` : ''}
+  `;
+
+  DATA.forEach(r => {
+    if (!r.type) return;
+    const pos = continuousPos(r);
+    const color = TYPE_COLOR[r.type] || '#888';
+    const x = pos.qx * 100;
+    const y = pos.qy * 100;
+
+    html += `<div class="matrix-dot" style="
+      left:${x}%;top:${y}%;
+      background:${color};width:28px;height:28px;font-size:10px"
+      data-tip="${r.name||r.email}<br>Тип: ${r.type}<br>Уровень: ${r.level}<br>Балл: ${r.score}${
+        hasContinuousData ? `<br>А:${r.scoreAnalytic||0}% С:${r.scoreStrateg||0}% К:${r.scoreCritic||0}% Д:${r.scoreDramaturg||0}%` : ''
+      }">
+      ${r.level||'?'}
+    </div>`;
+  });
+
+  matrix.innerHTML = html;
+
+  // Тултипы
+  matrix.querySelectorAll('.matrix-dot').forEach(dot => {
+    tooltip(dot, dot.getAttribute('data-tip'));
+  });
+
+  // Детали матрицы (сводка по доминирующему типу — без изменений)
+  const detail = document.getElementById('matrix-detail');
+  detail.innerHTML = Object.entries(POSITIONS).map(([type]) => {
+    const members = byType[type] || [];
+    const n = DATA.length;
+    const pct = members.length ? Math.round(members.length/n*100) : 0;
+    const color = TYPE_COLOR[type]||'#888';
+    const avgLvl = members.length ? avg(members,'level').toFixed(1) : '—';
+    const avgSc = members.length ? avg(members,'score').toFixed(0) : '—';
+    return `
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 0;
+           border-bottom:1px solid var(--cream-d)">
+        <div style="width:40px;height:40px;border-radius:50%;background:${color};
+          display:flex;align-items:center;justify-content:center;
+          font-size:16px;font-weight:700;color:#fff;flex-shrink:0">${members.length}</div>
+        <div style="flex:1">
+          <div style="font-weight:600;color:${color}">${type}</div>
+          <div style="font-size:12px;color:var(--ink-faint)">${pct}% команды
+            · Ср. уровень: ${avgLvl} · Ср. балл: ${avgSc}</div>
+        </div>
+        <div style="width:60px">
+          <div style="height:6px;background:var(--cream);border-radius:3px">
+            <div style="height:100%;border-radius:3px;background:${color};
+              width:${pct}%"></div>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── УРОВНИ ─────────────────────────────────────────────────
+function renderLevels() {
+  const lvls = {1:0,2:0,3:0,4:0};
+  DATA.forEach(r => { if(r.level>=1&&r.level<=4) lvls[r.level]++; });
+
+  barChart(document.getElementById('chart-levels-full'), [
+    {label:'1 — Пассивный',  val:lvls[1], color:'#C8432A', suffix:lvls[1]+' чел.'},
+    {label:'2 — Осознанный', val:lvls[2], color:'#E07B2A', suffix:lvls[2]+' чел.'},
+    {label:'3 — Активный',   val:lvls[3], color:'#2D6A4F', suffix:lvls[3]+' чел.'},
+    {label:'4 — Системный',  val:lvls[4], color:'#1E3A5F', suffix:lvls[4]+' чел.'},
+  ], DATA.length);
+
+  // Уровни по типам
+  const byType = {};
+  DATA.forEach(r => {
+    if (!r.type) return;
+    if (!byType[r.type]) byType[r.type] = [];
+    byType[r.type].push(r);
+  });
+
+  document.getElementById('chart-levels-by-type').innerHTML =
+    Object.entries(byType).map(([type, members]) => {
+      const color = TYPE_COLOR[type]||'#888';
+      const avgLvl = avg(members,'level');
+      const lvlCounts = {1:0,2:0,3:0,4:0};
+      members.forEach(r => { if(r.level>=1&&r.level<=4) lvlCounts[r.level]++; });
+      return `
+        <div style="margin-bottom:16px">
+          <div style="font-weight:600;color:${color};margin-bottom:6px;font-size:14px">
+            ${type} (${members.length} чел. · ср. уровень ${avgLvl.toFixed(1)})
+          </div>
+          <div style="display:flex;gap:4px;height:20px">
+            ${[1,2,3,4].map(l => {
+              const w = members.length ? Math.round(lvlCounts[l]/members.length*100) : 0;
+              const c = LEVEL_COLOR[l];
+              return w > 0 ? `<div style="width:${w}%;background:${c};border-radius:3px;
+                display:flex;align-items:center;justify-content:center;
+                font-size:10px;font-weight:700;color:#fff">${w>10?w+'%':''}</div>` : '';
+            }).join('')}
+          </div>
+          <div style="font-size:11px;color:var(--ink-faint);margin-top:4px">
+            ${[1,2,3,4].filter(l=>lvlCounts[l]>0).map(l=>`Ур.${l}: ${lvlCounts[l]}`).join(' · ')}
+          </div>
+        </div>`;
+    }).join('');
+
+  // Критические профили
+  const critical = DATA.filter(r => r.level === 1).sort((a,b) => a.score - b.score);
+  const cp = document.getElementById('critical-profiles');
+  if (critical.length === 0) {
+    cp.innerHTML = '<p style="color:var(--green);font-size:14px">✅ Нет участников на уровне 1 — отличный результат!</p>';
+  } else {
+    cp.innerHTML = `<p style="font-size:13px;color:var(--ink-faint);margin-bottom:12px">
+      ${critical.length} участников на уровне 1 (Пассивный) — приоритет работы:</p>
+      <table class="data-table">
+        <thead><tr><th>Имя</th><th>Тип</th><th>Балл НИ</th><th>Ориентация</th><th>Приоритет</th></tr></thead>
+        <tbody>${critical.map(r => `<tr>
+          <td><strong>${r.name||r.email}</strong></td>
+          <td><span class="badge badge-${TYPE_KEY[r.type]||'A'}">${r.type}</span></td>
+          <td>${r.score}</td>
+          <td>${r.temporal||'—'}</td>
+          <td><span class="badge badge-1">${r.type==='Критик'?'КРИТИЧЕСКИЙ':'ВЫСОКИЙ'}</span></td>
+        </tr>`).join('')}</tbody>
+      </table>`;
+  }
+}
+
+// ── ОРИЕНТАЦИЯ ─────────────────────────────────────────────
+function renderTemporal() {
+  const avgPN = avg(DATA,'pn');
+  const avgPP = avg(DATA,'pp');
+  const avgNF = avg(DATA,'nf');
+  const avgNH = avg(DATA,'nh');
+  const avgF  = avg(DATA,'f');
+
+  barChart(document.getElementById('chart-temporal-full'), [
+    {label:'Прошлое-негат. (PN)', val:parseFloat(avgPN.toFixed(1)), color:'#C8432A', suffix:avgPN.toFixed(1)+'/15'},
+    {label:'Прошлое-позит. (PP)', val:parseFloat(avgPP.toFixed(1)), color:'#2D6A4F', suffix:avgPP.toFixed(1)+'/15'},
+    {label:'Настоящ.-фатал. (NF)',val:parseFloat(avgNF.toFixed(1)), color:'#E07B2A', suffix:avgNF.toFixed(1)+'/15'},
+    {label:'Настоящ.-гедон. (NH)',val:parseFloat(avgNH.toFixed(1)), color:'#5A2D82', suffix:avgNH.toFixed(1)+'/15'},
+    {label:'Будущее (F)',         val:parseFloat(avgF.toFixed(1)),  color:'#1E3A5F', suffix:avgF.toFixed(1)+'/15'},
+  ], 15);
+
+  // Интерпретация
+  const interp = [];
+  if (avgPN > 10) interp.push({level:'КРИТИЧНО', color:'#C8432A',
+    text:`Высокий командный PN (${avgPN.toFixed(1)}/15): команда интерпретирует настоящее через прошлые неудачи. Изменения воспринимаются как угроза.`});
+  else if (avgPN > 7) interp.push({level:'ВНИМАНИЕ', color:'#E07B2A',
+    text:`Умеренный PN (${avgPN.toFixed(1)}/15): часть команды несёт груз прошлого опыта.`});
+
+  if (avgF < 6) interp.push({level:'РИСК', color:'#C8432A',
+    text:`Низкое Будущее (${avgF.toFixed(1)}/15): команда слабо ориентирована на цели и изменения.`});
+  else if (avgF > 11) interp.push({level:'ВНИМАНИЕ', color:'#E07B2A',
+    text:`Высокое Будущее (${avgF.toFixed(1)}/15): риск игнорирования текущих проблем и выгорания.`});
+
+  if (avgPN > 9 && avgF < 7) interp.push({level:'КРИТИЧНО', color:'#C8432A',
+    text:'Команда застряла в прошлом и не видит будущего. Стратегические инициативы встретят сильное сопротивление.'});
+
+  if (avgNF > 9) interp.push({level:'РИСК', color:'#E07B2A',
+    text:`Высокое NF (${avgNF.toFixed(1)}/15): значительная часть команды чувствует себя жертвой обстоятельств.`});
+
+  if (avgPP > 10 && avgF > 9) interp.push({level:'РЕСУРС', color:'#2D6A4F',
+    text:'Высокий PP + высокое F: команда опирается на позитивный опыт и ориентирована на будущее — оптимальный профиль.'});
+
+  if (interp.length === 0) interp.push({level:'НОРМА', color:'#2D6A4F',
+    text:'Профиль временной ориентации сбалансирован.'});
+
+  document.getElementById('temporal-interpretation').innerHTML =
+    interp.map(i => `
+      <div style="padding:14px;border-radius:8px;margin-bottom:10px;
+           border-left:4px solid ${i.color};background:${i.color}15">
+        <div style="font-size:11px;font-weight:700;color:${i.color};
+          letter-spacing:.08em;margin-bottom:6px">${i.level}</div>
+        <div style="font-size:13px;color:var(--ink-soft)">${i.text}</div>
+      </div>`).join('');
+}
+
+// ── КОМПЕТЕНЦИИ ────────────────────────────────────────────
+function renderCompetencies() {
+  const comps = {
+    awareness:  avg(DATA,'awareness'),
+    authorship: avg(DATA,'authorship'),
+    resonance:  avg(DATA,'resonance'),
+    reframing:  avg(DATA,'reframing'),
+    embodiment: avg(DATA,'embodiment'),
+  };
+  const vals = [comps.awareness, comps.authorship, comps.resonance,
+                comps.reframing, comps.embodiment];
+  const labels = ['Осознанности','Авторства','Резонанса','Переосмысления','Воплощения'];
+
+  // SVG радар
+  const R = 110, cx = 130, cy = 130;
+  const n = 5;
+  const pts = labels.map((_, i) => {
+    const angle = (i / n) * 2 * Math.PI - Math.PI/2;
+    const r = (vals[i] / 100) * R;
+    return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+  });
+  const gridPts = level => labels.map((_, i) => {
+    const angle = (i / n) * 2 * Math.PI - Math.PI/2;
+    const r = (level / 100) * R;
+    return `${cx + r * Math.cos(angle)},${cy + r * Math.sin(angle)}`;
+  }).join(' ');
+
+  const axesPts = labels.map((lb, i) => {
+    const angle = (i / n) * 2 * Math.PI - Math.PI/2;
+    const lx = cx + (R+24) * Math.cos(angle);
+    const ly = cy + (R+24) * Math.sin(angle);
+    return { x: cx + R * Math.cos(angle), y: cy + R * Math.sin(angle), lx, ly, lb, val: vals[i] };
+  });
+
+  document.getElementById('radar-chart').innerHTML = `
+    <svg width="260" height="260" class="radar">
+      ${[20,40,60,80,100].map(l => `
+        <polygon points="${gridPts(l)}"
+          fill="none" stroke="var(--cream-d)" stroke-width="1"/>
+        <text x="${cx}" y="${cy-(l/100)*R-4}" font-size="9"
+          fill="var(--ink-faint)" text-anchor="middle">${l}%</text>
+      `).join('')}
+      ${axesPts.map(a => `<line x1="${cx}" y1="${cy}" x2="${a.x}" y2="${a.y}"
+        stroke="var(--cream-d)" stroke-width="1"/>`).join('')}
+      <polygon points="${pts.map(p=>p.x+','+p.y).join(' ')}"
+        fill="rgba(30,58,95,.15)" stroke="var(--navy)" stroke-width="2"/>
+      ${pts.map((p,i) => `<circle cx="${p.x}" cy="${p.y}" r="4"
+        fill="var(--navy)" stroke="#fff" stroke-width="2"/>`).join('')}
+      ${axesPts.map(a => `<text x="${a.lx}" y="${a.ly}" font-size="11"
+        fill="var(--ink-soft)" text-anchor="middle" dominant-baseline="middle">
+        ${a.lb}<tspan x="${a.lx}" dy="13" font-weight="700" fill="var(--navy)">
+          ${a.val.toFixed(0)}%</tspan></text>`).join('')}
+    </svg>`;
+
+  // По типам
+  const byType = {};
+  DATA.forEach(r => {
+    if (!r.type) return;
+    if (!byType[r.type]) byType[r.type] = [];
+    byType[r.type].push(r);
+  });
+
+  document.getElementById('comps-by-type').innerHTML =
+    Object.entries(byType).map(([type, members]) => {
+      const color = TYPE_COLOR[type]||'#888';
+      const keys = ['awareness','authorship','resonance','reframing','embodiment'];
+      const names = ['Осозн.','Автор.','Резон.','Переосм.','Воплощ.'];
+      return `
+        <div style="margin-bottom:16px">
+          <div style="font-weight:600;color:${color};margin-bottom:8px">${type}</div>
+          ${keys.map((k,i) => {
+            const v = Math.round(avg(members,k));
+            const c = v>=70?'#2D6A4F':v>=50?'#E07B2A':'#C8432A';
+            return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <div style="width:70px;font-size:12px;color:var(--ink-faint)">${names[i]}</div>
+              <div style="flex:1;height:14px;background:var(--cream);border-radius:3px;overflow:hidden">
+                <div style="height:100%;width:${v}%;background:${c};border-radius:3px"></div>
+              </div>
+              <div style="font-size:12px;font-weight:600;color:${c};width:32px">${v}%</div>
+            </div>`;
+          }).join('')}
+        </div>`;
+    }).join('');
+}
+
+// ── ЗОНЫ ───────────────────────────────────────────────────
+// ── ЗОНЫ: ОБЩИЕ ВЫЧИСЛЕНИЯ (используются и графиком, и текстовым отчётом) ──
+function computeZones() {
+  const n = DATA.length;
+  const types = countBy(DATA, 'type');
+  const lvls = {1:0,2:0,3:0,4:0};
+  DATA.forEach(r => { if(r.level>=1&&r.level<=4) lvls[r.level]++; });
+  const avgPN = avg(DATA,'pn');
+  const avgPP = avg(DATA,'pp');
+  const avgF  = avg(DATA,'f');
+  const avgAwareness = avg(DATA,'awareness');
+  const avgAuthorship = avg(DATA,'authorship');
+  const avgResonance = avg(DATA,'resonance');
+
+  const pct1 = lvls[1]/n*100;
+  const dominantType = Object.entries(types).sort((a,b)=>b[1]-a[1])[0]||['—',0];
+  const dominantPct = dominantType[1]/n*100;
+  const missingTypes = ['Аналитик','Стратег','Критик','Драматург'].filter(t=>!types[t]);
+
+  // РИСКИ
+  const risks = [];
+  if (pct1 > 40) risks.push(`<b>Культурный риск (критический):</b> ${Math.round(pct1)}% команды на уровне 1 — автоматические реакции определяют культуру`);
+  if (dominantPct > 60) risks.push(`<b>Нарративная монокультура:</b> ${dominantType[0]} составляет ${Math.round(dominantPct)}% — системная слепота к другим способам интерпретации`);
+  if (avgPN > 10) risks.push(`<b>Высокий командный PN (${avgPN.toFixed(1)}/15):</b> прошлые неудачи управляют текущими решениями`);
+  if (avgPN > 9 && avgF < 7) risks.push(`<b>Временна́я ловушка:</b> высокий PN + низкое F — команда застряла в прошлом без образа будущего`);
+  if (missingTypes.length > 0) risks.push(`<b>Слепые зоны:</b> типы ${missingTypes.join(', ')} отсутствуют — эти способы интерпретации системно выключены`);
+  if (avgAuthorship < 35) risks.push(`<b>Низкое Авторство (${avgAuthorship.toFixed(0)}%):</b> команда не чувствует возможности влиять — изменения встретят пассивное сопротивление`);
+  if (risks.length === 0) risks.push('✅ Явных зон риска не выявлено');
+
+  // КОНФЛИКТЫ
+  const DYSFUNCTION_INFO = {
+    'Критик':    { risk: '«тотальный негатив» — любое предложение встречает возражение без альтернативы', healthy: 'называет несоответствие точно и сразу предлагает проверочную альтернативу' },
+    'Драматург': { risk: '«смысл без воплощения» — инсайты копятся, поведение не меняется', healthy: 'переводит смысл в конкретное действие в тот же день' },
+    'Стратег':   { risk: '«движение без смысла» — активность без ответа на «ради чего»', healthy: 'действует быстро и может сформулировать цель движения' },
+    'Аналитик':  { risk: '«паралич анализа» — разбор бесконечно ветвится, до действия не доходит', healthy: 'останавливается на «уже достаточно понял» и делает шаг' },
+  };
+  const conflicts = [];
+  const criticCount = (types['Критик']||0);
+  const dramaturgCount = (types['Драматург']||0);
+  const strategCount = (types['Стратег']||0);
+  const analyticCount = (types['Аналитик']||0);
+  const criticsLvl1 = DATA.filter(r=>r.type==='Критик'&&r.level===1);
+  const dramaturgLvl1 = DATA.filter(r=>r.type==='Драматург'&&r.level===1);
+  const criticsHealthy = DATA.filter(r=>r.type==='Критик'&&r.level>=3);
+  const dramaturgHealthy = DATA.filter(r=>r.type==='Драматург'&&r.level>=3);
+  const strategLvl1 = DATA.filter(r=>r.type==='Стратег'&&r.level===1);
+  const strategHealthy = DATA.filter(r=>r.type==='Стратег'&&r.level>=3);
+  const analyticHealthy = DATA.filter(r=>r.type==='Аналитик'&&r.level>=3);
+
+  if (criticsLvl1.length > 0 && dramaturgLvl1.length > 0)
+    conflicts.push(`<b>Критик (ур.1) + Драматург (ур.1):</b> конфликт «правда vs гармония» — ${criticsLvl1.length} на ${dramaturgLvl1.length} чел. ` +
+      `Оба признака дисфункции: Критик — ${DYSFUNCTION_INFO['Критик'].risk}; Драматург — ${DYSFUNCTION_INFO['Драматург'].risk}.`);
+  if (criticCount >= 2 && dominantType[0]==='Критик')
+    conflicts.push(`<b>Несколько Критиков:</b> конкурирующие нарративы «правильного» — может создавать атмосферу взаимной критики`);
+  if (strategCount > 0 && analyticCount > 0 && strategLvl1.length > 0)
+    conflicts.push(`<b>Стратег (ур.1) + Аналитик:</b> конфликт скорости и качества — Стратег давит на действие, Аналитик тормозит. ` +
+      `Признак дисфункции Стратега: ${DYSFUNCTION_INFO['Стратег'].risk}.`);
+  if (avgPN > 8 && avgAuthorship < 40)
+    conflicts.push(`<b>Высокий PN + низкое Авторство:</b> взаимное усиление пассивности — люди жалуются друг другу не меняясь`);
+  if (conflicts.length === 0) conflicts.push('✅ Острых нарративных конфликтов не выявлено');
+
+  // РЕСУРСЫ
+  const resources = [];
+  const lvl34 = DATA.filter(r=>r.level>=3);
+  if (lvl34.length > 0)
+    resources.push(`<b>Зрелые участники (ур.3–4):</b> ${lvl34.map(r=>r.name||r.email).join(', ')} — потенциальные мультипликаторы развития`);
+  const highComp = ['awareness','authorship','resonance','reframing','embodiment']
+    .map((k,i) => ({name:COMP_NAMES[i], val:avg(DATA,k)}))
+    .filter(c => c.val > 60);
+  if (highComp.length > 0)
+    resources.push(`<b>Сильные компетенции:</b> ${highComp.map(c=>c.name+' '+c.val.toFixed(0)+'%').join(', ')} — точка входа в программу развития`);
+  if (avgPP > 9) resources.push(`<b>Высокий PP (${avgPP.toFixed(1)}/15):</b> позитивный прошлый опыт — используйте как «якоря успеха» при запуске изменений`);
+  const underrep = Object.entries(types).filter(([t,c]) => c===1).map(([t]) => t);
+  if (underrep.length > 0)
+    resources.push(`<b>Редкие типы (1 чел.):</b> ${underrep.join(', ')} — недоиспользованный ресурс, нужно создать пространство для их голоса`);
+  if (criticsHealthy.length > 0 && (dramaturgCount > 0))
+    resources.push(`<b>Здоровый режим в паре Критик+Драматург:</b> ${criticsHealthy.map(r=>r.name||r.email).join(', ')} ` +
+      `— ${DYSFUNCTION_INFO['Критик'].healthy}; использовать как медиатора именно в этой напряжённой паре`);
+  if (dramaturgHealthy.length > 0 && (criticCount > 0))
+    resources.push(`<b>Здоровый режим в паре Критик+Драматург:</b> ${dramaturgHealthy.map(r=>r.name||r.email).join(', ')} ` +
+      `— ${DYSFUNCTION_INFO['Драматург'].healthy}; использовать как медиатора именно в этой напряжённой паре`);
+  if (strategHealthy.length > 0 && (analyticCount > 0))
+    resources.push(`<b>Здоровый режим в паре Стратег+Аналитик:</b> ${strategHealthy.map(r=>r.name||r.email).join(', ')} ` +
+      `— ${DYSFUNCTION_INFO['Стратег'].healthy}; использовать как медиатора именно в этой напряжённой паре`);
+  if (analyticHealthy.length > 0 && (strategCount > 0))
+    resources.push(`<b>Здоровый режим в паре Стратег+Аналитик:</b> ${analyticHealthy.map(r=>r.name||r.email).join(', ')} ` +
+      `— ${DYSFUNCTION_INFO['Аналитик'].healthy}; использовать как медиатора именно в этой напряжённой паре`);
+  if (resources.length === 0) resources.push('Анализируется — недостаточно данных');
+
+  return { n, types, lvls, avgPN, avgPP, avgF, avgAwareness, avgAuthorship, avgResonance,
+    pct1, dominantType, dominantPct, missingTypes, risks, conflicts, resources };
+}
+
+// ── ЗОНЫ: ОТРИСОВКА ГРАФИКА (использует те же данные, что и текстовый отчёт) ──
+function renderZones() {
+  const z = computeZones();
+  const { pct1, dominantType, dominantPct, avgPN, avgF, avgAuthorship, avgResonance, missingTypes,
+          risks, conflicts, resources } = z;
+
+  document.getElementById('zones-risk').innerHTML =
+    risks.map(r => `<div class="zone zone-risk"><div class="zone-items">${r}</div></div>`).join('');
+  document.getElementById('zones-conflict').innerHTML =
+    conflicts.map(c => `<div class="zone zone-conflict"><div class="zone-items">${c}</div></div>`).join('');
+  document.getElementById('zones-resource').innerHTML =
+    resources.map(r => `<div class="zone zone-resource"><div class="zone-items">${r}</div></div>`).join('');
+
+  document.getElementById('zones-summary').innerHTML = `
+    <table class="data-table">
+      <thead><tr><th>Показатель</th><th>Значение</th><th>Норма</th><th>Статус</th></tr></thead>
+      <tbody>
+        ${[
+          ['Доля уровня 1',Math.round(pct1)+'%','<30%', pct1>40?'КРИТИЧНО':pct1>30?'ВНИМАНИЕ':'НОРМА', pct1>40?'badge-1':pct1>30?'badge-2':'badge-3'],
+          ['Доминирующий тип',dominantType[0]+' '+Math.round(dominantPct)+'%','<50%', dominantPct>60?'РИСК':dominantPct>50?'ВНИМАНИЕ':'НОРМА', dominantPct>60?'badge-1':dominantPct>50?'badge-2':'badge-3'],
+          ['Командный PN',avgPN.toFixed(1)+'/15','<8', avgPN>10?'КРИТИЧНО':avgPN>8?'ВНИМАНИЕ':'НОРМА', avgPN>10?'badge-1':avgPN>8?'badge-2':'badge-3'],
+          ['Командный F',avgF.toFixed(1)+'/15','>8', avgF<6?'РИСК':avgF<8?'ВНИМАНИЕ':'НОРМА', avgF<6?'badge-1':avgF<8?'badge-2':'badge-3'],
+          ['Авторство (ср.)',avgAuthorship.toFixed(0)+'%','>50%', avgAuthorship<35?'РИСК':avgAuthorship<50?'ВНИМАНИЕ':'НОРМА', avgAuthorship<35?'badge-1':avgAuthorship<50?'badge-2':'badge-3'],
+          ['Резонанс (ср.)',avgResonance.toFixed(0)+'%','>50%', avgResonance<35?'РИСК':avgResonance<50?'ВНИМАНИЕ':'НОРМА', avgResonance<35?'badge-1':avgResonance<50?'badge-2':'badge-3'],
+          ['Типы отсутствуют',missingTypes.length||'нет','0', missingTypes.length>1?'РИСК':missingTypes.length>0?'ВНИМАНИЕ':'НОРМА', missingTypes.length>1?'badge-1':missingTypes.length>0?'badge-2':'badge-3'],
+        ].map(([ind,val,norm,status,cls]) => `<tr>
+          <td>${ind}</td><td><strong>${val}</strong></td><td style="color:var(--ink-faint)">${norm}</td>
+          <td><span class="badge ${cls}">${status}</span></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+// ── ТЕКСТОВЫЙ ОТЧЁТ ────────────────────────────────────────
+// Строит связное словесное описание по тем же данным и тем же порогам,
+// что и визуальные вкладки — если поменяется логика в computeZones(),
+// текст и графики останутся согласованы автоматически.
+function stripTags(html) {
+  return html.replace(/<[^>]*>/g, '');
+}
+
+function renderNarrative() {
+  if (!DATA || DATA.length === 0) return;
+  const z = computeZones();
+  const n = z.n;
+  const avgScore = avg(DATA, 'score');
+  const avgLevel = avg(DATA, 'level');
+  const avgReframing = avg(DATA, 'reframing');
+  const avgEmbodiment = avg(DATA, 'embodiment');
+  const teamLabel = DATA[0] && DATA[0].group ? DATA[0].group : 'команда';
+
+  const paragraphs = [];
+
+  // 1. Обзор
+  let p1 = `Групповой отчёт построен по ${n} участникам (${teamLabel}). Средний балл нарративного интеллекта — ${avgScore.toFixed(0)}, средний уровень нарративной зрелости — ${avgLevel.toFixed(1)} из 4. Доминирующий тип мышления в команде — ${z.dominantType[0]} (${Math.round(z.dominantPct)}% состава).`;
+  if (z.pct1 > 40) p1 += ` Доля участников на первом, пассивном уровне превышает 40% — это означает, что заметная часть решений в команде принимается реактивно, по привычке, а не осознанно.`;
+  paragraphs.push(['Обзор', p1]);
+
+  // 2. Матрица типов
+  const typeCounts = ['Аналитик','Стратег','Критик','Драматург'].map(t => `${t} — ${z.types[t]||0} чел.`).join(', ');
+  let p2 = `Распределение по архетипам: ${typeCounts}`;
+  if (z.missingTypes.length > 0) {
+    p2 += ` В команде системно отсутствует тип ${z.missingTypes.join(' и ')} — это слепая зона: ситуации, которые требуют именно такого взгляда, будут регулярно упускаться из виду, а не человек «плохо работает».`;
+  }
+  if (z.dominantPct > 60) {
+    p2 += ` Тип ${z.dominantType[0]} представлен непропорционально широко (${Math.round(z.dominantPct)}%), что создаёт риск однобоких решений — команда рискует не заметить собственную системную ошибку изнутри.`;
+  }
+  paragraphs.push(['Матрица нарративных типов', p2]);
+
+  // 3. Уровни зрелости
+  const lvlCounts = [1,2,3,4].map(l => `уровень ${l} — ${z.lvls[l]} чел.`).join(', ');
+  let p3 = `Распределение по уровням нарративной зрелости: ${lvlCounts}`;
+  if (z.pct1 > 40) {
+    p3 += ` Более 40% команды на уровне 1 — сигнал, что программа развития имеет смысл начинать с базовой осознанности, а не сразу с продвинутых форматов.`;
+  } else if (z.lvls[4] > 0) {
+    p3 += ` В команде есть участники системного (4) уровня — это редкий и ценный ресурс, который стоит использовать в программе развития остальных.`;
+  }
+  paragraphs.push(['Уровни зрелости', p3]);
+
+  // 4. Временная ориентация
+  let p4 = `Средние значения по временно́й ориентации команды: PN (прошлое-негативное) — ${z.avgPN.toFixed(1)} из 15, PP (прошлое-позитивное) — ${z.avgPP.toFixed(1)} из 15, F (будущее) — ${z.avgF.toFixed(1)} из 15.`;
+  if (z.avgPN > 9 && z.avgF < 7) {
+    p4 += ` Сочетание высокого PN и низкого F указывает на «временну́ю ловушку» — команда в среднем действует с оглядкой на прошлые неудачи и без ясного образа будущего, что стоит учитывать при коммуникации любых изменений.`;
+  } else if (z.avgPP > 9) {
+    p4 += ` Высокий PP — у команды есть подтверждённый позитивный опыт, на который можно опираться как на «якорь успеха» при запуске новых инициатив.`;
+  }
+  paragraphs.push(['Временна́я ориентация', p4]);
+
+  // 5. Компетенции
+  const comps = [
+    ['Осознанность', z.avgAwareness], ['Авторство', z.avgAuthorship], ['Резонанс', z.avgResonance],
+    ['Переосмысление', avgReframing], ['Воплощение', avgEmbodiment],
+  ];
+  const compsText = comps.map(([name,val]) => `${name} — ${val.toFixed(0)}%`).join(', ');
+  let p5 = `Средние баллы по пяти компетенциям: ${compsText}.`;
+  const maxComp = comps.reduce((a,b) => a[1]>b[1]?a:b);
+  const minComp = comps.reduce((a,b) => a[1]<b[1]?a:b);
+  p5 += ` Наибольший разрыв — между «${maxComp[0]}» (${maxComp[1].toFixed(0)}%) и «${minComp[0]}» (${minComp[1].toFixed(0)}%); именно с наименее развитой компетенции имеет смысл начинать программу, а не с той, что кажется важнее интуитивно.`;
+  if (z.avgAuthorship > 55 && avgEmbodiment < 40) {
+    p5 += ` Сочетание высокого авторства и низкого воплощения — частый паттерн: команда хорошо придумывает решения, но не всегда доводит их до реального изменения поведения.`;
+  }
+  paragraphs.push(['Компетенции', p5]);
+
+  // 6. Зоны риска
+  const risksText = z.risks.map(stripTags).join(' ');
+  paragraphs.push(['Зоны риска', risksText]);
+
+  // 7. Зоны конфликта
+  const conflictsText = z.conflicts.map(stripTags).join(' ');
+  paragraphs.push(['Зоны конфликта', conflictsText]);
+
+  // 8. Скрытые ресурсы
+  const resourcesText = z.resources.map(stripTags).join(' ');
+  paragraphs.push(['Скрытые ресурсы', resourcesText]);
+
+  document.getElementById('narrative-content').innerHTML = paragraphs.map(([title, text]) => `
+    <h3 style="font-size:15px;font-weight:700;color:var(--navy);margin:20px 0 8px">${title}</h3>
+    <p style="margin:0 0 8px">${text}</p>
+  `).join('');
+
+  // Кэшируем краткую версию — чтобы можно было вернуться к ней после AI-версии
+  // без повторного пересчёта, и чтобы «Скачать как текст» знал, что показано сейчас.
+  window._shortNarrativeHTML = document.getElementById('narrative-content').innerHTML;
+  window._narrativeMode = 'short';
+  const modeLabel = document.getElementById('narrative-mode-label');
+  if (modeLabel) modeLabel.textContent = 'Краткое описание';
+}
+
+// ── КЛЮЧ ДОСТУПА К AI-ГЕНЕРАЦИИ ────────────────────────────────────────────────
+// localStorage может быть недоступен, если файл открыт напрямую как file://
+// (так блокирует часть браузеров, включая Chrome, из соображений безопасности).
+// На этот случай — запасной вариант в памяти вкладки: ключ придётся ввести
+// заново при каждом открытии файла, но кнопка не будет падать с ошибкой.
+const DASHBOARD_KEY_STORAGE = 'adin_dashboard_key';
+let _inMemoryKey = null;
+let _storageAvailable = null;
+
+function storageOk() {
+  if (_storageAvailable !== null) return _storageAvailable;
+  try {
+    localStorage.setItem('__adin_test__', '1');
+    localStorage.removeItem('__adin_test__');
+    _storageAvailable = true;
+  } catch (e) {
+    _storageAvailable = false;
+  }
+  return _storageAvailable;
+}
+
+function getDashboardKey() {
+  if (storageOk()) return localStorage.getItem(DASHBOARD_KEY_STORAGE);
+  return _inMemoryKey;
+}
+
+function setDashboardKey(value) {
+  if (storageOk()) {
+    if (value) localStorage.setItem(DASHBOARD_KEY_STORAGE, value);
+    else localStorage.removeItem(DASHBOARD_KEY_STORAGE);
+  } else {
+    _inMemoryKey = value || null;
+  }
+}
+
+function restoreShortNarrative() {
+  if (window._narrativeMode !== 'deep' || !window._shortNarrativeHTML) return;
+  document.getElementById('narrative-content').innerHTML = window._shortNarrativeHTML;
+  document.getElementById('narrative-ai-status').style.display = 'none';
+  window._narrativeMode = 'short';
+  document.getElementById('narrative-mode-label').textContent = 'Краткое описание';
+}
+
+function openDashboardKeySettings() {
+  const current = getDashboardKey() || '';
+  const warning = storageOk() ? '' : '\n\n⚠️ Постоянное хранение недоступно в этом браузере для локально открытого файла — ключ будет действовать только до закрытия вкладки.';
+  const value = prompt('Ключ доступа к глубокому AI-описанию (спросите у администратора):' + warning, current);
+  if (value === null) return;
+  setDashboardKey(value.trim() === '' ? null : value.trim());
+}
+
+// ── ГЛУБОКОЕ (AI) ОПИСАНИЕ ─────────────────────────────────────────────────────
+// Использует ту же computeZones(), что и краткое описание, — расхождения между
+// режимами исключены на уровне входных данных. При любой проблеме (нет ключа,
+// сервер недоступен, невалидный ответ) — остаёмся на уже показанном кратком
+// описании и просто сообщаем причину, не ломая экран.
+const GROUP_NARRATIVE_API = 'https://adin-ni-backend-production.up.railway.app/api/v2/groups/generate-narrative';
+
+async function generateDeepNarrative() {
+  const key = getDashboardKey();
+  const statusEl = document.getElementById('narrative-ai-status');
+  const btn = document.getElementById('ai-narrative-btn');
+
+  if (!key) {
+    statusEl.style.display = 'block';
+    statusEl.innerHTML = '<div class="zone zone-risk"><div class="zone-items">⚠️ Не задан ключ доступа — нажмите ⚙ и введите ключ, чтобы использовать AI-описание.</div></div>';
+    return;
+  }
+  if (!DATA || DATA.length === 0) return;
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Генерируется…';
+  statusEl.style.display = 'none';
+
+  try {
+    const z = computeZones();
+    const teamLabel = DATA[0] && DATA[0].group ? DATA[0].group : 'команда';
+    const zonesData = {
+      n: z.n, teamLabel,
+      avgScore: avg(DATA, 'score'), avgLevel: avg(DATA, 'level'),
+      types: z.types, lvls: z.lvls,
+      avgPN: z.avgPN, avgPP: z.avgPP, avgF: z.avgF,
+      avgAwareness: z.avgAwareness, avgAuthorship: z.avgAuthorship, avgResonance: z.avgResonance,
+      avgReframing: avg(DATA, 'reframing'), avgEmbodiment: avg(DATA, 'embodiment'),
+      dominantType: z.dominantType, dominantPct: z.dominantPct, missingTypes: z.missingTypes,
+      risks: z.risks.map(stripTags), conflicts: z.conflicts.map(stripTags), resources: z.resources.map(stripTags),
+    };
+
+    const response = await fetch(GROUP_NARRATIVE_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-dashboard-key': key },
+      body: JSON.stringify({ zonesData, seedId: teamLabel })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || result.fallback) {
+      statusEl.style.display = 'block';
+      statusEl.innerHTML = `<div class="zone zone-risk"><div class="zone-items">⚠️ ${result.error || 'Не удалось сгенерировать AI-описание'} — показано краткое описание.</div></div>`;
+      return;
+    }
+
+    const sections = [
+      ['Портрет команды', result.team_essence],
+      ['Распределение типов', result.type_landscape],
+      ['Уровни зрелости', result.maturity_landscape],
+      ['Временна́я ориентация', result.temporal_landscape],
+      ['Компетенции', result.competency_landscape],
+      ['Зоны риска', result.risks_synthesis],
+      ['Зоны конфликта', result.conflicts_synthesis],
+      ['Скрытые ресурсы', result.resources_synthesis],
+    ];
+    let html = sections.map(([title, text]) => `
+      <h3 style="font-size:15px;font-weight:700;color:var(--navy);margin:20px 0 8px">${title}</h3>
+      <p style="margin:0 0 8px">${text}</p>
+    `).join('');
+
+    if (Array.isArray(result.recommendations) && result.recommendations.length > 0) {
+      html += `<h3 style="font-size:15px;font-weight:700;color:var(--navy);margin:20px 0 8px">Рекомендации</h3>`;
+      html += result.recommendations.map(r => `
+        <div style="margin-bottom:10px">
+          <strong>${r.title}</strong>
+          <p style="margin:2px 0 0">${r.text}</p>
+        </div>
+      `).join('');
+    }
+
+    document.getElementById('narrative-content').innerHTML = html;
+    window._narrativeMode = 'deep';
+    document.getElementById('narrative-mode-label').textContent = 'Глубокое описание (AI)';
+  } catch (err) {
+    statusEl.style.display = 'block';
+    statusEl.innerHTML = `<div class="zone zone-risk"><div class="zone-items">⚠️ Ошибка соединения с сервером — показано краткое описание.</div></div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🤖 Глубокое описание (AI)';
+  }
+}
+
+function downloadNarrativeTxt() {
+  const z = computeZones();
+  const n = z.n;
+  const teamLabel = DATA[0] && DATA[0].group ? DATA[0].group : 'команда';
+  const mode = window._narrativeMode === 'deep' ? 'AI' : 'краткое';
+  const content = document.getElementById('narrative-content').innerText;
+  const header = `Текстовое описание группового отчёта ADIN (${mode}) — ${teamLabel} (${n} чел.)\n${new Date().toLocaleDateString('ru-RU')}\n\n`;
+  const blob = new Blob([header + content], {type:'text/plain;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `ADIN_narrative_${teamLabel}_${mode}.txt`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function renderParticipants() {
+  const typeFilter  = document.getElementById('filter-type').value;
+  const levelFilter = document.getElementById('filter-level').value;
+
+  let filtered = DATA.filter(r =>
+    (!typeFilter  || r.type  === typeFilter) &&
+    (!levelFilter || String(r.level) === levelFilter)
+  );
+
+  document.getElementById('p-count').textContent = filtered.length + ' участников';
+
+  document.getElementById('participants-tbody').innerHTML =
+    filtered.map(r => `<tr>
+      <td><strong>${r.name||'—'}</strong><br>
+        <span style="font-size:11px;color:var(--ink-faint)">${r.email||''}</span></td>
+      <td><span class="badge badge-${TYPE_KEY[r.type]||'A'}">${r.type||'—'}</span></td>
+      <td><span class="badge badge-${r.level||1}">${r.levelName||'Ур.'+r.level||'—'}</span></td>
+      <td style="font-size:12px">${r.temporal||'—'}</td>
+      <td><strong>${r.score||'—'}</strong></td>
+      <td>${r.awareness?r.awareness+'%':'—'}</td>
+      <td>${r.authorship?r.authorship+'%':'—'}</td>
+      <td>${r.resonance?r.resonance+'%':'—'}</td>
+      <td>${r.reframing?r.reframing+'%':'—'}</td>
+      <td>${r.embodiment?r.embodiment+'%':'—'}</td>
+    </tr>`).join('') ||
+    '<tr><td colspan="10" style="text-align:center;color:var(--ink-faint);padding:32px">Нет данных</td></tr>';
+}
+</script>
+</body>
+</html>
