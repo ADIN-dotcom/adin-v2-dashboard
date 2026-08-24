@@ -1251,10 +1251,20 @@ async function downloadFullReport(code) {
 // Обезличенные приглашения: сервер выдаёт коды ПО КОЛИЧЕСТВУ, а связку «email/имя ↔ код»
 // и CSV-ключ-файл собирает браузер. Адреса и имена на сервер НЕ отправляются.
 function csvEsc(v){ return '"' + String(v==null?'':v).replace(/"/g,'""') + '"'; }
+const PERSON_KEY_SALT = 'ADIN-2026-person-key-v1';
+
+async function computePersonKey(email) {
+  const normalized = String(email || '').trim().toLowerCase();
+  if (!normalized) return null;
+  const data = new TextEncoder().encode(normalized + PERSON_KEY_SALT);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 async function downloadKeyfile() {
   const raw = $('kf-emails').value.trim();
   if (!raw) { toast('Вставьте участников', true); return; }
-  // Разбор строк: "email" или "email,Имя" — всё локально, на сервер не уходит.
   const people = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean).map(line => {
     const i = line.indexOf(',');
     return i === -1
@@ -1268,12 +1278,16 @@ async function downloadKeyfile() {
   const lang = $('kf-lang').value;
   const btn = $('kf-btn'); btn.disabled = true; btn.textContent = 'Формируем...';
   try {
-    // Сервер получает только КОЛИЧЕСТВО — ни email, ни имён.
+    // person_key считается здесь, в браузере — сервер получает хэш, не email.
+    const peopleWithKeys = await Promise.all(
+      people.map(async p => ({ person_key: await computePersonKey(p.email) }))
+    );
+
     const r = await fetch(API + '/v2/generate-codes', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        count: people.length,
+        people: peopleWithKeys,
         group_id: groupSel,
         test_type: $('kf-test-type').value,
         language: lang,
