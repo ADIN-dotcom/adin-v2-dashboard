@@ -1761,9 +1761,74 @@ function showNarrativeDetail(r) {
       ${markers ? `<div class="card" style="padding:12px;margin-bottom:12px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Ключевые маркеры</div><ul style="padding-left:16px">${markers}</ul></div>` : ''}
       ${r.bridge_formula_seed ? `<div style="padding:10px 14px;background:var(--green-s);border-left:3px solid var(--green);border-radius:4px;font-size:13px;margin-bottom:12px">💡 Зерно формулы моста: <em>${r.bridge_formula_seed}</em></div>` : ''}
       ${tips ? `<div class="card" style="padding:12px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Советы фасилитатору</div><ul style="padding-left:16px">${tips}</ul></div>` : ''}
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+        <button class="btn btn-navy btn-sm" id="ns-deep-btn" onclick="runDeepAnalysis('${r.session_id}')">🔬 Глубокий анализ</button>
+        <div id="ns-deep-wrap" style="margin-top:12px"></div>
+      </div>
     </div>
   `;
   openModal('modal-narrative-detail');
+
+  api('/narrative-status/deep/' + r.session_id).then(d => {
+    if (d && !d.error) renderDeepAnalysis(d);
+  }).catch(() => {});
+}
+
+async function runDeepAnalysis(sessionId) {
+  const wrap = document.getElementById('ns-deep-wrap');
+  const btn = document.getElementById('ns-deep-btn');
+  btn.disabled = true; btn.textContent = 'Анализируем… (может занять минуту)';
+  wrap.innerHTML = '<div class="spinner"></div>';
+
+  const d = await api('/narrative-status/deep/' + sessionId, { method: 'POST' });
+  btn.disabled = false; btn.textContent = '🔬 Глубокий анализ';
+
+  if (!d || d.error) {
+    wrap.innerHTML = `<div style="padding:12px;background:#fee2e2;border-radius:6px;font-size:13px;color:var(--red)">${(d && d.error) || 'Ошибка запроса'}</div>`;
+    return;
+  }
+  renderDeepAnalysis(d);
+}
+
+function renderDeepAnalysis(d) {
+  const wrap = document.getElementById('ns-deep-wrap');
+  const quotes = (d.key_quotes_interpreted || []).map(q =>
+    `<div style="margin-bottom:8px"><div style="font-style:italic;color:var(--ink-soft)">"${q.quote}"</div><div style="font-size:12px;color:var(--ink-faint);margin-top:2px">${q.interpretation}</div></div>`
+  ).join('');
+
+  wrap.innerHTML = `
+    <div class="card" style="padding:14px;margin-bottom:10px">
+      <div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Суть истории</div>
+      <div style="font-size:14px;line-height:1.6">${d.narrative_essence || ''}</div>
+    </div>
+    <div class="card" style="padding:14px;margin-bottom:10px">
+      <div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Происхождение и механизм</div>
+      <div style="font-size:13px;line-height:1.6;color:var(--ink-soft)">${d.origin_and_mechanism || ''}</div>
+    </div>
+    <div class="card" style="padding:14px;margin-bottom:10px">
+      <div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Субъектная позиция</div>
+      <div style="font-size:13px;line-height:1.6;color:var(--ink-soft)">${d.agency_analysis || ''}</div>
+    </div>
+    ${d.gap_analysis ? `<div class="card" style="padding:14px;margin-bottom:10px">
+      <div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Разрыв личного и профессионального</div>
+      <div style="font-size:13px;line-height:1.6;color:var(--ink-soft)">${d.gap_analysis}</div>
+    </div>` : ''}
+    <div class="card" style="padding:14px;margin-bottom:10px">
+      <div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Готовность к трансформации</div>
+      <div style="font-size:13px;line-height:1.6;color:var(--ink-soft)">${d.transformation_readiness || ''}</div>
+    </div>
+    ${quotes ? `<div class="card" style="padding:14px;margin-bottom:10px">
+      <div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Ключевые цитаты</div>
+      ${quotes}
+    </div>` : ''}
+    <div style="padding:12px 14px;background:var(--green-s);border-left:3px solid var(--green);border-radius:4px;font-size:13px;margin-bottom:10px">
+      💬 <strong>Приглашение:</strong> ${d.invitation || ''}
+    </div>
+    <div class="card" style="padding:14px">
+      <div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Стратегия работы</div>
+      <div style="font-size:13px;line-height:1.6;color:var(--ink-soft)">${d.facilitator_strategy || ''}</div>
+    </div>
+  `;
 }
 
 async function generateGroupNarrative() {
