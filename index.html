@@ -1179,7 +1179,38 @@ function openInviteParticipant() {
 
 // ── Ключ-файл имён (клиентская подстановка) ─────────────────────────────────
 // email↔код держим ТОЛЬКО в браузере фасилитатора; на сервер не отправляется.
-window.KEYFILE = {};
+// ── МАСТЕР-КЛЮЧ (постоянное хранение код->имя в этом браузере) ──────────────
+// Хранится в localStorage — не на сервере, никогда не покидает браузер.
+// Накапливается (не заменяется) при каждой новой загрузке/выпуске кодов.
+const MASTER_KEYFILE_STORAGE = 'adin_master_keyfile_v1';
+
+function loadMasterKeyfile() {
+  try {
+    const raw = localStorage.getItem(MASTER_KEYFILE_STORAGE);
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) { return {}; }
+}
+
+function saveMasterKeyfile(map) {
+  try { localStorage.setItem(MASTER_KEYFILE_STORAGE, JSON.stringify(map)); }
+  catch (e) { /* localStorage недоступен (приватный режим и т.п.) — не критично */ }
+}
+
+// Добавляет записи в мастер-ключ, НЕ заменяя уже накопленное. Возвращает
+// {added, total} для отображения пользователю.
+function mergeIntoMasterKeyfile(newEntries) {
+  const existing = loadMasterKeyfile();
+  let added = 0;
+  for (const [code, name] of Object.entries(newEntries)) {
+    if (!existing[code]) added++;
+    existing[code] = name; // при повторе — свежая запись перезаписывает старую для этого кода
+  }
+  saveMasterKeyfile(existing);
+  window.KEYFILE = existing;
+  return { added, total: Object.keys(existing).length };
+}
+
+window.KEYFILE = loadMasterKeyfile();
 function splitCsv(line) {
   const out = []; let cur = ''; let q = false;
   for (let i = 0; i < line.length; i++) {
@@ -1206,15 +1237,21 @@ function loadKeyfileNames(input) {
         const c = head.findIndex(c => c.includes('code') || c.includes('token') || c.includes('код') || c.includes('токен'));
         if (e >= 0) ei = e; if (c >= 0) ci = c;
       }
+      // Колонка имени — если есть в файле (текущий формат экспорта), иначе email как запасной идентификатор.
+      let ni = -1;
+      if (hasHeader) {
+        ni = head.findIndex(c => c.includes('name') || c.includes('имя'));
+      }
       const map = {};
       for (let i = hasHeader ? 1 : 0; i < lines.length; i++) {
         const cols = splitCsv(lines[i]);
         const email = (cols[ei] || '').trim();
+        const name = ni >= 0 ? (cols[ni] || '').trim() : '';
         const code = (cols[ci] || '').trim().toUpperCase();
-        if (email && code) map[code] = email;
+        if (code && (name || email)) map[code] = name || email;
       }
-      window.KEYFILE = map;
-      toast('Ключ-файл загружен: ' + Object.keys(map).length + ' записей (только в этом браузере)');
+      const { added, total } = mergeIntoMasterKeyfile(map);
+      toast('Добавлено новых записей: ' + added + ' (всего в мастер-ключе: ' + total + ', только в этом браузере)');
       if (typeof loadParticipants === 'function') loadParticipants(pPage || 1);
     } catch (e) { toast('Не удалось разобрать файл', true); }
   };
