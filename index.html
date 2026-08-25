@@ -1271,6 +1271,21 @@ function kfName(p) {
 }
 
 // Полный PDF-отчёт по коду (фасилитатор). Auth через Bearer, скачивание blob.
+async function downloadNarrativeStatusPdf(sessionId, level) {
+  toast('Готовим PDF (' + (level === 'deep' ? 'развёрнутый' : 'краткий') + ')...');
+  try {
+    const r = await fetch(API + '/narrative-status/report-pdf/' + sessionId + '?level=' + level, {
+      headers: { 'Authorization': 'Bearer ' + TOKEN }
+    });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); toast('PDF недоступен: ' + (e.error || r.status), true); return; }
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'ADIN_narrative_status_' + level + '_' + sessionId + '.pdf'; a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (e) { toast('Ошибка соединения', true); }
+}
+
 async function downloadFullReport(code) {
   if (!code) { toast('Нет кода НИ-теста', true); return; }
   toast('Готовим отчёт...');
@@ -1821,10 +1836,12 @@ function showNarrativeDetail(r) {
       ${markers ? `<div class="card" style="padding:12px;margin-bottom:12px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Ключевые маркеры</div><ul style="padding-left:16px">${markers}</ul></div>` : ''}
       ${r.bridge_formula_seed ? `<div style="padding:10px 14px;background:var(--green-s);border-left:3px solid var(--green);border-radius:4px;font-size:13px;margin-bottom:12px">💡 Зерно формулы моста: <em>${r.bridge_formula_seed}</em></div>` : ''}
       ${tips ? `<div class="card" style="padding:12px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Советы фасилитатору</div><ul style="padding-left:16px">${tips}</ul></div>` : ''}
-      <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-navy btn-sm" id="ns-deep-btn" onclick="runDeepAnalysis('${r.session_id}')">🔬 Глубокий анализ</button>
-        <div id="ns-deep-wrap" style="margin-top:12px"></div>
+        <button class="btn btn-ghost btn-sm" onclick="downloadNarrativeStatusPdf('${r.session_id}','short')">📄 Краткий PDF</button>
+        <button class="btn btn-ghost btn-sm" onclick="downloadNarrativeStatusPdf('${r.session_id}','deep')">📄 Развёрнутый PDF</button>
       </div>
+      <div id="ns-deep-wrap" style="margin-top:12px"></div>
     </div>
   `;
   openModal('modal-narrative-detail');
