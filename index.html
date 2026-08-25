@@ -1341,6 +1341,15 @@ async function downloadKeyfile() {
       const c = codes[i] || {};
       return [csvEsc(p.email), csvEsc(p.name), csvEsc(c.key), csvEsc(c.language || lang), csvEsc(c.link)].join(',');
     });
+
+    // Автоматически пополняем постоянный мастер-ключ теми же данными — не
+    // нужно отдельно скачивать CSV и потом вручную его же загружать обратно.
+    const newEntries = {};
+    people.forEach((p, i) => {
+      const c = codes[i] || {};
+      if (c.key) newEntries[String(c.key).toUpperCase()] = p.name || p.email;
+    });
+    mergeIntoMasterKeyfile(newEntries);
     const csv = '﻿' + [header, ...rows].join('\r\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
