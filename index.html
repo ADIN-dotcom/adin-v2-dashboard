@@ -1556,11 +1556,97 @@ async function exportCSV() {
 // ── PN PROFILES ───────────────────────────────────────────────
 async function loadPNProfiles() {
   $('pn-profiles-table').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px"><div class="spinner"></div></td></tr>';
-  // Load from v2_profils_results via invitations
-  const d = await api('/v2/participants?limit=200');
-  if (!d) return;
-  // Filter those with profils results - simplified view
-  $('pn-profiles-table').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--ink-faint)">Функция в разработке — профили появятся после прохождения опросников</td></tr>';
+
+  const sel = document.getElementById('pn-group-filter');
+  if (sel.options.length === 1) {
+    const groups = await api('/v2/groups');
+    if (groups) {
+      groups.forEach(g => {
+        const o = document.createElement('option');
+        o.value = g.id; o.textContent = g.name;
+        sel.appendChild(o);
+      });
+    }
+  }
+
+  const groupId = sel.value;
+  const url = '/admin/pn/profiles' + (groupId ? ('?group_id=' + groupId) : '');
+  const rows = await api(url);
+
+  if (!rows || !rows.length) {
+    $('pn-profiles-table').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--ink-faint)">Профилей пока нет — появятся после прохождения опросников</td></tr>';
+    return;
+  }
+
+  $('pn-profiles-table').innerHTML = rows.map(r => `<tr style="cursor:pointer" onclick="showPNProfileDetail(${r.invitation_id})">
+    <td><strong>${fmt(r.name) === '—' ? (kfName(r) || fmt(r.email) || ('Приглашение #' + r.invitation_id)) : r.name}</strong></td>
+    <td>${fmt(r.group_name)}</td>
+    <td>${fmt(r.psychotype)}</td>
+    <td>${fmt(r.energy_type)}</td>
+    <td>${fmt(r.decision_type)}</td>
+    <td style="color:var(--ink-faint);font-size:12px">${r.generated_at ? new Date(r.generated_at).toLocaleDateString('ru') : '—'}</td>
+    <td><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();showPNProfileDetail(${r.invitation_id})">Открыть →</button></td>
+  </tr>`).join('');
+}
+
+async function showPNProfileDetail(invitationId) {
+  nav('pn-profile-detail');
+  document.getElementById('pn-pd-content').innerHTML = '<div class="spinner"></div>';
+
+  const d = await api('/admin/pn/participants/' + invitationId + '/profile');
+  if (!d) {
+    document.getElementById('pn-pd-content').innerHTML = '<div class="empty-state"><div class="empty-state-text">Не удалось загрузить профиль</div></div>';
+    return;
+  }
+
+  const displayName = fmt(d.name) === '—' ? (kfName({ invitations: [{ token: d.token }] }) || fmt(d.email) || ('Приглашение #' + invitationId)) : d.name;
+  document.getElementById('pn-pd-title').textContent = displayName;
+  document.getElementById('pn-pd-sub').textContent = d.generated_at ? new Date(d.generated_at).toLocaleDateString('ru') : '';
+
+  const l1 = d.profile_level1 || {};
+  const l2 = d.profile_level2 || {};
+  const cv = d.company_vision || {};
+
+  const traits = (l1.key_traits || []).map(t => `<div class="card" style="padding:10px 12px;margin-bottom:8px"><strong>${t.title || ''}</strong><div style="font-size:13px;color:var(--ink-soft);margin-top:4px">${t.description || ''}</div></div>`).join('');
+  const redFlags = (l2.red_flags || []).map(f => `<div style="padding:10px 14px;background:#fee2e2;border-left:3px solid var(--red);border-radius:4px;font-size:13px;margin-bottom:8px"><strong>${f.title || ''}</strong><br>${f.description || ''}</div>`).join('');
+  const tips = (l2.facilitator_tips || []).map(t => `<li style="margin-bottom:6px"><strong>${t.title || ''}:</strong> ${t.tip || ''}</li>`).join('');
+  const quotes = (l2.narrative_material?.key_quotes || []).map(q => `<li style="margin-bottom:6px;font-style:italic;color:var(--ink-soft)">"${q}"</li>`).join('');
+
+  document.getElementById('pn-pd-content').innerHTML = `
+    <div style="max-width:720px">
+      <div class="card" style="padding:16px;margin-bottom:12px">
+        <div style="font-size:20px;font-weight:700;color:var(--navy);margin-bottom:8px">${l1.profile_title || ''}</div>
+        <div style="font-size:14px;color:var(--ink-soft);line-height:1.6">${l1.profile_summary || ''}</div>
+      </div>
+      ${traits ? `<div style="margin-bottom:16px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Ключевые черты</div>${traits}</div>` : ''}
+      <div class="card" style="padding:14px;margin-bottom:12px">
+        <div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Психотип</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px">
+          <div><strong>Энергия:</strong> ${l2.psychotype?.energy || '—'}</div>
+          <div><strong>Решения:</strong> ${l2.psychotype?.decisions || '—'}</div>
+          <div><strong>Структура:</strong> ${l2.psychotype?.structure || '—'}</div>
+        </div>
+        ${l2.psychotype?.notes ? `<div style="font-size:13px;color:var(--ink-soft);margin-top:8px">${l2.psychotype.notes}</div>` : ''}
+      </div>
+      ${l2.narrative_material?.bridge_formula_seed ? `<div style="padding:10px 14px;background:var(--green-s);border-left:3px solid var(--green);border-radius:4px;font-size:13px;margin-bottom:12px">💡 Формула моста: <em>${l2.narrative_material.bridge_formula_seed}</em></div>` : ''}
+      ${quotes ? `<div class="card" style="padding:14px;margin-bottom:12px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Ключевые цитаты</div><ul style="padding-left:16px">${quotes}</ul></div>` : ''}
+      ${redFlags ? `<div style="margin-bottom:16px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Red flags</div>${redFlags}</div>` : ''}
+      ${tips ? `<div class="card" style="padding:14px;margin-bottom:12px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Советы фасилитатору</div><ul style="padding-left:16px">${tips}</ul></div>` : ''}
+      ${cv.dream_company_words?.length ? `<div class="card" style="padding:14px;margin-bottom:12px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Компания мечты</div><div style="font-size:13px">${cv.dream_company_words.join(', ')}</div>${cv.narrative_gap ? `<div style="font-size:13px;color:var(--ink-soft);margin-top:8px">${cv.narrative_gap}</div>` : ''}</div>` : ''}
+      <button class="btn btn-ghost btn-sm" onclick="regeneratePNProfile(${invitationId}, this)">🔄 Перегенерировать</button>
+    </div>
+  `;
+}
+
+async function regeneratePNProfile(invitationId, btn) {
+  btn.disabled = true; btn.textContent = 'Перегенерируем...';
+  const r = await api('/admin/pn/participants/' + invitationId + '/regenerate', { method: 'POST' });
+  if (r && r.success) {
+    toast('Регенерация запущена — обновите страницу через минуту');
+  } else {
+    toast('Ошибка: ' + (r && r.error || 'попробуйте снова'), true);
+  }
+  btn.disabled = false; btn.textContent = '🔄 Перегенерировать';
 }
 
 
