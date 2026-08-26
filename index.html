@@ -1007,7 +1007,7 @@ async function openParticipantDetail(id) {
     const niData = await api('/v2/participants/'+id+'/ni-answers');
     if (niData && !niData.error) niAnswersHtml = renderNIAnswers(niData);
   }
-  $('pd-title').textContent = d.name || d.email;
+  $('pd-title').textContent = d.name || d.email || 'Участник';
   $('pd-sub').textContent = [d.company, d.position, d.country].filter(Boolean).join(' · ');
 
   const invHtml = (d.invitations || []).length === 0
@@ -1021,7 +1021,7 @@ async function openParticipantDetail(id) {
         <div style="display:flex;align-items:center;gap:12px">
           <span class="badge ${STATUS_BADGES[i.status]||'badge-gray'}">${STATUS_LABELS[i.status]||i.status}</span>
           <span style="font-size:12px;color:var(--ink-faint)">${fmtDate(i.sent_at)}</span>
-          ${i.status === 'completed' && i.test_type !== 'ni_test' ? `<button class="btn btn-teal btn-sm" onclick="openPNProfile(${i.id},'${(d.name||d.email).replace(/'/g,"\\'")}','${d.company||''}')">Профиль</button>` : ''}
+          ${i.status === 'completed' && i.test_type !== 'ni_test' ? `<button class="btn btn-teal btn-sm" onclick="openPNProfile(${i.id},'${(d.name||d.email||'Участник').replace(/'/g,"\\'")}','${d.company||''}')">Профиль</button>` : ''}
         </div>
       </div>`).join('');
 
