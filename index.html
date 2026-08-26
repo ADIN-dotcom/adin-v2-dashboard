@@ -1633,9 +1633,28 @@ async function showPNProfileDetail(invitationId) {
       ${redFlags ? `<div style="margin-bottom:16px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Red flags</div>${redFlags}</div>` : ''}
       ${tips ? `<div class="card" style="padding:14px;margin-bottom:12px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Советы фасилитатору</div><ul style="padding-left:16px">${tips}</ul></div>` : ''}
       ${cv.dream_company_words?.length ? `<div class="card" style="padding:14px;margin-bottom:12px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Компания мечты</div><div style="font-size:13px">${cv.dream_company_words.join(', ')}</div>${cv.narrative_gap ? `<div style="font-size:13px;color:var(--ink-soft);margin-top:8px">${cv.narrative_gap}</div>` : ''}</div>` : ''}
-      <button class="btn btn-ghost btn-sm" onclick="regeneratePNProfile(${invitationId}, this)">🔄 Перегенерировать</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="regeneratePNProfile(${invitationId}, this)">🔄 Перегенерировать</button>
+        <button class="btn btn-ghost btn-sm" onclick="downloadPNProfilePdf(${invitationId}, this)">📄 Скачать PDF</button>
+      </div>
     </div>
   `;
+}
+
+async function downloadPNProfilePdf(invitationId, btn) {
+  btn.disabled = true; btn.textContent = 'Готовим PDF...';
+  try {
+    const r = await fetch(API + '/admin/pn/participants/' + invitationId + '/report-pdf', {
+      headers: { 'Authorization': 'Bearer ' + TOKEN }
+    });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); toast('PDF недоступен: ' + (e.error || r.status), true); return; }
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'ADIN_profil_' + invitationId + '.pdf'; a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (e) { toast('Ошибка соединения', true); }
+  finally { btn.disabled = false; btn.textContent = '📄 Скачать PDF'; }
 }
 
 async function regeneratePNProfile(invitationId, btn) {
