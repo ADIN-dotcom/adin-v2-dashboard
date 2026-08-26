@@ -599,11 +599,6 @@ tr:hover td{background:var(--cream)}
           <div class="test-type-name">НИ-тест</div>
           <div class="test-type-desc">Нарративный интеллект</div>
         </button>
-        <button class="test-type-btn pn" onclick="selectTestType('profils_both',this)">
-          <div class="test-type-icon">🧠</div>
-          <div class="test-type-name">Profils — оба</div>
-          <div class="test-type-desc">Questionnaire + SOCIETE</div>
-        </button>
         <button class="test-type-btn pn" onclick="selectTestType('profils_questionnaire',this)">
           <div class="test-type-icon">👤</div>
           <div class="test-type-name">Questionnaire</div>
@@ -705,7 +700,6 @@ const TEST_LABELS = {
   ni_test: 'НИ-тест',
   profils_questionnaire: 'Questionnaire',
   profils_societe: 'SOCIETE',
-  profils_both: 'Profils (оба)',
   narrative_status: 'Нарр. статус'
 };
 const STATUS_LABELS = { pending:'Ожидает', sent:'Отправлен', opened:'Открыт', completed:'Завершён', expired:'Истёк' };
