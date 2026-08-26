@@ -899,7 +899,7 @@ async function loadParticipants(page) {
     ? '<tr><td colspan="6"><div class="empty-state"><div class="empty-state-icon">👥</div><div class="empty-state-text">Участников не найдено</div></div></td></tr>'
     : rows.map(p => `<tr>
         <td>
-          <strong style="cursor:pointer;color:var(--navy)" onclick="openParticipantDetail(${p.id})">${fmt(p.name) === '—' ? (kfName(p) || p.email || ('Код #'+p.id)) : p.name}</strong>
+          <strong style="cursor:pointer;color:var(--navy)" onclick="openParticipantDetail(${p.id})">${fmt(p.name) === '—' ? (kfName(p) || p.email || ((p.invitations && p.invitations.length) ? ('Код #'+p.id) : 'Приглашений нет')) : p.name}</strong>
           <br><span style="font-size:11px;color:var(--ink-faint)">${p.name ? p.email : (kfName(p) ? '(имя из ключ-файла)' : '')}</span>
         </td>
         <td>${fmt(p.company)}</td>
