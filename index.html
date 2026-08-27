@@ -1039,6 +1039,10 @@ async function openParticipantDetail(id) {
     if (niData && !niData.error) niAnswersHtml = renderNIAnswers(niData);
   }
   $('pd-title').textContent = d.name || d.email || 'Участник';
+  const gcBtn = document.getElementById('pd-gc-btn');
+  if (gcBtn) gcBtn.remove();
+  const gcBtnHtml = '<button id="pd-gc-btn" class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="openGenerateCodeModal(' + id + ')">🔑 Выпустить код</button>';
+  document.getElementById('pd-sub').insertAdjacentHTML('afterend', gcBtnHtml);
   $('pd-sub').textContent = [d.company, d.position, d.country].filter(Boolean).join(' · ');
 
   const invHtml = (d.invitations || []).length === 0
