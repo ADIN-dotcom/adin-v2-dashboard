@@ -999,7 +999,7 @@ async function openGenerateCodeModal(participantId) {
 
   const r = await api('/v2/participants/' + participantId + '/generate-code', {
     method: 'POST',
-    body: JSON.stringify({ test_type: testType })
+    body: { test_type: testType }
   });
   if (!r || !r.success) {
     toast('Ошибка: ' + (r && r.error || 'попробуйте снова'), true);
