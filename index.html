@@ -1697,8 +1697,27 @@ async function showPersonalNarrativeDetail(id) {
       ${d.state_narrative_summary ? `<div class="card" style="padding:14px;margin-bottom:12px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;margin-bottom:6px">Государство</div><div style="font-size:14px;line-height:1.6">${d.state_narrative_summary}</div></div>` : ''}
       ${d.synthesis ? `<div style="padding:12px 14px;background:var(--green-s);border-left:3px solid var(--green);border-radius:4px;font-size:13px;margin-bottom:12px">💡 Синтез: ${d.synthesis}</div>` : ''}
       ${tips.length ? `<div class="card" style="padding:14px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;margin-bottom:8px">Советы фасилитатору</div><ul style="padding-left:16px">${tips.map(t => `<li style="margin-bottom:6px">${t}</li>`).join('')}</ul></div>` : ''}
+      <div style="margin-top:12px">
+        <button class="btn btn-ghost btn-sm" onclick="downloadPersonalNarrativePdf('${id}', this)">📄 Скачать PDF</button>
+      </div>
     </div>
   `;
+}
+
+async function downloadPersonalNarrativePdf(id, btn) {
+  btn.disabled = true; btn.textContent = 'Готовим PDF...';
+  try {
+    const r = await fetch(API + '/personal-narrative/report-pdf/' + id, {
+      headers: { 'Authorization': 'Bearer ' + TOKEN }
+    });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); toast('PDF недоступен: ' + (e.error || r.status), true); return; }
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'ADIN_personal_narrative_' + id + '.pdf'; a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (e) { toast('Ошибка соединения', true); }
+  finally { btn.disabled = false; btn.textContent = '📄 Скачать PDF'; }
 }
 
 async function loadPNProfiles() {
