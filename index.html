@@ -992,6 +992,37 @@ function renderNIAnswers(data) {
   '</div>';
 }
 
+async function openGenerateCodeModal(participantId) {
+  const testType = prompt('Тип теста: ni_test / narrative_status / personal_narrative / profils_questionnaire / profils_societe', 'ni_test');
+  if (!testType) return;
+  const keyLabel = prompt('Email или пометка для вашего личного ключа (необязательно, остаётся только в этом браузере):', '');
+
+  const r = await api('/v2/participants/' + participantId + '/generate-code', {
+    method: 'POST',
+    body: JSON.stringify({ test_type: testType })
+  });
+  if (!r || !r.success) {
+    toast('Ошибка: ' + (r && r.error || 'попробуйте снова'), true);
+    return;
+  }
+
+  if (keyLabel && keyLabel.trim()) {
+    const entries = {};
+    entries[r.code.toUpperCase()] = keyLabel.trim();
+    if (typeof mergeIntoMasterKeyfile === 'function') {
+      const { added, total } = mergeIntoMasterKeyfile(entries);
+      toast('Код выпущен: ' + r.code + ' — добавлено в личный ключ (всего: ' + total + ')');
+    }
+  } else {
+    toast('Код выпущен: ' + r.code + ' — ' + r.link);
+  }
+
+  // Показываем сам код/ссылку в диалоге, чтобы можно было скопировать
+  prompt('Скопируйте код и ссылку для передачи участнику:', r.code + '  ' + r.link);
+
+  if (typeof openParticipantDetail === 'function') openParticipantDetail(participantId);
+}
+
 async function openParticipantDetail(id) {
   currentParticipantId = id;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
