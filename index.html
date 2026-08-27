@@ -227,6 +227,7 @@ tr:hover td{background:var(--cream)}
       <div class="sb-section">Результаты</div>
       <div class="sb-link" onclick="nav('ni-analytics')" data-page="ni-analytics"><span class="sb-ico">📊</span> Аналитика НИ</div>
       <div class="sb-link pn" onclick="nav('pn-profiles')" data-page="pn-profiles"><span class="sb-ico">🧠</span> Профили PN</div>
+      <div class="sb-link" onclick="nav('personal-narrative')" data-page="personal-narrative"><span class="sb-ico">🪞</span> Личный нарратив</div>
       <div class="sb-link" onclick="nav('narrative-status')" data-page="narrative-status"><span class="sb-ico">🔮</span> Нарративный статус</div>
       <div class="sb-section">Система</div>
       <div class="sb-link" onclick="nav('settings')" data-page="settings"><span class="sb-ico">⚙️</span> Настройки</div>
@@ -377,6 +378,36 @@ tr:hover td{background:var(--cream)}
       </div>
 
       <!-- НАСТРОЙКИ -->
+      <div id="page-personal-narrative" class="page">
+        <div class="page-header">
+          <div><div class="page-title">Личный нарратив</div><div class="page-sub">Соотношение личной истории с семьёй, обществом и государством</div></div>
+          <select id="pnr-group-filter" onchange="loadPersonalNarrativeList()" style="padding:8px 12px;border:1.5px solid var(--cream-d);border-radius:8px;font-size:13px">
+            <option value="">Все группы</option>
+          </select>
+        </div>
+        <div class="card" style="padding:0">
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>Участник</th><th>Группа</th><th>Доминирующий источник</th><th>Конфликт</th><th>Дата</th><th></th></tr></thead>
+              <tbody id="pnr-table"><tr><td colspan="6" style="text-align:center;padding:32px"><div class="spinner"></div></td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ЛИЧНЫЙ НАРРАТИВ — ДЕТАЛЬНЫЙ -->
+      <div id="page-personal-narrative-detail" class="page">
+        <div class="page-header">
+          <div style="display:flex;align-items:center;gap:12px">
+            <button class="btn btn-ghost btn-sm" onclick="nav('personal-narrative')">← Назад</button>
+            <div>
+              <div class="page-title" id="pnr-pd-title">Личный нарратив</div>
+              <div class="page-sub" id="pnr-pd-sub"></div>
+            </div>
+          </div>
+        </div>
+        <div id="pnr-pd-content"><div class="spinner"></div></div>
+      </div>
       <div id="page-narrative-status" class="page">
         <div class="page-header">
           <div><div class="page-title">Нарративный статус</div><div class="page-sub">Анализ нарративного пространства группы</div></div>
@@ -746,6 +777,7 @@ function nav(page) {
   if (page === 'participants') loadParticipants(1);
   if (page === 'ni-analytics') { loadNIGroupFilter(); loadNIAnalytics(); }
   if (page === 'pn-profiles') loadPNProfiles();
+  if (page === 'personal-narrative') loadPersonalNarrativeList();
   if (page === 'settings') loadSettings();
   if (page === 'narrative-status') loadNarrativeStatus();
 }
@@ -1583,6 +1615,92 @@ async function exportCSV() {
 }
 
 // ── PN PROFILES ───────────────────────────────────────────────
+async function loadPersonalNarrativeList() {
+  $('pnr-table').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px"><div class="spinner"></div></td></tr>';
+
+  const sel = document.getElementById('pnr-group-filter');
+  if (sel.options.length === 1) {
+    const groups = await api('/v2/groups');
+    if (groups) {
+      groups.forEach(g => {
+        const o = document.createElement('option');
+        o.value = g.id; o.textContent = g.name;
+        sel.appendChild(o);
+      });
+    }
+  }
+
+  const groupId = sel.value;
+  const url = '/personal-narrative/all' + (groupId ? ('?group_id=' + groupId) : '');
+  const rows = await api(url);
+
+  if (!rows || !rows.length) {
+    $('pnr-table').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--ink-faint)">Результатов пока нет</td></tr>';
+    return;
+  }
+
+  const SOURCE_LABELS = { personal: 'Личное', family: 'Семья', society: 'Общество', state: 'Государство' };
+
+  $('pnr-table').innerHTML = rows.map(r => `<tr style="cursor:pointer" onclick="showPersonalNarrativeDetail('${r.id}')">
+    <td><strong>${fmt(r.name) === '—' ? (kfName(r) || fmt(r.email) || 'Участник') : r.name}</strong></td>
+    <td>${fmt(r.group_name)}</td>
+    <td>${SOURCE_LABELS[r.dominant_source] || fmt(r.dominant_source)}</td>
+    <td>${r.conflict_source ? (SOURCE_LABELS[r.conflict_source] || r.conflict_source) : '<span style="color:var(--ink-faint)">нет</span>'}</td>
+    <td style="color:var(--ink-faint);font-size:12px">${r.created_at ? new Date(r.created_at).toLocaleDateString('ru') : '—'}</td>
+    <td><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();showPersonalNarrativeDetail('${r.id}')">Открыть →</button></td>
+  </tr>`).join('');
+}
+
+async function showPersonalNarrativeDetail(id) {
+  nav('personal-narrative-detail');
+  document.getElementById('pnr-pd-content').innerHTML = '<div class="spinner"></div>';
+
+  // Список уже загружен — находим нужную запись без повторного похода на сервер,
+  // как это уже делается на других похожих экранах.
+  const groupId = document.getElementById('pnr-group-filter').value;
+  const url = '/personal-narrative/all' + (groupId ? ('?group_id=' + groupId) : '');
+  const rows = await api(url);
+  const d = rows && rows.find(r => String(r.id) === String(id));
+
+  if (!d) {
+    document.getElementById('pnr-pd-content').innerHTML = '<div class="empty-state"><div class="empty-state-text">Не удалось загрузить</div></div>';
+    return;
+  }
+
+  const displayName = fmt(d.name) === '—' ? (kfName(d) || fmt(d.email) || 'Участник') : d.name;
+  document.getElementById('pnr-pd-title').textContent = displayName;
+  document.getElementById('pnr-pd-sub').textContent = d.created_at ? new Date(d.created_at).toLocaleDateString('ru') : '';
+
+  const SOURCE_LABELS = { personal: 'Личное', family: 'Семья', society: 'Общество', state: 'Государство' };
+  const tips = Array.isArray(d.facilitator_tips) ? d.facilitator_tips : [];
+
+  document.getElementById('pnr-pd-content').innerHTML = `
+    <div style="max-width:720px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+        <div class="card" style="padding:12px">
+          <div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase">Доминирующий</div>
+          <div style="font-weight:700;color:var(--navy);margin-top:4px">${SOURCE_LABELS[d.dominant_source] || fmt(d.dominant_source)}</div>
+        </div>
+        <div class="card" style="padding:12px">
+          <div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase">Резонанс</div>
+          <div style="font-weight:700;color:var(--green);margin-top:4px">${SOURCE_LABELS[d.resonance_source] || fmt(d.resonance_source)}</div>
+        </div>
+        <div class="card" style="padding:12px">
+          <div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase">Конфликт</div>
+          <div style="font-weight:700;color:var(--red);margin-top:4px">${d.conflict_source ? (SOURCE_LABELS[d.conflict_source] || d.conflict_source) : 'нет'}</div>
+        </div>
+      </div>
+
+      ${d.personal_narrative_summary ? `<div class="card" style="padding:14px;margin-bottom:12px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;margin-bottom:6px">Личная история</div><div style="font-size:14px;line-height:1.6">${d.personal_narrative_summary}</div></div>` : ''}
+      ${d.family_narrative_summary ? `<div class="card" style="padding:14px;margin-bottom:12px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;margin-bottom:6px">Семья</div><div style="font-size:14px;line-height:1.6">${d.family_narrative_summary}</div></div>` : ''}
+      ${d.society_narrative_summary ? `<div class="card" style="padding:14px;margin-bottom:12px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;margin-bottom:6px">Общество</div><div style="font-size:14px;line-height:1.6">${d.society_narrative_summary}</div></div>` : ''}
+      ${d.state_narrative_summary ? `<div class="card" style="padding:14px;margin-bottom:12px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;margin-bottom:6px">Государство</div><div style="font-size:14px;line-height:1.6">${d.state_narrative_summary}</div></div>` : ''}
+      ${d.synthesis ? `<div style="padding:12px 14px;background:var(--green-s);border-left:3px solid var(--green);border-radius:4px;font-size:13px;margin-bottom:12px">💡 Синтез: ${d.synthesis}</div>` : ''}
+      ${tips.length ? `<div class="card" style="padding:14px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;margin-bottom:8px">Советы фасилитатору</div><ul style="padding-left:16px">${tips.map(t => `<li style="margin-bottom:6px">${t}</li>`).join('')}</ul></div>` : ''}
+    </div>
+  `;
+}
+
 async function loadPNProfiles() {
   $('pn-profiles-table').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px"><div class="spinner"></div></td></tr>';
 
