@@ -1070,7 +1070,7 @@ async function openParticipantDetail(id) {
     const niData = await api('/v2/participants/'+id+'/ni-answers');
     if (niData && !niData.error) niAnswersHtml = renderNIAnswers(niData);
   }
-  $('pd-title').textContent = d.name || d.email || 'Участник';
+  $('pd-title').textContent = fmt(d.name) === '—' ? (kfName(d) || fmt(d.email) || 'Участник') : d.name;
   const gcBtn = document.getElementById('pd-gc-btn');
   if (gcBtn) gcBtn.remove();
   const gcBtnHtml = '<button id="pd-gc-btn" class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="openGenerateCodeModal(' + id + ')">🔑 Выпустить код</button>';
