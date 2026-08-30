@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>ADIN — Аналитика НИ × Демография</title>
+<style>
+  body { font-family: -apple-system, Arial, sans-serif; background: #f8f6f0; margin: 0; padding: 40px 20px; color: #1a1a2e; }
+  .container { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 24px; margin-bottom: 4px; }
+  .sub { color: #8888a8; font-size: 13px; margin-bottom: 24px; }
+  .card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 12px rgba(0,0,0,.06); margin-bottom: 20px; }
+  label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: #4a4a6a; display: block; margin-bottom: 6px; }
+  input, select { width: 100%; padding: 10px 12px; border: 1.5px solid #e8e4dc; border-radius: 8px; font-size: 14px; box-sizing: border-box; font-family: inherit; }
+  button { background: #c8432a; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 12px; }
+  button:disabled { opacity: .5; cursor: default; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 8px 10px; text-align: right; border-bottom: 1px solid #ede8df; }
+  th:first-child, td:first-child { text-align: left; font-weight: 600; }
+  thead th { background: #1e3a5f; color: #fff; font-weight: 600; }
+  tbody tr:nth-child(even) { background: #faf9f6; }
+  .total-col { font-weight: 700; color: #1e3a5f; }
+  .error { color: #c0392b; font-size: 13px; margin-top: 8px; }
+  #screen-login { max-width: 380px; margin: 80px auto; text-align: center; }
+</style>
+</head>
+<body>
+
+<div id="screen-login">
+  <h1>Аналитика НИ × Демография</h1>
+  <div class="sub">Введите ключ доступа</div>
+  <input id="key-input" type="password" placeholder="Ключ доступа" onkeydown="if(event.key==='Enter')doLogin()">
+  <button onclick="doLogin()">Войти</button>
+  <div class="error" id="login-error" style="display:none">Неверный ключ.</div>
+</div>
+
+<div id="screen-main" class="container" style="display:none">
+  <h1>Аналитика НИ × Демография</h1>
+  <div class="sub">Перекрёстная таблица: доминирующий архетип по демографическому признаку</div>
+
+  <div class="card">
+    <label>Признак</label>
+    <select id="dimension-select" onchange="loadCrosstab()">
+      <option value="country">Страна</option>
+      <option value="education">Образование</option>
+      <option value="education_field">Направление образования</option>
+      <option value="gender">Пол</option>
+      <option value="age_range">Возраст</option>
+      <option value="marital_status">Семейное положение</option>
+      <option value="lang_native">Родной язык</option>
+      <option value="industry">Сфера деятельности</option>
+    </select>
+  </div>
+
+  <div class="card">
+    <div id="table-wrap"><div style="color:#8888a8;text-align:center;padding:20px">Загрузка...</div></div>
+  </div>
+</div>
+
+<script>
+const API = 'https://adin-ni-backend-production.up.railway.app/api';
+let dashboardKey = localStorage.getItem('adin_dashboard_key') || '';
+
+window.onload = () => {
+  if (dashboardKey) { showScreen('main'); loadCrosstab(); }
+};
+
+function showScreen(name) {
+  document.getElementById('screen-login').style.display = name === 'login' ? 'block' : 'none';
+  document.getElementById('screen-main').style.display = name === 'main' ? 'block' : 'none';
+}
+
+async function doLogin() {
+  const key = document.getElementById('key-input').value.trim();
+  if (!key) return;
+  dashboardKey = key;
+  const ok = await loadCrosstab(true);
+  if (ok) {
+    localStorage.setItem('adin_dashboard_key', key);
+    showScreen('main');
+    loadCrosstab();
+  } else {
+    document.getElementById('login-error').style.display = 'block';
+  }
+}
+
+async function loadCrosstab(silent) {
+  const dimension = document.getElementById('dimension-select') ? document.getElementById('dimension-select').value : 'country';
+  try {
+    const r = await fetch(API + '/v2/analytics/crosstab?dimension=' + dimension, {
+      headers: { 'x-dashboard-key': dashboardKey }
+    });
+    if (r.status === 401) {
+      if (!silent) { localStorage.removeItem('adin_dashboard_key'); showScreen('login'); }
+      return false;
+    }
+    const data = await r.json();
+    if (!silent) renderTable(data);
+    return true;
+  } catch (e) {
+    if (!silent) document.getElementById('table-wrap').innerHTML = '<div class="error">Ошибка соединения.</div>';
+    return false;
+  }
+}
+
+function renderTable(rows) {
+  const wrap = document.getElementById('table-wrap');
+  if (!rows.length) {
+    wrap.innerHTML = '<div style="color:#8888a8;text-align:center;padding:20px">Данных нет.</div>';
+    return;
+  }
+
+  // Собираем множество категорий и архетипов, строим сводную таблицу.
+  const categories = [...new Set(rows.map(r => r.category))].sort();
+  const archetypes = [...new Set(rows.map(r => r.archetype))].sort();
+  const lookup = {};
+  rows.forEach(r => { lookup[r.category + '|' + r.archetype] = r.count; });
+
+  let html = '<table><thead><tr><th>Категория</th>';
+  archetypes.forEach(a => { html += `<th>${a}</th>`; });
+  html += '<th>Всего</th></tr></thead><tbody>';
+
+  categories.forEach(cat => {
+    let rowTotal = 0;
+    html += `<tr><td>${cat}</td>`;
+    archetypes.forEach(a => {
+      const v = lookup[cat + '|' + a] || 0;
+      rowTotal += v;
+      html += `<td>${v || '—'}</td>`;
+    });
+    html += `<td class="total-col">${rowTotal}</td></tr>`;
+  });
+
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+</script>
+</body>
+</html>
