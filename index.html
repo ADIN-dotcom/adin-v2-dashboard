@@ -2035,6 +2035,9 @@ async function loadNarrativeStatus() {
     }
   }
 
+  // Сохранённый групповой отчёт показываем сразу — без нового вызова ИИ.
+  await loadGroupNarrativeReport(groupId);
+
   let url = '/narrative-status/group/' + (groupId || 'all');
   // Если нет group — загружаем всех
   const d = groupId
@@ -2180,21 +2183,10 @@ function renderDeepAnalysis(d) {
   `;
 }
 
-async function generateGroupNarrative() {
-  const groupId = document.getElementById('ns-group-filter').value;
-  if (!groupId) { toast('Выберите группу для группового анализа'); return; }
+let NS_SAVED_REPORT_AT = null;
 
-  const btn = document.getElementById('btn-group-narrative');
-  btn.disabled = true; btn.textContent = 'Анализируем…';
-  document.getElementById('ns-group-report').style.display = 'none';
-  document.getElementById('ns-group-report').innerHTML = '';
-
-  const d = await api('/narrative-status/group/' + groupId + '/analyze', { method: 'POST' });
-  btn.disabled = false; btn.textContent = '🔮 Групповой анализ';
-
-  if (!d || !d.success) { toast('Ошибка группового анализа'); return; }
-
-  const r = d.result;
+// Отрисовка группового отчёта — общая для свежего анализа и для сохранённого.
+function renderGroupNarrative(r, savedAt) {
   const wrap = document.getElementById('ns-group-report');
   wrap.style.display = 'block';
 
@@ -2239,7 +2231,7 @@ async function generateGroupNarrative() {
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
         <div style="font-size:16px;font-weight:700;color:var(--navy)">Групповой нарративный статус</div>
-        <span style="font-size:13px;color:var(--ink-faint)">${r.group_size} участников</span>
+        <span style="font-size:13px;color:var(--ink-faint)">${r.group_size} участников${savedAt ? ' · сохранённый отчёт от ' + fmtDate(savedAt) : ''}</span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
         <div style="text-align:center;padding:12px;background:var(--cream);border-radius:8px">
@@ -2277,6 +2269,57 @@ async function generateGroupNarrative() {
       ${seeds ? `<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Зёрна формулы моста</div>${seeds}</div>` : ''}
       ${modules ? `<div><div style="font-size:12px;font-weight:600;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Рекомендации по модулям</div>${modules}</div>` : ''}
     </div>`;
+}
+
+// Показать уже сохранённый отчёт — без повторного (платного) вызова ИИ.
+async function loadGroupNarrativeReport(groupId) {
+  const wrap = document.getElementById('ns-group-report');
+  const btn = document.getElementById('btn-group-narrative');
+  wrap.style.display = 'none';
+  wrap.innerHTML = '';
+  NS_SAVED_REPORT_AT = null;
+  if (btn) btn.textContent = '\u{1F52E} Групповой анализ';
+  if (!groupId) return;
+
+  const row = await api('/narrative-status/group/' + groupId + '/report');
+  if (!row || row.error) return;            // 404 — анализ по группе ещё не запускался
+
+  let r = row.raw_content;
+  if (typeof r === 'string') { try { r = JSON.parse(r); } catch (e) { r = null; } }
+  if (!r) return;
+
+  NS_SAVED_REPORT_AT = row.generated_at || null;
+  if (btn) btn.textContent = '\u{1F52E} Обновить анализ';
+  renderGroupNarrative({ ...r, group_size: row.participant_count ?? r.group_size }, row.generated_at);
+}
+
+async function generateGroupNarrative() {
+  const groupId = document.getElementById('ns-group-filter').value;
+  if (!groupId) { toast('Выберите группу для группового анализа'); return; }
+
+  // Каждый запуск — платный вызов ИИ, поэтому переспрашиваем, если отчёт уже есть.
+  if (NS_SAVED_REPORT_AT && !confirm(
+    'Отчёт по этой группе уже есть (от ' + fmtDate(NS_SAVED_REPORT_AT) + ').\n' +
+    'Запустить анализ заново? Это платный вызов ИИ.'
+  )) return;
+
+  const btn = document.getElementById('btn-group-narrative');
+  btn.disabled = true; btn.textContent = 'Анализируем…';
+  document.getElementById('ns-group-report').style.display = 'none';
+  document.getElementById('ns-group-report').innerHTML = '';
+
+  const d = await api('/narrative-status/group/' + groupId + '/analyze', { method: 'POST' });
+  btn.disabled = false;
+
+  if (!d || !d.success) {
+    btn.textContent = NS_SAVED_REPORT_AT ? '\u{1F52E} Обновить анализ' : '\u{1F52E} Групповой анализ';
+    toast((d && d.error) || 'Ошибка группового анализа');
+    return;
+  }
+
+  NS_SAVED_REPORT_AT = new Date().toISOString();
+  btn.textContent = '\u{1F52E} Обновить анализ';
+  renderGroupNarrative(d.result);
 }
 </script>
 </body>
