@@ -2218,6 +2218,19 @@ async function generateGroupNarrative() {
     `<span style="display:inline-block;padding:5px 12px;background:var(--green-s);color:var(--green);border-radius:14px;font-size:12px;font-weight:600;margin:0 6px 6px 0">${c}</span>`
   ).join('');
 
+  const modules = [
+    ['module_1_recommendations', 'Модуль 1'],
+    ['module_2_recommendations', 'Модуль 2'],
+    ['module_3_recommendations', 'Модуль 3'],
+  ].map(([key, label]) => {
+    const items = r[key] || [];
+    if (!items.length) return '';
+    return `<div style="margin-bottom:10px">
+      <div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:6px">${label}</div>
+      ${items.map(t => `<div style="padding:8px 12px;background:var(--cream);border-left:3px solid var(--navy-mid);border-radius:4px;font-size:13px;line-height:1.6;margin-bottom:5px">${t}</div>`).join('')}
+    </div>`;
+  }).join('');
+
   const seeds = (r.bridge_formula_seeds || []).map(s =>
     `<div style="padding:6px 12px;background:var(--green-s);border-radius:6px;font-size:13px;margin-bottom:4px">💡 "${s}"</div>`
   ).join('');
@@ -2261,7 +2274,8 @@ async function generateGroupNarrative() {
       ${r.opening_move ? `<div style="padding:12px 16px;background:#dce8f5;border-left:4px solid var(--navy);border-radius:4px;font-size:14px;margin-bottom:12px"><strong>С чего начать Модуль 1:</strong> ${r.opening_move}</div>` : ''}
       ${r.crisis_narrative ? `<div style="padding:10px 14px;background:#fee2e2;border-left:3px solid var(--red);border-radius:4px;font-size:13px;margin-bottom:12px">⚠️ Кризисный нарратив для Блока 3 М1: <strong>${r.crisis_narrative}</strong></div>` : ''}
       ${carriers ? `<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Носители ресурсного нарратива — опора в группе</div>${carriers}</div>` : ''}
-      ${seeds ? `<div><div style="font-size:12px;font-weight:600;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Зёрна формулы моста</div>${seeds}</div>` : ''}
+      ${seeds ? `<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Зёрна формулы моста</div>${seeds}</div>` : ''}
+      ${modules ? `<div><div style="font-size:12px;font-weight:600;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Рекомендации по модулям</div>${modules}</div>` : ''}
     </div>`;
 }
 </script>
