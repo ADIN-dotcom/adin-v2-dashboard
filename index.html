@@ -1348,6 +1348,25 @@ async function downloadNarrativeStatusPdf(sessionId, level) {
   } catch (e) { toast('Ошибка соединения', true); }
 }
 
+// Групповой отчёт НС в PDF. Верстается из уже сохранённого анализа —
+// нового вызова ИИ не делает и денег не стоит.
+async function downloadGroupNarrativePdf() {
+  const groupId = document.getElementById('ns-group-filter').value;
+  if (!groupId) { toast('Выберите группу', true); return; }
+  toast('Готовим PDF...');
+  try {
+    const r = await fetch(API + '/narrative-status/group/' + groupId + '/report-pdf', {
+      headers: { 'Authorization': 'Bearer ' + TOKEN }
+    });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); toast('PDF недоступен: ' + (e.error || r.status), true); return; }
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'ADIN_narrative_status_group.pdf'; a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (e) { toast('Ошибка соединения', true); }
+}
+
 async function downloadFullReport(code) {
   if (!code) { toast('Нет кода НИ-теста', true); return; }
   toast('Готовим отчёт...');
@@ -2326,7 +2345,10 @@ function renderGroupNarrative(r, savedAt) {
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
         <div style="font-size:16px;font-weight:700;color:var(--navy)">Групповой нарративный статус</div>
+        <div style="display:flex;align-items:center;gap:12px">
         <span style="font-size:13px;color:var(--ink-faint)">${r.group_size} участников${r.unclassified_count ? ' · ' + r.unclassified_count + ' без анализа' : ''}${savedAt ? ' · отчёт от ' + fmtDate(savedAt) : ''}</span>
+          <button class="btn" onclick="downloadGroupNarrativePdf()" style="padding:6px 12px;font-size:12.5px">&#128196; PDF</button>
+        </div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
         <div style="text-align:center;padding:12px;background:var(--cream);border-radius:8px">
