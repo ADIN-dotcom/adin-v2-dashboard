@@ -615,6 +615,43 @@ tr:hover td{background:var(--cream)}
   </div>
 </div>
 
+<!-- Одиночная анонимная выдача кода (кнопка «🔑 Выпустить код» в карточке
+     участника). Язык теста выбирается здесь так же, как в «Отправить тест»
+     (inv-lang) и в «Ключ-файл» (kf-lang) — иначе сервер ставит 'ru'. -->
+<div class="modal-bg" id="modal-gencode">
+  <div class="modal">
+    <div class="modal-title">
+      <span>Выпустить код участнику</span>
+      <button class="modal-close" onclick="closeModal('modal-gencode')">×</button>
+    </div>
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px">Код выпускается без письма — передайте его участнику сами. Связку «пометка ↔ код» можно сразу добавить в ваш личный ключ-файл (он хранится только в этом браузере).</p>
+    <div class="field"><label>Тип теста</label>
+      <select id="gc-test-type">
+        <option value="ni_test">НИ-тест</option>
+        <option value="narrative_status">Нарративный статус</option>
+        <option value="personal_narrative">Личный нарратив</option>
+        <option value="profils_questionnaire">Profils — Questionnaire</option>
+        <option value="profils_societe">Profils — SOCIETE</option>
+      </select>
+    </div>
+    <div class="field"><label>Язык теста</label>
+      <select id="gc-lang">
+        <option value="ru">Русский</option>
+        <option value="en">English</option>
+        <option value="fr">Français</option>
+        <option value="hy">Հայերեն</option>
+      </select>
+    </div>
+    <div class="field"><label>Пометка для личного ключа (необязательно)</label>
+      <input id="gc-label" type="text" placeholder="email или имя — остаётся только в этом браузере">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-gencode')">Отмена</button>
+      <button class="btn btn-navy" id="gc-btn" onclick="submitGenerateCode()">Выпустить код</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modal-invite">
   <div class="modal">
     <div class="modal-title">
@@ -1025,19 +1062,38 @@ function renderNIAnswers(data) {
   '</div>';
 }
 
-async function openGenerateCodeModal(participantId) {
-  const testType = prompt('Тип теста: ni_test / narrative_status / personal_narrative / profils_questionnaire / profils_societe', 'ni_test');
-  if (!testType) return;
-  const keyLabel = prompt('Email или пометка для вашего личного ключа (необязательно, остаётся только в этом браузере):', '');
+let gcParticipantId = null;
 
-  const r = await api('/v2/participants/' + participantId + '/generate-code', {
-    method: 'POST',
-    body: { test_type: testType }
-  });
+function openGenerateCodeModal(participantId) {
+  gcParticipantId = participantId;
+  $('gc-test-type').value = 'ni_test';
+  $('gc-lang').value = 'ru';
+  $('gc-label').value = '';
+  openModal('modal-gencode');
+}
+
+async function submitGenerateCode() {
+  const participantId = gcParticipantId;
+  if (!participantId) return;
+  const testType = $('gc-test-type').value;
+  const language = $('gc-lang').value;
+  const keyLabel = $('gc-label').value;
+
+  const btn = $('gc-btn'); btn.disabled = true; btn.textContent = 'Выпускаем...';
+  let r;
+  try {
+    r = await api('/v2/participants/' + participantId + '/generate-code', {
+      method: 'POST',
+      body: { test_type: testType, language: language }
+    });
+  } finally {
+    btn.disabled = false; btn.textContent = 'Выпустить код';
+  }
   if (!r || !r.success) {
     toast('Ошибка: ' + (r && r.error || 'попробуйте снова'), true);
     return;
   }
+  closeModal('modal-gencode');
 
   if (keyLabel && keyLabel.trim()) {
     const entries = {};
@@ -1050,8 +1106,9 @@ async function openGenerateCodeModal(participantId) {
     toast('Код выпущен: ' + r.code + ' — ' + r.link);
   }
 
-  // Показываем сам код/ссылку в диалоге, чтобы можно было скопировать
-  prompt('Скопируйте код и ссылку для передачи участнику:', r.code + '  ' + r.link);
+  // Показываем сам код/ссылку в диалоге, чтобы можно было скопировать.
+  // Язык подтверждаем тем, что реально сохранил сервер (r.language).
+  prompt('Код и ссылка для участника (язык теста: ' + (r.language || language) + '):', r.code + '  ' + r.link);
 
   if (typeof openParticipantDetail === 'function') openParticipantDetail(participantId);
 }
