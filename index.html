@@ -1543,7 +1543,7 @@ async function loadNIAnalytics() {
       ? '<div class="empty-state"><div class="empty-state-text">Нет результатов</div></div>'
       : '<table><thead><tr><th>Участник</th><th>Тип</th><th>Уровень</th><th>Балл</th><th>Дата</th><th></th></tr></thead><tbody>' +
         results.participants.map(p=>'<tr>' +
-          '<td><strong>'+fmt(p.name)+'</strong><br><span style="font-size:11px;color:var(--ink-faint)">'+fmt(p.email)+'</span></td>' +
+          '<td><strong>'+(fmt(p.name) === '—' ? (kfName(p) || fmt(p.email) || 'Участник') : p.name)+'</strong><br><span style="font-size:11px;color:var(--ink-faint)">'+fmt(p.email)+'</span></td>' +
           '<td><span class="badge badge-navy">'+fmt(p.type_name)+'</span></td>' +
           '<td>'+fmt(p.maturity_level_name)+'</td>' +
           '<td><strong>'+fmt(p.overall_score)+'</strong>/100</td>' +
