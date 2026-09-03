@@ -1381,19 +1381,15 @@ async function downloadFullReport(code) {
   } catch (e) { toast('Ошибка соединения', true); }
 }
 
-// Обезличенные приглашения: сервер выдаёт коды ПО КОЛИЧЕСТВУ, а связку «email/имя ↔ код»
-// и CSV-ключ-файл собирает браузер. Адреса и имена на сервер НЕ отправляются.
+// Обезличенные приглашения: сервер выдаёт коды и не сохраняет персональных данных
+// (invited_email и invited_name пишутся NULL), а связку «email/имя ↔ код» и CSV-ключ-файл
+// собирает браузер — ключ-файл на сервер не отправляется и живёт только в localStorage.
+//
+// person_key с 3 сентября 2026 считает сервер, а не браузер (вариант А). Здесь соли
+// больше нет и быть не должно: этот файл публично отдаётся GitHub Pages, поэтому любая
+// соль в нём читается через «Просмотр кода страницы», а хэш обращается перебором
+// кандидатов. Цена решения — email уходит на сервер на время одного запроса.
 function csvEsc(v){ return '"' + String(v==null?'':v).replace(/"/g,'""') + '"'; }
-const PERSON_KEY_SALT = 'ADIN-2026-person-key-v1';
-
-async function computePersonKey(email) {
-  const normalized = String(email || '').trim().toLowerCase();
-  if (!normalized) return null;
-  const data = new TextEncoder().encode(normalized + PERSON_KEY_SALT);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
 
 async function downloadKeyfile() {
   const raw = $('kf-emails').value.trim();
@@ -1411,10 +1407,9 @@ async function downloadKeyfile() {
   const lang = $('kf-lang').value;
   const btn = $('kf-btn'); btn.disabled = true; btn.textContent = 'Формируем...';
   try {
-    // person_key считается здесь, в браузере — сервер получает хэш, не email.
-    const peopleWithKeys = await Promise.all(
-      people.map(async p => ({ person_key: await computePersonKey(p.email) }))
-    );
+    // Email уходит на сервер только для вычисления person_key — в базу он не пишется.
+    // Имена не отправляются вовсе: они нужны лишь для CSV, который собирается ниже.
+    const peopleWithKeys = people.map(p => ({ email: p.email }));
 
     const r = await fetch(API + '/v2/generate-codes', {
       method: 'POST',
