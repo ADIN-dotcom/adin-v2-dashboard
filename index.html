@@ -753,7 +753,8 @@ const TEST_LABELS = {
   ni_test: 'НИ-тест',
   profils_questionnaire: 'Questionnaire',
   profils_societe: 'SOCIETE',
-  narrative_status: 'Нарр. статус'
+  narrative_status: 'Нарр. статус',
+  personal_narrative: 'Личный нарратив'
 };
 const STATUS_LABELS = { pending:'Ожидает', sent:'Отправлен', opened:'Открыт', completed:'Завершён', expired:'Истёк' };
 const STATUS_BADGES = { pending:'badge-gray', sent:'badge-gold', opened:'badge-navy', completed:'badge-green', expired:'badge-accent' };
@@ -1169,16 +1170,29 @@ async function openParticipantDetail(id) {
     ${niAnswersHtml}`;
 }
 
+// Бейджи «тест: этап» в таблице участников.
+// Раньше все незавершённые приглашения подписывались «отправлен», хотя
+// pending означает, что письмо ещё не уходило (таких в базе 16), а типы
+// narrative_status и personal_narrative отсутствовали в карте подписей и
+// выводились сырым слагом. Теперь и подписи, и цвета берутся из тех же
+// STATUS_LABELS/STATUS_BADGES, что и в карточке участника, — таблица и
+// карточка больше не расходятся.
+const BADGE_TEST_LABELS = {
+  ni_test: 'НИ-тест',
+  narrative_status: 'Нарр. статус',
+  personal_narrative: 'Личный нарратив',
+  profils_questionnaire: 'PN \u00b7 \u043e \u0441\u0435\u0431\u0435',
+  profils_societe: 'PN \u00b7 \u043e \u043a\u043e\u043c\u043f\u0430\u043d\u0438\u0438',
+};
+
 function renderTestBadges(invitations) {
   if (!invitations || !invitations.length) return '<span style="font-size:13px;color:var(--ink-faint)">—</span>';
-  const labels = { ni_test: 'НИ-тест', profils_questionnaire: 'PN \u00b7 \u043e \u0441\u0435\u0431\u0435', profils_societe: 'PN \u00b7 \u043e \u043a\u043e\u043c\u043f\u0430\u043d\u0438\u0438' };
   return '<div style="display:flex;flex-wrap:wrap;gap:4px">' +
     invitations.map(function(inv) {
-      const label = labels[inv.type] || inv.type;
-      const done = inv.status === 'completed';
-      const cls = done ? 'badge-green' : 'badge-gray';
-      const suffix = done ? ': \u0437\u0430\u0432\u0435\u0440\u0448\u0451\u043d' : ': \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d';
-      return '<span class="badge ' + cls + '" style="font-size:11px">' + label + suffix + '</span>';
+      const label = BADGE_TEST_LABELS[inv.type] || TEST_LABELS[inv.type] || inv.type;
+      const cls = STATUS_BADGES[inv.status] || 'badge-gray';
+      const stage = STATUS_LABELS[inv.status] || inv.status || '\u2014';
+      return '<span class="badge ' + cls + '" style="font-size:11px">' + label + ': ' + stage.toLowerCase() + '</span>';
     }).join('') +
   '</div>';
 }
