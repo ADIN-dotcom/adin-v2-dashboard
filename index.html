@@ -290,6 +290,27 @@ tr:hover td{background:var(--cream)}
               <option value="archived">Архив</option>
             </select>
           </div>
+          <div>
+            <label style="font-size:11px;color:var(--ink-faint);display:block;margin-bottom:4px">Тест</label>
+            <select id="f-test" onchange="loadParticipants(1)">
+              <option value="">Все тесты</option>
+              <option value="ni_test">НИ-тест</option>
+              <option value="narrative_status">Нарративный статус</option>
+              <option value="personal_narrative">Личный нарратив</option>
+              <option value="profils_questionnaire">PN · о себе</option>
+              <option value="profils_societe">PN · о компании</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--ink-faint);display:block;margin-bottom:4px">Этап</label>
+            <select id="f-stage" onchange="loadParticipants(1)">
+              <option value="">Все этапы</option>
+              <option value="pending">Ожидает отправки</option>
+              <option value="sent">Отправлено</option>
+              <option value="opened">Открыто</option>
+              <option value="completed">Завершил</option>
+            </select>
+          </div>
         </div>
         <div class="card" style="padding:0">
           <div class="tbl-wrap">
@@ -904,11 +925,18 @@ async function loadParticipants(page) {
   const search = $('p-search').value;
   const group = $('f-group').value;
   const status = $('f-status').value;
+  const testType = $('f-test').value;
+  const stage = $('f-stage').value;
+  // Фильтр «Тест × Этап» считается в браузере: GET /v2/participants отдаёт
+  // invitations со статусом, но серверного фильтра по нему нет, а параметр
+  // status у этого роута относится к статусу участника (активный/архив).
+  const stageFilter = !!(testType || stage);
   const kfActive = window.KEYFILE && Object.keys(window.KEYFILE).length > 0;
   const clientSearch = !!(search && kfActive); // имя/email ищем в браузере по ключ-файлу
   const params = new URLSearchParams({ page: pPage, limit: 50 });
   if (search && !kfActive) params.set('search', search); // серверный поиск — только без ключ-файла
-  if (clientSearch) { params.set('limit', '1000'); params.set('page', '1'); }
+  // Клиентская фильтрация обязана видеть всех, иначе отработает лишь по текущей странице.
+  if (clientSearch || stageFilter) { params.set('limit', '1000'); params.set('page', '1'); }
   if (group && group !== '') params.set('group_id', group);
   if (status && status !== '') params.set('status', status);
 
@@ -925,6 +953,22 @@ async function loadParticipants(page) {
         (i.code && String(i.code).toLowerCase().includes(q)) ||
         (i.token && String(i.token).toLowerCase().includes(q)))) return true;
       return false;
+    });
+  }
+
+  // При выбранном тесте смотрим только приглашения этого типа; участники без
+  // такого приглашения из списка уходят и считаются отдельно. При «Все тесты»
+  // этап срабатывает, если в нём есть хотя бы одно приглашение.
+  let hiddenNoInvite = 0;
+  if (stageFilter) {
+    rows = rows.filter(p => {
+      let invs = Array.isArray(p.invitations) ? p.invitations : [];
+      if (testType) {
+        invs = invs.filter(i => i && i.type === testType);
+        if (!invs.length) { hiddenNoInvite++; return false; }
+      }
+      if (!stage) return invs.length > 0;
+      return invs.some(i => i && i.status === stage);
     });
   }
 
@@ -949,8 +993,12 @@ async function loadParticipants(page) {
 
   const pages = d.pages || 1;
   let pg = '';
-  if (clientSearch) {
-    pg = `<span class="pg-info">Найдено по ключ-файлу: ${rows.length}</span>`;
+  if (clientSearch || stageFilter) {
+    const how = [];
+    if (clientSearch) how.push('поиск по ключ-файлу');
+    if (stageFilter) how.push('фильтр по этапу');
+    pg = `<span class="pg-info">Показано ${rows.length} из ${d.total} · ${how.join(' + ')}`
+       + `${hiddenNoInvite ? ' · скрыто без приглашения на выбранный тест: ' + hiddenNoInvite : ''}</span>`;
   } else if (pages > 1) {
     if (pPage > 1) pg += `<button class="pg-btn" onclick="loadParticipants(${pPage-1})">← Пред.</button>`;
     pg += `<span class="pg-info">Стр. ${pPage} из ${pages} · ${d.total} участников</span>`;
