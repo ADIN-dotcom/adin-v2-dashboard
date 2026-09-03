@@ -2321,7 +2321,16 @@ function renderGroupNarrative(r, savedAt) {
          ${r.facilitator_alerts.map(a => `<div style="padding:7px 12px;background:var(--red-s);border-radius:5px;font-size:12.5px;margin-bottom:5px">⚠️ ${a}</div>`).join('')}
        </div>` : '';
 
-  const carriers = (r.resource_carriers || []).map(c =>
+  // Имя подставляем здесь, в браузере: сервер отдаёт коды участников, а не
+  // имена. Старые отчёты приходят без codes — для них остаются готовые строки.
+  const carrierTexts = (r.resource_carriers_keyed || []).length
+    ? r.resource_carriers_keyed.map(c => {
+        const name = kfName({ invitations: (c.codes || []).map(code => ({ code })) }) || c.fallback;
+        return name + ' — ' + c.narrative;
+      })
+    : (r.resource_carriers || []);
+
+  const carriers = carrierTexts.map(c =>
     `<span style="display:inline-block;padding:5px 12px;background:var(--green-s);color:var(--green);border-radius:14px;font-size:12px;font-weight:600;margin:0 6px 6px 0">${c}</span>`
   ).join('');
 
