@@ -273,7 +273,8 @@ tr:hover td{background:var(--cream)}
             <button class="btn btn-ghost btn-sm" onclick="openModal('modal-keyfile')">🔑 Ключ-файл</button>
             <button class="btn btn-ghost btn-sm" onclick="document.getElementById('kf-file-names').click()" title="Загрузить свой ключ-файл, чтобы видеть имена. Файл читается локально в браузере и на сервер не отправляется.">📂 Имена</button>
             <input type="file" id="kf-file-names" accept=".csv,text/csv" style="display:none" onchange="loadKeyfileNames(this)">
-            <button class="btn btn-navy" onclick="openModal('modal-add-participant')">+ Добавить</button>
+            <button class="btn btn-navy" onclick="openUnifiedInvite()">✉️ Пригласить</button>
+            <button class="btn btn-ghost btn-sm" onclick="openModal('modal-add-participant')">+ Добавить</button>
           </div>
         </div>
         <div class="search-box"><input type="text" id="p-search" placeholder="Поиск: код · или имя/email при загруженном ключ-файле" oninput="debounce(()=>loadParticipants(1),350)"></div>
@@ -632,6 +633,71 @@ tr:hover td{background:var(--cream)}
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-keyfile')">Отмена</button>
       <button class="btn btn-navy" id="kf-btn" onclick="downloadKeyfile()">Скачать ключ-файл</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-unified-invite">
+  <div class="modal">
+    <div class="modal-title">
+      <span>Пригласить</span>
+      <button class="modal-close" onclick="closeModal('modal-unified-invite')">×</button>
+    </div>
+
+    <div style="display:flex;gap:6px;margin-bottom:16px">
+      <button class="btn btn-sm" id="ui-mode-new" onclick="uiSetMode('new')">Новые участники</button>
+      <button class="btn btn-sm" id="ui-mode-existing" onclick="uiSetMode('existing')">Уже в системе</button>
+    </div>
+
+    <div id="ui-block-new">
+      <div class="field"><label>Участники — email или «email,Имя» (по одному в строке)</label>
+        <textarea id="ui-emails" rows="5" style="width:100%;padding:10px;border:1.5px solid var(--cream-d);border-radius:8px;font-family:inherit;font-size:14px;box-sizing:border-box" placeholder="a@company.com,Иван Иванов&#10;b@company.com"></textarea>
+      </div>
+    </div>
+
+    <div id="ui-block-existing" style="display:none">
+      <div class="field"><label>Кого приглашаем</label>
+        <input type="text" id="ui-search" placeholder="Поиск по имени, email или коду" oninput="uiRenderPicker()" style="width:100%;padding:9px 12px;border:1.5px solid var(--cream-d);border-radius:8px;font-family:inherit;font-size:14px;box-sizing:border-box;margin-bottom:8px">
+        <div id="ui-picker" style="max-height:220px;overflow-y:auto;border:1.5px solid var(--cream-d);border-radius:8px;padding:6px"></div>
+        <div id="ui-picked" style="font-size:12px;color:var(--ink-faint);margin-top:6px"></div>
+      </div>
+    </div>
+
+    <div class="field"><label>Тип теста</label>
+      <select id="ui-test-type">
+        <option value="ni_test">НИ-тест</option>
+        <option value="narrative_status">Нарративный статус</option>
+        <option value="personal_narrative">Личный нарратив</option>
+        <option value="profils_questionnaire">Profils — Questionnaire</option>
+        <option value="profils_societe">Profils — SOCIETE</option>
+      </select>
+    </div>
+    <div class="field"><label>Группа (необязательно)</label>
+      <select id="ui-group"><option value="">Без группы</option></select>
+    </div>
+    <div class="field"><label>Язык теста</label>
+      <select id="ui-lang">
+        <option value="ru">Русский</option>
+        <option value="en">English</option>
+        <option value="fr">Français</option>
+        <option value="hy">Հայերեն</option>
+      </select>
+    </div>
+    <div class="field" id="ui-region-field"><label>Регион (для маршрутизации данных)</label>
+      <select id="ui-region">
+        <option value="intl">Международный (текущий сервер)</option>
+        <option value="ru">Россия (РФ-контур)</option>
+      </select>
+    </div>
+
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:4px 0 10px;cursor:pointer">
+      <input type="checkbox" id="ui-send-email" onchange="uiUpdateHint()"> Отправлять письмо автоматически
+    </label>
+    <div id="ui-hint" class="info-box blue" style="font-size:12.5px"></div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-unified-invite')">Отмена</button>
+      <button class="btn btn-navy" id="ui-btn" onclick="uiSubmit()">Пригласить</button>
     </div>
   </div>
 </div>
@@ -1059,6 +1125,7 @@ async function loadGroupsFilter() {
     'f-group': allGroups,
     'new-p-group': noGroup,
     'inv-group': noGroup,
+    'ui-group': noGroup,
     'kf-group': '<option value="">— без группы —</option>',
     // 'ni-group-filter': загружается отдельно через loadNIGroupFilter
     'pn-group-filter': allGroups,
@@ -1555,6 +1622,232 @@ async function downloadKeyfile() {
     toast('Ошибка соединения', true);
   } finally {
     btn.disabled = false; btn.textContent = 'Скачать ключ-файл';
+  }
+}
+
+// ── ЕДИНЫЙ ЭКРАН «ПРИГЛАСИТЬ» ────────────────────────────────────────────────
+// Один экран вместо четырёх точек входа. Новых роутов не заводит — вызывает
+// один из трёх существующих, по сочетанию режима и переключателя письма:
+//
+//   режим \ письмо │ да                              │ нет
+//   ───────────────┼─────────────────────────────────┼──────────────────────────────
+//   новые          │ POST /v2/participants           │ POST /v2/generate-codes
+//                  │  + POST /v2/invitations         │  (обезличенно, ключ-файл)
+//   в системе      │ POST /v2/invitations            │ POST /v2/participants/:id
+//                  │                                 │        /generate-code
+//
+// Режимы разделены явно, а не поиском по email: у 137 участников из 145 email
+// не хранится вовсе (анонимный путь), поэтому автопоиск по адресу нашёл бы
+// меньшинство. В режиме «уже в системе» список показывает имена из ключ-файла.
+let UI_MODE = 'new';
+let UI_ALL = [];
+let UI_PICKED = new Set();
+
+async function openUnifiedInvite() {
+  UI_PICKED = new Set();
+  UI_ALL = [];
+  $('ui-emails').value = '';
+  $('ui-search').value = '';
+  $('ui-send-email').checked = false;
+  uiSetMode('new');
+  openModal('modal-unified-invite');
+
+  const d = await api('/v2/participants?limit=1000&page=1');
+  UI_ALL = (d && d.participants) || [];
+  uiRenderPicker();
+}
+
+function uiSetMode(mode) {
+  UI_MODE = mode;
+  $('ui-block-new').style.display = mode === 'new' ? '' : 'none';
+  $('ui-block-existing').style.display = mode === 'existing' ? '' : 'none';
+  $('ui-mode-new').className = 'btn btn-sm ' + (mode === 'new' ? 'btn-navy' : 'btn-ghost');
+  $('ui-mode-existing').className = 'btn btn-sm ' + (mode === 'existing' ? 'btn-navy' : 'btn-ghost');
+  uiUpdateHint();
+}
+
+function uiLabel(p) {
+  return kfName(p) || p.name || p.email || ('Код #' + p.id);
+}
+
+function uiRenderPicker() {
+  const q = ($('ui-search').value || '').trim().toLowerCase();
+  const list = UI_ALL.filter(p => {
+    if (!q) return true;
+    if (uiLabel(p).toLowerCase().includes(q)) return true;
+    if ((p.email || '').toLowerCase().includes(q)) return true;
+    return (p.invitations || []).some(i =>
+      (i.code && String(i.code).toLowerCase().includes(q)) ||
+      (i.token && String(i.token).toLowerCase().includes(q)));
+  }).slice(0, 200);
+
+  $('ui-picker').innerHTML = list.length ? list.map(p =>
+    // .field label в общем CSS делает текст заглавным и жирным — для строк
+    // списка это нужно погасить явно, иначе имена ломают вёрстку переносами.
+    '<label style="display:flex;align-items:center;gap:8px;padding:5px 6px;font-size:13px;cursor:pointer;border-radius:5px;text-transform:none;font-weight:400;letter-spacing:normal;margin-bottom:0;color:var(--ink)">'
+    // .field input задаёт width:100% — для флажка это надо погасить, иначе он
+    // растягивается на всю строку и отжимает имя вправо.
+    + '<input type="checkbox" style="width:auto;flex:0 0 auto;padding:0;margin:0" value="' + p.id + '" ' + (UI_PICKED.has(p.id) ? 'checked' : '')
+    + ' onchange="uiTogglePick(' + p.id + ', this.checked)">'
+    + '<span style="flex:1 1 auto;min-width:0;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + uiLabel(p) + '</span>'
+    + '<span style="color:var(--ink-faint);font-size:11px;text-transform:none;flex:0 1 auto;min-width:0;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + (p.email || '') + '">' + (p.email ? p.email : 'анонимный') + '</span>'
+    + '</label>').join('')
+    : '<div style="padding:10px;font-size:13px;color:var(--ink-faint)">Никого не найдено</div>';
+  uiUpdatePicked();
+}
+
+function uiTogglePick(id, on) {
+  if (on) UI_PICKED.add(id); else UI_PICKED.delete(id);
+  uiUpdatePicked();
+}
+
+function uiUpdatePicked() {
+  const n = UI_PICKED.size;
+  $('ui-picked').textContent = n ? ('Выбрано: ' + n) : 'Никто не выбран';
+  uiUpdateHint();
+}
+
+function uiUpdateHint() {
+  const mail = $('ui-send-email').checked;
+  // Регион принимает только generate-codes — показываем поле лишь там, где оно работает.
+  $('ui-region-field').style.display = (!mail && UI_MODE === 'new') ? '' : 'none';
+  const hints = {
+    'new-true':  'Участники будут созданы с email, письма уйдут автоматически. Адреса и имена сохраняются на сервере.',
+    'new-false': 'Коды выпустит сервер, а связку «email ↔ код» соберёт браузер в ключ-файл. Адреса на сервер не сохраняются. Письма не рассылаются — ссылки раздаёте сами.',
+    'existing-true':  'Письма уйдут выбранным участникам. У кого нет email (приглашён анонимно) — тем отправить некому, они будут перечислены отдельно.',
+    'existing-false': 'Каждому выбранному выпустим ещё один код и добавим его в ключ-файл. Письма не рассылаются.',
+  };
+  $('ui-hint').textContent = hints[UI_MODE + '-' + mail];
+}
+
+function uiParseEmails() {
+  return ($('ui-emails').value || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean).map(line => {
+    const i = line.indexOf(',');
+    return i === -1 ? { email: line.trim(), name: '' }
+                    : { email: line.slice(0, i).trim(), name: line.slice(i + 1).trim() };
+  }).filter(p => p.email.includes('@'));
+}
+
+function uiKeyfileDownload(rows, newEntries, suffix) {
+  mergeIntoMasterKeyfile(newEntries);
+  const csv = '\ufeff' + ['email,name,code,language,link', ...rows].join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'adin_keyfile_' + suffix + '_' + Date.now() + '.csv'; a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+async function uiSubmit() {
+  const mail = $('ui-send-email').checked;
+  const testType = $('ui-test-type').value;
+  const groupId = $('ui-group').value || null;
+  const lang = $('ui-lang').value;
+  const btn = $('ui-btn');
+  btn.disabled = true;
+  try {
+    if (UI_MODE === 'new') {
+      const people = uiParseEmails();
+      if (!people.length) { toast('Введите хотя бы один email', true); return; }
+      if (mail) await uiNewWithEmail(people, testType, groupId, lang, btn);
+      else await uiNewAnonymous(people, testType, groupId, lang, btn);
+    } else {
+      const ids = Array.from(UI_PICKED);
+      if (!ids.length) { toast('Выберите хотя бы одного участника', true); return; }
+      if (mail) await uiExistingWithEmail(ids, testType, groupId, lang, btn);
+      else await uiExistingCodes(ids, testType, groupId, lang, btn);
+    }
+  } finally {
+    btn.disabled = false; btn.textContent = 'Пригласить';
+  }
+}
+
+// Новые + письмо: создаём участника, при «уже существует» берём его id из ответа.
+async function uiNewWithEmail(people, testType, groupId, lang, btn) {
+  let sent = 0; const problems = [];
+  for (let i = 0; i < people.length; i++) {
+    btn.textContent = 'Приглашаем ' + (i + 1) + ' из ' + people.length + '…';
+    const p = people[i];
+    let pid = null;
+    const created = await api('/v2/participants', { method: 'POST', body: { email: p.email, name: p.name || null } });
+    if (created && created.id) pid = created.id;
+    else if (created && created.existing && created.existing.id) pid = created.existing.id;
+    if (!pid) { problems.push(p.email + ' — ' + ((created && created.error) || 'не удалось создать')); continue; }
+
+    if (groupId) await api('/v2/groups/' + groupId + '/participants', { method: 'POST', body: { participant_id: pid } });
+
+    const inv = await api('/v2/invitations', { method: 'POST', body: {
+      participant_id: parseInt(pid), group_id: groupId ? parseInt(groupId) : null,
+      test_type: testType, language: lang } });
+    if (inv && inv.success) sent++;
+    else problems.push(p.email + ' — ' + ((inv && inv.error) || 'письмо не ушло'));
+  }
+  uiFinish('Приглашений отправлено: ' + sent, problems);
+}
+
+// Новые без письма: обезличенная выдача, ключ-файл собирается здесь.
+async function uiNewAnonymous(people, testType, groupId, lang, btn) {
+  btn.textContent = 'Выпускаем коды…';
+  const r = await api('/v2/generate-codes', { method: 'POST', body: {
+    people: people.map(p => ({ email: p.email })),
+    group_id: groupId, test_type: testType, language: lang,
+    region: $('ui-region').value } });
+  const codes = (r && r.codes) || [];
+  if (!codes.length) { toast('Ошибка: ' + ((r && r.error) || 'коды не выпущены'), true); return; }
+  if (codes.length < people.length) { toast('Сервер вернул меньше кодов, чем участников', true); return; }
+
+  const rows = [], entries = {};
+  people.forEach((p, i) => {
+    const c = codes[i] || {};
+    if (!c.key) return;
+    entries[String(c.key).toUpperCase()] = p.name || p.email;
+    rows.push([csvEsc(p.email), csvEsc(p.name), csvEsc(c.key), csvEsc(c.language || lang), csvEsc(c.link)].join(','));
+  });
+  uiKeyfileDownload(rows, entries, 'invite');
+  uiFinish('Выпущено кодов: ' + rows.length + ' — ключ-файл скачан, адреса на сервер не сохранены', []);
+}
+
+// Уже в системе + письмо: у анонимных участников email нет, бэкенд вернёт
+// понятную ошибку — собираем её в список, а не роняем весь пакет.
+async function uiExistingWithEmail(ids, testType, groupId, lang, btn) {
+  let sent = 0; const problems = [];
+  for (let i = 0; i < ids.length; i++) {
+    btn.textContent = 'Приглашаем ' + (i + 1) + ' из ' + ids.length + '…';
+    const p = UI_ALL.find(x => x.id === ids[i]) || { id: ids[i] };
+    const inv = await api('/v2/invitations', { method: 'POST', body: {
+      participant_id: ids[i], group_id: groupId ? parseInt(groupId) : null,
+      test_type: testType, language: lang } });
+    if (inv && inv.success) sent++;
+    else problems.push(uiLabel(p) + ' — ' + ((inv && inv.error) || 'письмо не ушло'));
+  }
+  uiFinish('Приглашений отправлено: ' + sent, problems);
+}
+
+// Уже в системе без письма: ещё один код каждому выбранному.
+async function uiExistingCodes(ids, testType, groupId, lang, btn) {
+  const rows = [], entries = {}; const problems = [];
+  for (let i = 0; i < ids.length; i++) {
+    btn.textContent = 'Выпускаем ' + (i + 1) + ' из ' + ids.length + '…';
+    const p = UI_ALL.find(x => x.id === ids[i]) || { id: ids[i] };
+    const r = await api('/v2/participants/' + ids[i] + '/generate-code', { method: 'POST', body: {
+      test_type: testType, group_id: groupId, language: lang } });
+    if (!r || !r.success) { problems.push(uiLabel(p) + ' — ' + ((r && r.error) || 'код не выпущен')); continue; }
+    const label = uiLabel(p);
+    entries[String(r.code).toUpperCase()] = label;
+    rows.push([csvEsc(p.email || ''), csvEsc(label), csvEsc(r.code), csvEsc(r.language || lang), csvEsc(r.link)].join(','));
+  }
+  if (rows.length) uiKeyfileDownload(rows, entries, 'existing');
+  uiFinish('Выпущено кодов: ' + rows.length + (rows.length ? ' — ключ-файл скачан' : ''), problems);
+}
+
+function uiFinish(summary, problems) {
+  closeModal('modal-unified-invite');
+  loadParticipants(1);
+  if (problems.length) {
+    toast(summary + ' · с ошибкой: ' + problems.length, true);
+    alert(summary + '\n\nНе получилось:\n' + problems.join('\n'));
+  } else {
+    toast(summary);
   }
 }
 
