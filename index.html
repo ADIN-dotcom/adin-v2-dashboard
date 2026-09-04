@@ -1084,7 +1084,7 @@ async function loadParticipants(page) {
     : rows.map(p => `<tr>
         <td>
           <strong style="cursor:pointer;color:var(--navy)" onclick="openParticipantDetail(${p.id})">${fmt(p.name) === '—' ? (kfName(p) || p.email || ((p.invitations && p.invitations.length) ? ('Код #'+p.id) : 'Приглашений нет')) : p.name}</strong>
-          <br><span style="font-size:11px;color:var(--ink-faint)">${p.name ? p.email : (kfName(p) ? '(имя из ключ-файла)' : '')}</span>
+          <br><span style="font-size:11px;color:var(--ink-faint)">${p.name ? p.email : (kfName(p) ? ('из ключ-файла · ' + kfCode(p)) : '')}</span>
         </td>
         <td>${fmt(p.company)}</td>
         <td>${(p.groups && p.groups.length) ? p.groups.map(g => g.name).join(', ') : '—'}</td>
@@ -1499,6 +1499,20 @@ function kfName(p) {
     if (t && window.KEYFILE[t]) return window.KEYFILE[t];
   }
   return null;
+}
+
+// Код, по которому ключ-файл дал имя. Ключ-файл может подписать одинаково
+// двух разных участников, и тогда строки в таблице неразличимы — код снимает
+// эту неоднозначность.
+function kfCode(p) {
+  if (!window.KEYFILE || !p || !Array.isArray(p.invitations)) return '—';
+  for (const inv of p.invitations) {
+    const c = inv && inv.code ? String(inv.code).toUpperCase() : null;
+    const t = inv && inv.token ? String(inv.token).toUpperCase() : null;
+    if (c && window.KEYFILE[c]) return c;
+    if (t && window.KEYFILE[t]) return t;
+  }
+  return '—';
 }
 
 // Полный PDF-отчёт по коду (фасилитатор). Auth через Bearer, скачивание blob.
