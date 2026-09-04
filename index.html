@@ -636,6 +636,45 @@ tr:hover td{background:var(--cream)}
   </div>
 </div>
 
+<div class="modal-bg" id="modal-group-codes">
+  <div class="modal">
+    <div class="modal-title">
+      <span>Коды всем в группе</span>
+      <button class="modal-close" onclick="closeModal('modal-group-codes')">×</button>
+    </div>
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px">
+      Выпускает код каждому участнику группы <b id="gc-group-name"></b> и собирает ключ-файл в браузере.
+      Письма не рассылаются — коды раздаёте сами. Те, у кого уже есть незавершённое приглашение
+      на выбранный тест, пропускаются.
+    </p>
+    <div class="field"><label>Тип теста</label>
+      <select id="gc-test-type" onchange="updateGroupCodesPreview()">
+        <option value="ni_test">НИ-тест</option>
+        <option value="narrative_status">Нарративный статус</option>
+        <option value="personal_narrative">Личный нарратив</option>
+        <option value="profils_questionnaire">Profils — Questionnaire</option>
+        <option value="profils_societe">Profils — SOCIETE</option>
+      </select>
+    </div>
+    <div class="field"><label>Язык теста</label>
+      <select id="gc-lang">
+        <option value="ru">Русский</option>
+        <option value="en">English</option>
+        <option value="fr">Français</option>
+        <option value="hy">Հայերեն</option>
+      </select>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:8px;cursor:pointer">
+      <input type="checkbox" id="gc-force" onchange="updateGroupCodesPreview()"> Выпустить повторно и тем, у кого приглашение уже есть
+    </label>
+    <div id="gc-preview" style="font-size:13px;color:var(--ink-faint);margin-bottom:12px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-group-codes')">Отмена</button>
+      <button class="btn btn-navy" id="gc-btn" onclick="issueGroupCodes()">Выпустить коды</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modal-invite">
   <div class="modal">
     <div class="modal-title">
@@ -853,6 +892,7 @@ async function loadGroups() {
       </div>
       <div class="group-actions">
         <button class="btn btn-navy btn-sm" onclick="openGroupParticipants(${g.id},'${g.name.replace(/'/g,"\\'")}')">Участники →</button>
+        <button class="btn btn-ghost btn-sm" title="Выпустить коды всем участникам группы и скачать ключ-файл" onclick="openGroupCodes(${g.id},'${g.name.replace(/'/g,"\\'")}')">🔑 Коды всем</button>
         <button class="btn btn-ghost btn-sm" onclick="editGroup(${g.id})">✏️</button>
         <button class="btn btn-ghost btn-sm" onclick="toggleArchiveGroup(${g.id},'${g.name.replace(/'/g,"\\'")}','${g.status}')">${g.status==='active'?'📦':'📂'}</button>
         <button class="btn btn-ghost-red btn-sm" onclick="deleteGroup(${g.id},'${g.name.replace(/'/g,"\\'")}')">🗑</button>
@@ -1516,6 +1556,101 @@ async function downloadKeyfile() {
   } finally {
     btn.disabled = false; btn.textContent = 'Скачать ключ-файл';
   }
+}
+
+// ── КОДЫ ВСЕМ В ГРУППЕ ───────────────────────────────────────────────────────
+// Массовая выдача кодов без писем. Новых роутов не заводим: берём участников
+// группы уже существующим GET /v2/groups/:id/participants и выпускаем код
+// каждому через POST /v2/participants/:id/generate-code — тот же роут, что
+// у кнопки «Выпустить код» на карточке.
+//
+// Почему не /v2/groups/:gid/invite-all: он шлёт письма, а email есть у 6
+// участников из 137 состоящих в группах; кроме того, для narrative_status и
+// personal_narrative он создаёт приглашение без кода и письмо с пустым телом
+// (в sendV2Invitation нет веток для этих типов).
+let GC_GROUP_ID = null;
+let GC_PARTICIPANTS = [];
+
+async function openGroupCodes(gid, name) {
+  GC_GROUP_ID = gid;
+  GC_PARTICIPANTS = [];
+  $('gc-group-name').textContent = name;
+  $('gc-force').checked = false;
+  $('gc-preview').textContent = 'Загружаем состав группы…';
+  openModal('modal-group-codes');
+
+  const d = await api('/v2/groups/' + gid + '/participants');
+  GC_PARTICIPANTS = Array.isArray(d) ? d : [];
+  updateGroupCodesPreview();
+}
+
+// Кого пропускаем: у кого уже есть приглашение на этот тест, ещё не завершённое.
+// Завершившие получают новый код — повторное прохождение это осознанное действие.
+function gcSelection() {
+  const type = $('gc-test-type').value;
+  const force = $('gc-force').checked;
+  const skipped = [];
+  const target = GC_PARTICIPANTS.filter(p => {
+    if (force) return true;
+    const invs = Array.isArray(p.invitations) ? p.invitations : [];
+    const pending = invs.some(i => i && i.test_type === type && i.status !== 'completed');
+    if (pending) { skipped.push(p); return false; }
+    return true;
+  });
+  return { target, skipped };
+}
+
+function updateGroupCodesPreview() {
+  const { target, skipped } = gcSelection();
+  const total = GC_PARTICIPANTS.length;
+  if (!total) { $('gc-preview').textContent = 'В группе нет участников.'; return; }
+  $('gc-preview').innerHTML = 'В группе <b>' + total + '</b> — выпустим коды <b>' + target.length + '</b>'
+    + (skipped.length ? ', пропустим ' + skipped.length + ' (приглашение уже есть)' : '');
+}
+
+async function issueGroupCodes() {
+  const { target } = gcSelection();
+  if (!target.length) { toast('Некому выпускать коды', true); return; }
+
+  const type = $('gc-test-type').value;
+  const lang = $('gc-lang').value;
+  const btn = $('gc-btn');
+  btn.disabled = true;
+
+  const rows = [];
+  const newEntries = {};
+  let failed = 0;
+
+  for (let i = 0; i < target.length; i++) {
+    const p = target[i];
+    btn.textContent = 'Выпускаем ' + (i + 1) + ' из ' + target.length + '…';
+    const r = await api('/v2/participants/' + p.id + '/generate-code', {
+      method: 'POST',
+      body: { test_type: type, group_id: GC_GROUP_ID, language: lang }
+    });
+    if (!r || !r.success) { failed++; continue; }
+    // Имя берём из ключ-файла, если оно там есть, — на сервере его нет.
+    const label = kfName(p) || p.name || p.email || ('Участник #' + p.id);
+    newEntries[String(r.code).toUpperCase()] = label;
+    rows.push([csvEsc(p.email || ''), csvEsc(label), csvEsc(r.code), csvEsc(r.language || lang), csvEsc(r.link)].join(','));
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Выпустить коды';
+
+  if (!rows.length) { toast('Не удалось выпустить ни одного кода', true); return; }
+
+  mergeIntoMasterKeyfile(newEntries);
+  const csv = '\ufeff' + ['email,name,code,language,link', ...rows].join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'adin_keyfile_group_' + GC_GROUP_ID + '_' + Date.now() + '.csv'; a.click();
+  URL.revokeObjectURL(a.href);
+
+  closeModal('modal-group-codes');
+  toast('Выпущено кодов: ' + rows.length + (failed ? ', с ошибкой: ' + failed : '') + ' — ключ-файл скачан');
+  loadGroups();
 }
 
 async function sendInvitation() {
