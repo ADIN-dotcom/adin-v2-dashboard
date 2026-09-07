@@ -2725,37 +2725,69 @@ const nsSum = d => Object.values(d || {}).reduce((a, b) => a + (b || 0), 0);
 // NS_NARRATIVE_LABELS дублирует его — и не всегда совпадает по оттенку.
 const nsPlainLabel = k => (NS_NARRATIVE_LABELS[k] || k).replace(/^[^\p{L}]+/u, '');
 
-// Круговая диаграмма (кольцо) распределения доминирующего нарратива.
-function nsDonut(dist) {
+// Нарративный ландшафт: все семь типов истории в каноническом порядке — от
+// кризиса к ресурсу. Отсутствующие в группе типы остаются видимой пустой
+// строкой: фасилитатору важно знать не только какие истории в группе есть,
+// но и каких в ней нет.
+function nsLandscape(dist) {
   const total = nsSum(dist);
   if (!total) return '';
-  const R = 70, C = 2 * Math.PI * R;
-  let offset = 0;
-  const arcs = NS_NARRATIVE_ORDER.filter(k => dist[k] > 0).map(k => {
-    const frac = dist[k] / total;
-    const seg = `<circle cx="100" cy="100" r="${R}" fill="none"
-      stroke="${NS_NARRATIVE_COLOR[k]}" stroke-width="34"
-      stroke-dasharray="${(frac * C).toFixed(2)} ${(C - frac * C).toFixed(2)}"
-      stroke-dashoffset="${(-offset * C).toFixed(2)}"
-      transform="rotate(-90 100 100)"><title>${k}: ${dist[k]}</title></circle>`;
-    offset += frac;
-    return seg;
+  const rows = NS_NARRATIVE_ORDER.map(k => {
+    const c = (dist || {})[k] || 0;
+    const pct = Math.round(c / total * 100);
+    return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:13px${c ? '' : ';opacity:.45'}">
+      <div style="width:170px;flex-shrink:0;display:flex;align-items:center;gap:7px">
+        <span style="width:11px;height:11px;border-radius:3px;background:${NS_NARRATIVE_COLOR[k]};flex-shrink:0"></span>
+        <span>${nsPlainLabel(k)}</span>
+      </div>
+      <div style="flex:1;min-width:120px;background:var(--cream-d);border-radius:4px;height:18px;overflow:hidden">
+        <div style="width:${pct}%;height:100%;background:${NS_NARRATIVE_COLOR[k]};border-radius:4px"></div>
+      </div>
+      <div style="width:74px;flex-shrink:0;text-align:right;color:${c ? 'var(--ink)' : 'var(--ink-faint)'}">${c ? c + ' · ' + pct + '%' : '—'}</div>
+    </div>`;
   }).join('');
+  return `<div>${rows}
+    <div style="font-size:11.5px;color:var(--ink-faint);margin-top:8px">Всего участников с индивидуальным анализом: ${total}</div>
+  </div>`;
+}
 
-  const legend = NS_NARRATIVE_ORDER.filter(k => dist[k] > 0).map(k =>
-    `<div style="display:flex;align-items:center;gap:8px;font-size:12.5px;margin-bottom:5px">
-      <span style="width:11px;height:11px;border-radius:3px;background:${NS_NARRATIVE_COLOR[k]};flex-shrink:0"></span>
-      <span style="flex:1">${nsPlainLabel(k)}</span>
-      <span style="color:var(--ink-faint);white-space:nowrap">${dist[k]} · ${Math.round(dist[k] / total * 100)}%</span>
-    </div>`
-  ).join('');
+// Нарративный консенсус. Само по себе «да/нет» фасилитатору ничего не даёт —
+// показываем, что именно это значит для работы с группой.
+function nsConsensus(r) {
+  const dist = r.narrative_distribution || {};
+  const total = nsSum(dist);
+  if (!total) return '';
+  const top = NS_NARRATIVE_ORDER.filter(k => dist[k] > 0).sort((a, b) => dist[b] - dist[a]);
+  if (!top.length) return '';
+  const pct = k => Math.round(dist[k] / total * 100);
 
-  return `<div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">
-    <svg viewBox="0 0 200 200" style="width:180px;height:180px;flex-shrink:0">${arcs}
-      <text x="100" y="96" text-anchor="middle" style="font-size:30px;font-weight:700;fill:var(--navy)">${total}</text>
-      <text x="100" y="116" text-anchor="middle" style="font-size:12px;fill:var(--ink-faint)">участников</text>
-    </svg>
-    <div style="flex:1;min-width:220px">${legend}</div>
+  const hasFractures = !!(r.group_narrative_description && r.group_narrative_description.fractures);
+  const fracturesRef = hasFractures ? ' Где проходят нарративные разломы — в блоке «Нарративный статус группы» ниже.' : '';
+
+  if (r.narrative_consensus) {
+    const k = dist[r.group_dominant_narrative] ? r.group_dominant_narrative : top[0];
+    // Консенсус считается по доле доминирующего нарратива ≥ 50%, поэтому при
+    // делении группы ровно пополам он формально есть — но общей истории за
+    // ним нет, и говорить о ней было бы неточно.
+    const tied = top.filter(x => x !== k && dist[x] === dist[k]);
+    if (tied.length) {
+      return `<div style="padding:14px 16px;background:var(--gold-s);border-left:4px solid var(--gold);border-radius:6px;font-size:14px;line-height:1.7;color:var(--ink)">
+        <strong>Группа делится поровну между несколькими историями.</strong>
+        «${nsPlainLabel(k)}» — ${dist[k]} из ${total}, ровно столько же ${tied.map(x => '«' + nsPlainLabel(x) + '»').join(', ')}.
+        Доминирующий нарратив формально набирает половину группы, но единой истории за ним нет: вести придётся обе линии сразу.${fracturesRef}
+      </div>`;
+    }
+    return `<div style="padding:14px 16px;background:var(--green-s);border-left:4px solid var(--green);border-radius:6px;font-size:14px;line-height:1.7;color:var(--ink)">
+      <strong>Нарративный консенсус есть: у группы общая история.</strong>
+      ${dist[k]} из ${total} живут в нарративе «${nsPlainLabel(k)}» — это ${pct(k)}% группы.
+      Названное для одного будет узнано большинством: можно работать общим языком, не собирая его заново для каждого.
+    </div>`;
+  }
+
+  const named = top.slice(0, 3).map(k => `«${nsPlainLabel(k)}» — ${dist[k]}`).join(', ');
+  return `<div style="padding:14px 16px;background:var(--red-s);border-left:4px solid var(--red);border-radius:6px;font-size:14px;line-height:1.7;color:var(--ink)">
+    <strong>Нарративного консенсуса нет — в группе сосуществуют разные истории.</strong>
+    Ни один тип не набирает половины группы: ${named}. Общий язык придётся собирать в самой работе, а не предполагать заранее.${fracturesRef}
   </div>`;
 }
 
@@ -2783,7 +2815,8 @@ function renderGroupNarrative(r, savedAt) {
   wrap.style.display = 'block';
 
   const dist = r.narrative_distribution || {};
-  const donut = nsDonut(dist);
+  const landscape = nsLandscape(dist);
+  const consensus = nsConsensus(r);
 
   const secondary = nsSum(r.secondary_distribution) ? NS_NARRATIVE_ORDER
     .filter(k => (r.secondary_distribution || {})[k] > 0)
@@ -2833,15 +2866,18 @@ function renderGroupNarrative(r, savedAt) {
     `<span style="display:inline-block;padding:5px 12px;background:var(--green-s);color:var(--green);border-radius:14px;font-size:12px;font-weight:600;margin:0 6px 6px 0">${c}</span>`
   ).join('');
 
+  // Три модуля одним блоком. opening_move — это первый шаг Модуля 1, поэтому
+  // он открывает модуль, а не живёт отдельно от рекомендаций к нему;
+  // рекомендации по модулям 2 и 3 раньше стояли отдельным блоком в самом низу.
   const modules = [
-    ['module_1_recommendations', 'Модуль 1'],
-    ['module_2_recommendations', 'Модуль 2'],
-    ['module_3_recommendations', 'Модуль 3'],
-  ].map(([key, label]) => {
-    const items = r[key] || [];
-    if (!items.length) return '';
-    return `<div style="margin-bottom:10px">
-      <div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:6px">${label}</div>
+    ['Модуль 1', r.opening_move ? [r.opening_move] : [], r.module_1_recommendations || []],
+    ['Модуль 2', [], r.module_2_recommendations || []],
+    ['Модуль 3', [], r.module_3_recommendations || []],
+  ].map(([label, lead, items]) => {
+    if (!lead.length && !items.length) return '';
+    return `<div style="margin-bottom:12px">
+      <div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:6px">С чего начать ${label}</div>
+      ${lead.map(t => `<div style="padding:12px 16px;background:var(--navy-s);border-left:4px solid var(--navy);border-radius:4px;font-size:14px;line-height:1.65;margin-bottom:5px">${t}</div>`).join('')}
       ${items.map(t => `<div style="padding:8px 12px;background:var(--cream);border-left:3px solid var(--navy-mid);border-radius:4px;font-size:13px;line-height:1.6;margin-bottom:5px">${t}</div>`).join('')}
     </div>`;
   }).join('');
@@ -2863,7 +2899,7 @@ function renderGroupNarrative(r, savedAt) {
         <div style="text-align:center;padding:12px;background:var(--cream);border-radius:8px">
           <div style="font-size:11px;color:var(--ink-faint);margin-bottom:4px">ДОМИНИРУЮЩИЙ НАРРАТИВ</div>
           <div style="font-size:15px;font-weight:700">${NS_NARRATIVE_LABELS[r.group_dominant_narrative]||r.group_dominant_narrative||'—'}</div>
-          ${r.group_dominant_share_pct ? `<div style="font-size:11px;color:var(--ink-faint);margin-top:2px">${r.group_dominant_share_pct}% группы${r.narrative_consensus ? ' · консенсус' : ''}</div>` : ''}
+          ${r.group_dominant_share_pct ? `<div style="font-size:11px;color:var(--ink-faint);margin-top:2px">${r.group_dominant_share_pct}% группы</div>` : ''}
         </div>
         <div style="text-align:center;padding:12px;background:var(--cream);border-radius:8px">
           <div style="font-size:11px;color:var(--ink-faint);margin-bottom:4px">АГЕНТНОСТЬ ГРУППЫ</div>
@@ -2874,10 +2910,16 @@ function renderGroupNarrative(r, savedAt) {
           <div style="font-size:15px;font-weight:700;color:${NS_FUTURE_COLOR[r.group_future_access]||'inherit'}">${r.group_future_access||'—'}</div>
         </div>
       </div>
-      ${donut ? `
+      ${landscape ? `
         <div style="margin-bottom:18px">
-          <div style="font-size:12px;font-weight:700;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Доминирующий нарратив по группе</div>
-          ${donut}
+          <div style="font-size:12px;font-weight:700;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Нарративный ландшафт — все семь типов истории</div>
+          ${landscape}
+        </div>
+      ` : ''}
+      ${consensus ? `
+        <div style="margin-bottom:18px">
+          <div style="font-size:12px;font-weight:700;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Нарративный консенсус</div>
+          ${consensus}
         </div>
       ` : ''}
       ${secondary ? `
@@ -2912,12 +2954,11 @@ function renderGroupNarrative(r, savedAt) {
       ${r.bridge_common_theme ? `<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:700;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Общая тема в формулах моста</div><div style="padding:14px 16px;background:var(--green-s);border-left:4px solid var(--green);border-radius:6px;font-size:14px;line-height:1.7">${r.bridge_common_theme}</div></div>` : ''}
       ${r.readiness_read ? `<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:700;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Что готовность значит практически</div><div style="padding:14px 16px;background:var(--cream);border-left:4px solid var(--navy-mid);border-radius:6px;font-size:14px;line-height:1.7">${r.readiness_read}</div></div>` : ''}
       <div style="font-size:12px;font-weight:700;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Для фасилитатора</div>
-      ${r.opening_move ? `<div style="padding:12px 16px;background:#dce8f5;border-left:4px solid var(--navy);border-radius:4px;font-size:14px;margin-bottom:12px"><strong>С чего начать Модуль 1:</strong> ${r.opening_move}</div>` : ''}
+      ${modules}
       ${r.crisis_narrative ? `<div style="padding:10px 14px;background:#fee2e2;border-left:3px solid var(--red);border-radius:4px;font-size:13px;margin-bottom:12px">⚠️ Кризисный нарратив для Блока 3 М1: <strong>${r.crisis_narrative}</strong></div>` : ''}
       ${alerts}
-      ${carriers ? `<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Носители ресурсного нарратива — опора в группе</div>${carriers}</div>` : ''}
+      <div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Нарративные ресурсы — носители конструктивных историй</div>${carriers || `<div style="padding:10px 14px;background:var(--gold-s);border-left:3px solid var(--gold);border-radius:4px;font-size:13px;line-height:1.6">Носителей конструктивного нарратива в группе нет: опоры внутри группы нет, ресурс придётся вносить извне.</div>`}</div>
       ${seeds ? `<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Зёрна формулы моста</div>${seeds}</div>` : ''}
-      ${modules ? `<div><div style="font-size:12px;font-weight:600;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Рекомендации по модулям</div>${modules}</div>` : ''}
     </div>`;
 }
 
