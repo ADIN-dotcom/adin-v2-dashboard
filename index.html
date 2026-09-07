@@ -2847,19 +2847,31 @@ function renderGroupNarrative(r, savedAt) {
          Разрыв личного и профессионального нарратива — у <strong>${r.personal_professional_gap.count}</strong> из ${r.group_size} (${r.personal_professional_gap.share_pct}%)
        </div>` : '';
 
-  const alerts = (r.facilitator_alerts || []).length
-    ? `<div style="margin-bottom:12px">
-         <div style="font-size:12px;font-weight:600;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Алерты фасилитатору — ${r.facilitator_alerts.length} из ${r.group_size}</div>
-         ${r.facilitator_alerts.map(a => `<div style="padding:7px 12px;background:var(--red-s);border-radius:5px;font-size:12.5px;margin-bottom:5px">⚠️ ${a}</div>`).join('')}
-       </div>` : '';
-
   // Имя подставляем здесь, в браузере: сервер отдаёт коды участников, а не
   // имена. Старые отчёты приходят без codes — для них остаются готовые строки.
-  const carrierTexts = (r.resource_carriers_keyed || []).length
-    ? r.resource_carriers_keyed.map(c => {
-        const name = kfName({ invitations: (c.codes || []).map(code => ({ code })) }) || c.fallback;
-        return name + ' — ' + c.narrative;
+  const nsWho = p => kfName({ invitations: (p.codes || []).map(code => ({ code })) }) || p.fallback || null;
+
+  // Имя — отдельной строкой над текстом, а не внутри фразы: модель пишет про
+  // абстрактного участника в мужском роде, и подстановка настоящего имени
+  // прямо в предложение ломала бы согласование («Ирина — профессионально
+  // устал»). Текст алерта остаётся ровно таким, каким его написала модель.
+  const alertTexts = (r.facilitator_alerts_keyed || []).length
+    ? r.facilitator_alerts_keyed.map(p => {
+        const who = nsWho(p);
+        return who
+          ? `<div style="font-weight:700;color:var(--navy);margin-bottom:2px">⚠️ ${who}</div>${p.alert}`
+          : `⚠️ ${p.alert}`;
       })
+    : (r.facilitator_alerts || []).map(a => `⚠️ ${a}`);
+
+  const alerts = alertTexts.length
+    ? `<div style="margin-bottom:12px">
+         <div style="font-size:12px;font-weight:600;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Алерты фасилитатору — ${alertTexts.length} из ${r.group_size}</div>
+         ${alertTexts.map(a => `<div style="padding:7px 12px;background:var(--red-s);border-radius:5px;font-size:12.5px;margin-bottom:5px">${a}</div>`).join('')}
+       </div>` : '';
+
+  const carrierTexts = (r.resource_carriers_keyed || []).length
+    ? r.resource_carriers_keyed.map(c => nsWho(c) + ' — ' + c.narrative)
     : (r.resource_carriers || []);
 
   const carriers = carrierTexts.map(c =>
@@ -2882,8 +2894,17 @@ function renderGroupNarrative(r, savedAt) {
     </div>`;
   }).join('');
 
-  const seeds = (r.bridge_formula_seeds || []).map(s =>
-    `<div style="padding:6px 12px;background:var(--green-s);border-radius:6px;font-size:13px;margin-bottom:4px">💡 "${s}"</div>`
+  // Автора зерна сервер определяет сопоставлением цитаты и подписывает только
+  // при однозначном совпадении — поэтому имя есть не у каждого зерна.
+  const seedTexts = (r.bridge_formula_seeds_keyed || []).length
+    ? r.bridge_formula_seeds_keyed.map(p => {
+        const who = nsWho(p);
+        return `💡 "${p.text}"` + (who ? ` <span style="color:var(--ink-faint)">— ${who}</span>` : '');
+      })
+    : (r.bridge_formula_seeds || []).map(s => `💡 "${s}"`);
+
+  const seeds = seedTexts.map(s =>
+    `<div style="padding:6px 12px;background:var(--green-s);border-radius:6px;font-size:13px;margin-bottom:4px">${s}</div>`
   ).join('');
 
   wrap.innerHTML = `
