@@ -65,10 +65,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
 .sb-brand{font-size:11px;font-weight:800;color:var(--ink);letter-spacing:.18em}
 .sb-sub{font-size:10px;color:var(--ink-4);letter-spacing:.08em;text-transform:uppercase;margin-top:4px}
 .sb-nav{flex:1;padding:4px 8px;overflow-y:auto}
-.sb-section{font-size:9px;color:var(--ink-4);letter-spacing:.14em;text-transform:uppercase;padding:0 12px;margin:20px 0 6px}
+.sb-section{font-size:9px;color:var(--ink-3);font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:0 12px;margin:20px 0 6px}
 .sb-link{display:flex;align-items:center;padding:7px 12px;color:var(--ink-3);font-size:13px;cursor:pointer;transition:background .15s,color .15s;border-radius:var(--radius-sm);user-select:none}
 .sb-link:hover{background:var(--bg-hover)}
-.sb-link.active{background:var(--bg-hover);color:var(--ink);font-weight:500}
+.sb-link.active{background:var(--accent-subtle);color:var(--accent);font-weight:600;border-left:2px solid var(--accent);padding-left:10px}
 .sb-ico{display:none}
 .sb-footer{padding:16px 20px;border-top:1px solid var(--border)}
 .sb-user{font-size:11px;color:var(--ink-4);margin-bottom:6px;overflow:hidden;text-overflow:ellipsis}
@@ -90,6 +90,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
 .btn-teal,.btn-accent{background:var(--accent);color:#fff;border-color:transparent}.btn-teal:hover,.btn-accent:hover{background:var(--accent-text);border-color:transparent}
 .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--ink-2)}.btn-ghost:hover{border-color:var(--border-strong);background:var(--bg-subtle)}
 .btn-ghost-red{background:transparent;border:1px solid var(--border);color:var(--danger)}.btn-ghost-red:hover{border-color:var(--danger);background:var(--danger-subtle)}
+.btn-primary-action{background:var(--accent);color:#fff;font-weight:600;padding:9px 18px;border-color:transparent}.btn-primary-action:hover{background:var(--accent-text);border-color:transparent}
 .btn-sm{padding:5px 10px;font-size:12px}
 .btn:disabled{opacity:.4;cursor:not-allowed}
 
@@ -105,7 +106,7 @@ select{color:var(--ink)}
 /* METRICS */
 .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:28px}
 .metric{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
-.metric-val{font-size:32px;font-weight:300;line-height:1;color:var(--ink)!important;letter-spacing:-.02em}
+.metric-val{font-size:40px;font-weight:200;line-height:1;color:var(--accent)!important;letter-spacing:-.02em}
 .metric-lbl{font-size:11px;color:var(--ink-4);text-transform:uppercase;letter-spacing:.08em;margin-top:4px}
 .metric-sub{font-size:12px;color:var(--ink-3);margin-top:4px}
 
@@ -119,6 +120,8 @@ table{width:100%;border-collapse:collapse;font-size:13px}
 th{background:transparent;color:var(--ink-4);font-weight:500;font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:10px 12px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--border)}
 td{padding:11px 12px;border-bottom:1px solid var(--border);vertical-align:middle;background:transparent}
 td strong{font-size:13px;font-weight:500;color:var(--ink)}
+td.participant-name strong{color:var(--accent);cursor:pointer}
+td.participant-name strong:hover{text-decoration:underline}
 tr:last-child td{border-bottom:none}
 tbody tr:hover td{background:var(--bg-subtle)}
 /* ячейка действий задана inline как flex — возвращаем табличную, иначе её нижняя линия не совпадает со строкой */
@@ -131,6 +134,10 @@ td>.btn+.btn{margin-left:4px}
 .badge-green{background:var(--success-subtle);color:var(--success);border-color:transparent}
 .badge-gold{background:var(--accent-subtle);color:var(--accent-text);border-color:transparent}
 .badge-accent{background:var(--danger-subtle);color:var(--danger);border-color:transparent}
+/* статусы приглашений */
+.badge-completed{background:var(--success-subtle);color:var(--success);font-weight:600;border-color:transparent}
+.badge-sent{background:var(--accent-subtle);color:var(--accent);font-weight:600;border-color:transparent}
+.badge-opened{background:var(--warning-subtle);color:var(--warning);font-weight:600;border-color:transparent}
 
 /* PROGRESS */
 .progress{height:4px;background:var(--border);border-radius:2px;overflow:hidden;display:inline-block;width:80px;vertical-align:middle}
@@ -209,7 +216,7 @@ td>.btn+.btn{margin-left:4px}
 #toast.err{background:var(--danger)}
 
 /* SPINNER */
-.spinner{width:24px;height:24px;border:2px solid var(--border);border-top-color:var(--ink);border-radius:50%;animation:spin 1s linear infinite;margin:32px auto}
+.spinner{width:24px;height:24px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;margin:32px auto}
 @keyframes spin{to{transform:rotate(360deg)}}
 .empty-state{text-align:center;padding:48px 20px;color:var(--ink-4)}
 .empty-state-icon{display:none}
@@ -378,7 +385,7 @@ td>.btn+.btn{margin-left:4px}
           <div style="display:flex;gap:8px">
             <button class="btn btn-ghost btn-sm" onclick="openEditParticipant()">✏️ Редактировать</button>
             <button class="btn btn-teal btn-sm" onclick="window.print()">⬇ Скачать PDF</button>
-            <button class="btn btn-navy btn-sm" onclick="openInviteParticipant()">📧 Отправить тест</button>
+            <button class="btn btn-primary-action btn-sm" onclick="openInviteParticipant()">📧 Отправить тест</button>
           </div>
         </div>
         <div id="pd-content"><div class="spinner"></div></div>
@@ -903,7 +910,7 @@ const TEST_LABELS = {
   personal_narrative: 'Личный нарратив'
 };
 const STATUS_LABELS = { pending:'Ожидает', sent:'Отправлен', opened:'Открыт', completed:'Завершён', expired:'Истёк' };
-const STATUS_BADGES = { pending:'badge-gray', sent:'badge-gold', opened:'badge-navy', completed:'badge-green', expired:'badge-accent' };
+const STATUS_BADGES = { pending:'badge-gray', sent:'badge-sent', opened:'badge-opened', completed:'badge-completed', expired:'badge-accent' };
 
 // ── AUTH ──────────────────────────────────────────────────────
 window.onload = () => { if (TOKEN) showApp(); };
@@ -964,7 +971,7 @@ async function loadHome() {
     ? '<div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-text">Завершённых тестов пока нет</div></div>'
     : `<table><thead><tr><th>Участник</th><th>Тест</th><th>Результат</th><th>Дата</th></tr></thead><tbody>
       ${d.recent.map(r => `<tr>
-        <td style="cursor:pointer" onclick="openParticipantDetail(${r.participant_id})"><strong style="color:var(--navy)">${fmt(r.name) === '—' ? (kfName(r) || fmt(r.email) || 'Участник') : r.name}</strong><br><span style="font-size:11px;color:var(--ink-faint)">${fmt(r.company)}</span></td>
+        <td class="participant-name" style="cursor:pointer" onclick="openParticipantDetail(${r.participant_id})"><strong>${fmt(r.name) === '—' ? (kfName(r) || fmt(r.email) || 'Участник') : r.name}</strong><br><span style="font-size:11px;color:var(--ink-faint)">${fmt(r.company)}</span></td>
         <td><span class="badge badge-${r.test_type === 'ni_test' ? 'navy' : 'teal'}">${TEST_LABELS[r.test_type] || r.test_type}</span></td>
         <td>${r.test_type === 'ni_test' ? `<strong>${fmt(r.overall_score)}</strong>/100 · ${fmt(r.dominant_type_name)}` : fmt(r.psychotype)}</td>
         <td>${fmtDate(r.completed_at)}</td>
@@ -1123,8 +1130,8 @@ async function loadParticipants(page) {
   $('ptbody').innerHTML = rows.length === 0
     ? '<tr><td colspan="6"><div class="empty-state"><div class="empty-state-icon">👥</div><div class="empty-state-text">Участников не найдено</div></div></td></tr>'
     : rows.map(p => `<tr>
-        <td>
-          <strong style="cursor:pointer;color:var(--navy)" onclick="openParticipantDetail(${p.id})">${fmt(p.name) === '—' ? (kfName(p) || p.email || ((p.invitations && p.invitations.length) ? ('Код #'+p.id) : 'Приглашений нет')) : p.name}</strong>
+        <td class="participant-name">
+          <strong onclick="openParticipantDetail(${p.id})">${fmt(p.name) === '—' ? (kfName(p) || p.email || ((p.invitations && p.invitations.length) ? ('Код #'+p.id) : 'Приглашений нет')) : p.name}</strong>
           <br><span style="font-size:11px;color:var(--ink-faint)">${p.name ? p.email : (kfName(p) ? ('из ключ-файла · ' + kfCode(p)) : '')}</span>
         </td>
         <td>${fmt(p.company)}</td>
