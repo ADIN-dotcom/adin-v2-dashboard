@@ -155,6 +155,13 @@ tr:hover td{background:var(--cream)}
 .profile-item-label{font-size:11px;font-weight:600;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px}
 .profile-item-value{font-size:14px;color:var(--ink);line-height:1.5}
 .quote-box{border-left:3px solid var(--teal);padding:10px 14px;background:var(--teal-s);border-radius:0 8px 8px 0;font-size:13px;font-style:italic;color:var(--ink-soft);margin-bottom:8px;line-height:1.6}
+
+/* PN: дословные ответы анкеты */
+.pn-answer-group{margin-bottom:14px}
+.pn-answer-q{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:6px}
+.pn-answer-item{font-size:13px;color:var(--ink-soft);padding:3px 0 3px 12px;border-left:2px solid var(--cream-d);margin-bottom:2px;white-space:pre-wrap}
+.pn-answer-text{font-size:13px;color:var(--ink-soft);line-height:1.6;white-space:pre-wrap}
+.pn-answer-ab{font-size:13px;color:var(--ink-soft);padding:3px 0}
 .red-flag{border-left:3px solid var(--accent);padding:10px 14px;background:var(--accent-s);border-radius:0 8px 8px 0;margin-bottom:8px}
 .red-flag-title{font-size:13px;font-weight:600;color:var(--accent);margin-bottom:3px}
 .tip-item{padding:12px 0;border-bottom:1px solid var(--cream-d)}
@@ -191,9 +198,12 @@ tr:hover td{background:var(--cream)}
 @media(max-width:768px){.sidebar{display:none}.main-inner{padding:16px}.metrics{grid-template-columns:repeat(2,1fr)}.form-row{grid-template-columns:1fr}.test-types{grid-template-columns:1fr}}
 
 @media print {
-  .sidebar,.page-header .btn,#toast{display:none!important}
+  .sidebar,.page-header .btn,.btn,#toast{display:none!important}
   .main{width:100%!important}
   .card{box-shadow:none!important;border:1px solid #ede8df!important;break-inside:avoid}
+  /* ответы анкеты PN: видны в PDF, карточка может переноситься, группа — нет */
+  .pn-answers{display:block!important;break-inside:auto}
+  .pn-answer-group{break-inside:avoid}
   body{background:white!important}
   @page{margin:20mm;size:A4}
 }
@@ -2318,6 +2328,7 @@ async function showPNProfileDetail(invitationId) {
       ${redFlags ? `<div style="margin-bottom:16px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Red flags</div>${redFlags}</div>` : ''}
       ${tips ? `<div class="card" style="padding:14px;margin-bottom:12px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Советы фасилитатору</div><ul style="padding-left:16px">${tips}</ul></div>` : ''}
       ${cv.dream_company_words?.length ? `<div class="card" style="padding:14px;margin-bottom:12px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Компания мечты</div><div style="font-size:13px">${cv.dream_company_words.join(', ')}</div>${cv.narrative_gap ? `<div style="font-size:13px;color:var(--ink-soft);margin-top:8px">${cv.narrative_gap}</div>` : ''}</div>` : ''}
+      ${pnAnswersCards(d)}
       <div style="display:flex;gap:8px">
         <button class="btn btn-ghost btn-sm" onclick="regeneratePNProfile(${invitationId}, this)">🔄 Перегенерировать</button>
         <button class="btn btn-ghost btn-sm" onclick="downloadPNProfilePdf(${invitationId}, this)">📄 Скачать PDF</button>
@@ -2399,31 +2410,42 @@ const PN_LABELS = {
 function pnAnswersHtml(raw, type) {
   if (!raw) return '';
   if (typeof raw === 'string') { try { raw = JSON.parse(raw); } catch(e) { return ''; } }
-  var esc = function(v) { return (v == null ? '' : String(v)); };
+  var esc = function(v) {
+    return (v == null ? '' : String(v)).replace(/[&<>"']/g, function(c) {
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  };
   var L = PN_LABELS[type];
   var html = '';
   (L.groups || []).forEach(function(g) {
-    var items = g.fields.map(function(f) { return raw[f]; }).filter(Boolean);
+    var items = g.fields.map(function(f) { return raw[f]; }).filter(function(v) { return v != null && String(v).trim() !== ''; });
     if (!items.length) return;
-    html += '<div style="margin-bottom:14px"><div style="font-size:13px;font-weight:600;color:#1a1a2e;margin-bottom:6px">' + g.question + '</div>' +
-      items.map(function(v) { return '<div style="font-size:13px;color:#4a4a6a;padding:3px 0 3px 12px;border-left:2px solid #ede8df;margin-bottom:2px">' + esc(v) + '</div>'; }).join('') +
+    html += '<div class="pn-answer-group"><div class="pn-answer-q">' + g.question + '</div>' +
+      items.map(function(v) { return '<div class="pn-answer-item">' + esc(v) + '</div>'; }).join('') +
       '</div>';
   });
   (L.single || []).forEach(function(s) {
     var v = raw[s.field];
-    if (!v) return;
-    html += '<div style="margin-bottom:14px"><div style="font-size:13px;font-weight:600;color:#1a1a2e;margin-bottom:4px">' + s.question + '</div><div style="font-size:13px;color:#4a4a6a;line-height:1.6">' + esc(v) + '</div></div>';
+    if (v == null || String(v).trim() === '') return;
+    html += '<div class="pn-answer-group"><div class="pn-answer-q">' + s.question + '</div><div class="pn-answer-text">' + esc(v) + '</div></div>';
   });
   if (L.ab && L.ab.length) {
     var abLines = L.ab.map(function(a) {
       var choice = raw[a.field];
-      if (!choice) return '';
-      var text = choice === 'A' ? a.A : a.B;
-      return '<div style="font-size:13px;color:#4a4a6a;padding:3px 0"><strong>' + a.question + ':</strong> ' + text + '</div>';
+      if (choice !== 'A' && choice !== 'B') return '';
+      return '<div class="pn-answer-ab"><strong>' + a.question + ':</strong> ' + choice + ' — ' + a[choice] + '</div>';
     }).filter(Boolean).join('');
-    if (abLines) html += '<div style="margin-top:8px"><div style="font-size:13px;font-weight:600;color:#1a1a2e;margin-bottom:6px">Типология A/B</div>' + abLines + '</div>';
+    if (abLines) html += '<div class="pn-answer-group"><div class="pn-answer-q">Типология A/B</div>' + abLines + '</div>';
   }
   return html;
+}
+
+// Две карточки с дословными ответами анкет PN; пустая анкета — без карточки.
+function pnAnswersCards(d) {
+  var q = pnAnswersHtml(d.raw_questionnaire, 'questionnaire');
+  var so = pnAnswersHtml(d.raw_societe, 'societe');
+  return (q ? '<div class="card pn-answers"><div class="card-title">Заполненная анкета — о себе</div>' + q + '</div>' : '') +
+         (so ? '<div class="card pn-answers"><div class="card-title">Заполненная анкета — о компании</div>' + so + '</div>' : '');
 }
 
 async function openPNProfile(invitationId, name, company) {
@@ -2464,8 +2486,7 @@ async function openPNProfile(invitationId, name, company) {
       ${(nm.key_quotes||[]).map(q=>`<div class="quote-box">${q}</div>`).join('')}
       ${nm.bridge_formula_seed ? `<div style="margin-top:12px"><div class="profile-item-label">Формула моста</div><div class="quote-box" style="border-color:var(--teal);font-size:14px;font-weight:500;margin-top:6px">${nm.bridge_formula_seed}</div></div>` : ''}
     </div>` : ''}
-    ${d.raw_questionnaire ? `<div class="card"><div class="card-title">Заполненная анкета — о себе</div>${pnAnswersHtml(d.raw_questionnaire,'questionnaire')}</div>` : ''}
-    ${d.raw_societe ? `<div class="card"><div class="card-title">Заполненная анкета — о компании</div>${pnAnswersHtml(d.raw_societe,'societe')}</div>` : ''}
+    ${pnAnswersCards(d)}
     ${(l2?.red_flags||[]).length ? `
     <div class="card">
       <div class="card-title">Красные флаги</div>
