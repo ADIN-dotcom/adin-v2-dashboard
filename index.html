@@ -7,200 +7,231 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --ink:#1a1a2e;--ink-soft:#4a4a6a;--ink-faint:#8888a8;
-  --cream:#f8f6f0;--cream-d:#ede8df;
-  --navy:#1e3a5f;--navy-mid:#2d5a8e;--navy-s:#dce8f5;
-  --accent:#c8432a;--accent-s:#fee2e2;
-  --red:#c8432a;--red-s:#fee2e2;
-  --green:#2d6a4f;--green-s:#d8ede4;
-  --gold:#c9a84c;--gold-s:#f0e6c8;
-  --purple:#5a2d82;--purple-s:#ead8f5;
-  --teal:#2d4a3e;--teal-s:#d4e8e0;
-  --sidebar:240px;--r:12px;
+  --bg:#ffffff;
+  --bg-subtle:#f8f9fb;
+  --bg-hover:#f3f4f6;
+  --border:#e5e7eb;
+  --border-strong:#d1d5db;
+  --ink:#111827;
+  --ink-2:#374151;
+  --ink-3:#6b7280;
+  --ink-4:#9ca3af;
+  --accent:#2563eb;
+  --accent-subtle:#eff6ff;
+  --accent-text:#1d4ed8;
+  --success:#16a34a;
+  --success-subtle:#f0fdf4;
+  --warning:#d97706;
+  --warning-subtle:#fffbeb;
+  --danger:#dc2626;
+  --danger-subtle:#fef2f2;
+  --radius:6px;
+  --radius-sm:4px;
+  --sidebar:220px;
+
+  /* Псевдонимы старой палитры → токены Slate Précis.
+     Inline-стили в разметке и JS-шаблонах ссылаются на них;
+     структуру и логику не трогаем, поэтому мапим здесь. */
+  --ink-soft:var(--ink-2);--ink-faint:var(--ink-4);
+  --cream:var(--bg-subtle);--cream-d:var(--border);
+  --navy:var(--ink);--navy-mid:var(--accent);--navy-s:var(--accent-subtle);
+  --teal:var(--accent);--teal-s:var(--accent-subtle);
+  --accent-s:var(--danger-subtle);
+  --red:var(--danger);--red-s:var(--danger-subtle);
+  --green:var(--success);--green-s:var(--success-subtle);
+  --gold:var(--warning);--gold-s:var(--warning-subtle);
+  --purple:var(--ink-3);--purple-s:var(--bg-hover);
+  --r:var(--radius);
 }
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--cream);color:var(--ink);min-height:100vh}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased}
+::placeholder{color:var(--ink-4)}
 
 /* LOGIN */
 #login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
 #login-screen.hide{display:none}
-.login-card{background:#fff;border-radius:var(--r);box-shadow:0 4px 32px rgba(26,26,46,.1);padding:48px 40px;width:100%;max-width:400px;text-align:center}
-.login-brand{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--navy);margin-bottom:6px}
-.login-title{font-size:28px;font-weight:700;color:var(--ink);margin-bottom:4px}
-.login-sub{font-size:13px;color:var(--ink-faint);margin-bottom:32px}
-.login-input{width:100%;padding:12px 14px;border:2px solid var(--cream-d);border-radius:10px;font-size:16px;color:var(--ink);outline:none;font-family:inherit;background:#fff;display:block;margin-bottom:16px;transition:border-color .2s}
-.login-input:focus{border-color:var(--navy)}
-.login-err{color:var(--accent);font-size:13px;margin-bottom:12px;display:none}
+.login-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:48px 40px;width:100%;max-width:400px;text-align:center}
+.login-brand{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-4);margin-bottom:6px}
+.login-title{font-size:11px;font-weight:800;letter-spacing:.18em;color:var(--ink);margin-bottom:4px}
+.login-sub{font-size:12px;color:var(--ink-4);margin-bottom:32px}
+.login-input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;color:var(--ink);outline:none;font-family:inherit;background:var(--bg);display:block;margin-bottom:16px;transition:border-color .15s,box-shadow .15s}
+.login-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.login-err{color:var(--danger);font-size:13px;margin-bottom:12px;display:none}
 
 /* APP */
 #app{display:none;min-height:100vh}
 #app.show{display:flex}
-.sidebar{width:var(--sidebar);background:var(--navy);min-height:100vh;display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0}
-.sb-logo{padding:24px 20px 20px;border-bottom:1px solid rgba(255,255,255,.08)}
-.sb-brand{font-size:18px;font-weight:700;color:#fff;letter-spacing:-.02em}
-.sb-sub{font-size:10px;color:rgba(255,255,255,.4);letter-spacing:.08em;text-transform:uppercase;margin-top:2px}
-.sb-nav{flex:1;padding:12px 0;overflow-y:auto}
-.sb-section{font-size:9px;color:rgba(255,255,255,.3);letter-spacing:.12em;text-transform:uppercase;padding:14px 20px 4px;margin-top:4px}
-.sb-link{display:flex;align-items:center;gap:10px;padding:10px 20px;color:rgba(255,255,255,.65);font-size:13px;cursor:pointer;transition:all .15s;border-left:3px solid transparent;user-select:none}
-.sb-link:hover{background:rgba(255,255,255,.06);color:#fff}
-.sb-link.active{background:rgba(255,255,255,.1);color:#fff;border-left-color:#fff;font-weight:500}
-.sb-link.active.pn{border-left-color:#5dd4a8}
-.sb-ico{font-size:15px;width:20px;text-align:center}
-.sb-footer{padding:16px 20px;border-top:1px solid rgba(255,255,255,.08)}
-.sb-user{font-size:12px;color:rgba(255,255,255,.4);margin-bottom:6px}
-.sb-logout{font-size:13px;color:rgba(255,255,255,.5);cursor:pointer;background:none;border:none;font-family:inherit;padding:0}
-.sb-logout:hover{color:#fff}
+.sidebar{width:var(--sidebar);background:var(--bg-subtle);border-right:1px solid var(--border);min-height:100vh;display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0}
+.sb-logo{padding:22px 20px 18px}
+.sb-brand{font-size:11px;font-weight:800;color:var(--ink);letter-spacing:.18em}
+.sb-sub{font-size:10px;color:var(--ink-4);letter-spacing:.08em;text-transform:uppercase;margin-top:4px}
+.sb-nav{flex:1;padding:4px 8px;overflow-y:auto}
+.sb-section{font-size:9px;color:var(--ink-4);letter-spacing:.14em;text-transform:uppercase;padding:0 12px;margin:20px 0 6px}
+.sb-link{display:flex;align-items:center;padding:7px 12px;color:var(--ink-3);font-size:13px;cursor:pointer;transition:background .15s,color .15s;border-radius:var(--radius-sm);user-select:none}
+.sb-link:hover{background:var(--bg-hover)}
+.sb-link.active{background:var(--bg-hover);color:var(--ink);font-weight:500}
+.sb-ico{display:none}
+.sb-footer{padding:16px 20px;border-top:1px solid var(--border)}
+.sb-user{font-size:11px;color:var(--ink-4);margin-bottom:6px;overflow:hidden;text-overflow:ellipsis}
+.sb-logout{font-size:13px;color:var(--ink-3);cursor:pointer;background:none;border:none;font-family:inherit;padding:0}
+.sb-logout:hover{color:var(--ink)}
 
 /* MAIN */
-.main{flex:1;overflow-x:hidden;min-width:0}
-.main-inner{padding:32px}
+.main{flex:1;overflow-x:hidden;min-width:0;background:var(--bg)}
+.main-inner{padding:32px 40px;max-width:1200px}
 .page{display:none}.page.active{display:block}
 .page-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;flex-wrap:wrap;gap:12px}
-.page-title{font-size:24px;font-weight:700;color:var(--ink)}
-.page-sub{font-size:14px;color:var(--ink-faint);margin-top:2px}
+.page-title{font-size:20px;font-weight:600;color:var(--ink);letter-spacing:-.01em}
+.page-sub{font-size:12px;color:var(--ink-4);margin-top:2px}
 
 /* BUTTONS */
-.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;font-family:inherit;white-space:nowrap}
-.btn-navy{background:var(--navy);color:#fff}.btn-navy:hover{background:var(--navy-mid)}
-.btn-teal{background:var(--teal);color:#fff}.btn-teal:hover{opacity:.88}
-.btn-accent{background:var(--accent);color:#fff}.btn-accent:hover{opacity:.88}
-.btn-ghost{background:transparent;border:1.5px solid var(--cream-d);color:var(--ink-soft)}.btn-ghost:hover{border-color:var(--navy);color:var(--navy)}
-.btn-ghost-red{background:transparent;border:1.5px solid var(--accent-s);color:var(--accent)}.btn-ghost-red:hover{background:var(--accent-s)}
-.btn-sm{padding:5px 12px;font-size:12px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;font-weight:500;cursor:pointer;transition:background .15s,border-color .15s,color .15s;font-family:inherit;white-space:nowrap;background:transparent;color:var(--ink-2);line-height:1.2}
+.btn:hover{border-color:var(--border-strong);background:var(--bg-subtle)}
+.btn-navy{background:var(--ink);color:#fff;border-color:transparent}.btn-navy:hover{background:var(--ink-2);border-color:transparent}
+.btn-teal,.btn-accent{background:var(--accent);color:#fff;border-color:transparent}.btn-teal:hover,.btn-accent:hover{background:var(--accent-text);border-color:transparent}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--ink-2)}.btn-ghost:hover{border-color:var(--border-strong);background:var(--bg-subtle)}
+.btn-ghost-red{background:transparent;border:1px solid var(--border);color:var(--danger)}.btn-ghost-red:hover{border-color:var(--danger);background:var(--danger-subtle)}
+.btn-sm{padding:5px 10px;font-size:12px}
 .btn:disabled{opacity:.4;cursor:not-allowed}
 
 /* FORMS */
 .field{margin-bottom:14px}
-.field label{display:block;font-size:11px;font-weight:600;color:var(--ink-soft);margin-bottom:5px;letter-spacing:.04em;text-transform:uppercase}
-.field input,.field select,.field textarea{width:100%;padding:9px 12px;border:1.5px solid var(--cream-d);border-radius:8px;font-size:14px;color:var(--ink);font-family:inherit;outline:none;transition:border-color .2s;background:#fff}
-.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--navy-mid)}
+.field label{display:block;font-size:11px;font-weight:500;color:var(--ink-3);margin-bottom:5px;letter-spacing:.06em;text-transform:uppercase}
+.field input,.field select,.field textarea{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;color:var(--ink);font-family:inherit;outline:none;transition:border-color .15s,box-shadow .15s;background:var(--bg)}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
 .field textarea{resize:vertical;min-height:80px}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+select{color:var(--ink)}
 
 /* METRICS */
-.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:28px}
-.metric{background:#fff;border-radius:var(--r);padding:20px;box-shadow:0 1px 8px rgba(26,26,46,.05)}
-.metric-val{font-size:36px;font-weight:700;line-height:1;margin-bottom:4px;color:var(--navy)}
-.metric-lbl{font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em}
-.metric-sub{font-size:12px;color:var(--ink-soft);margin-top:4px}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:28px}
+.metric{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
+.metric-val{font-size:32px;font-weight:300;line-height:1;color:var(--ink)!important;letter-spacing:-.02em}
+.metric-lbl{font-size:11px;color:var(--ink-4);text-transform:uppercase;letter-spacing:.08em;margin-top:4px}
+.metric-sub{font-size:12px;color:var(--ink-3);margin-top:4px}
 
 /* CARDS */
-.card{background:#fff;border-radius:var(--r);padding:24px;box-shadow:0 1px 8px rgba(26,26,46,.05);margin-bottom:20px}
-.card-title{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
+.card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:20px}
+.card-title{font-size:14px;font-weight:600;color:var(--ink);margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
 
 /* TABLES */
 .tbl-wrap{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:13px}
-th{background:var(--cream);color:var(--ink-soft);font-weight:600;font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:10px 12px;text-align:left;white-space:nowrap}
-td{padding:11px 12px;border-bottom:1px solid var(--cream-d);vertical-align:middle}
+th{background:transparent;color:var(--ink-4);font-weight:500;font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:10px 12px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--border)}
+td{padding:11px 12px;border-bottom:1px solid var(--border);vertical-align:middle;background:transparent}
+td strong{font-size:13px;font-weight:500;color:var(--ink)}
 tr:last-child td{border-bottom:none}
-tr:hover td{background:var(--cream)}
+tbody tr:hover td{background:var(--bg-subtle)}
+/* ячейка действий задана inline как flex — возвращаем табличную, иначе её нижняя линия не совпадает со строкой */
+td[style*="display:flex"]{display:table-cell!important;white-space:nowrap}
+td>.btn+.btn{margin-left:4px}
 
 /* BADGES */
-.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:50px;font-size:11px;font-weight:600}
-.badge-navy{background:var(--navy-s);color:var(--navy)}
-.badge-green{background:var(--green-s);color:var(--green)}
-.badge-gold{background:var(--gold-s);color:#7b5800}
-.badge-accent{background:var(--accent-s);color:var(--accent)}
-.badge-teal{background:var(--teal-s);color:var(--teal)}
-.badge-gray{background:var(--cream-d);color:var(--ink-faint)}
-.badge-purple{background:var(--purple-s);color:var(--purple)}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:100px;font-size:10px;font-weight:500;border:1px solid var(--border);background:var(--bg-subtle);color:var(--ink-2);line-height:1.5}
+.badge-navy,.badge-teal,.badge-purple,.badge-gray{background:var(--bg-subtle);color:var(--ink-2);border-color:var(--border)}
+.badge-green{background:var(--success-subtle);color:var(--success);border-color:transparent}
+.badge-gold{background:var(--accent-subtle);color:var(--accent-text);border-color:transparent}
+.badge-accent{background:var(--danger-subtle);color:var(--danger);border-color:transparent}
 
 /* PROGRESS */
-.progress{height:6px;background:var(--cream-d);border-radius:3px;overflow:hidden;display:inline-block;width:80px;vertical-align:middle}
-.progress-fill{height:100%;border-radius:3px;transition:width .5s}
+.progress{height:4px;background:var(--border);border-radius:2px;overflow:hidden;display:inline-block;width:80px;vertical-align:middle}
+.progress-fill{height:100%;border-radius:2px;transition:width .5s}
 
 /* SEARCH */
 .search-box{position:relative;margin-bottom:20px}
-.search-box input{width:100%;padding:10px 16px 10px 38px;border:1.5px solid var(--cream-d);border-radius:8px;font-size:14px;color:var(--ink);font-family:inherit;outline:none;background:#fff;transition:border-color .2s}
-.search-box input:focus{border-color:var(--navy-mid)}
-.search-box::before{content:"🔍";position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none}
+.search-box input{width:100%;padding:9px 12px 9px 34px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;color:var(--ink);font-family:inherit;outline:none;background:var(--bg);transition:border-color .15s,box-shadow .15s}
+.search-box input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.search-box::before{content:"";position:absolute;left:12px;top:50%;width:12px;height:12px;transform:translateY(-50%);pointer-events:none;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-3.5-3.5'/%3E%3C/svg%3E") center/contain no-repeat}
 
 /* FILTERS */
 .filters{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:flex-end}
-.filters select,.filters input{width:auto;min-width:140px;padding:8px 10px;border:1.5px solid var(--cream-d);border-radius:8px;font-size:13px;color:var(--ink);font-family:inherit;outline:none;background:#fff}
-.filters select:focus,.filters input:focus{border-color:var(--navy-mid)}
+.filters select,.filters input{width:auto;min-width:140px;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;color:var(--ink);font-family:inherit;outline:none;background:var(--bg)}
+.filters select:focus,.filters input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.filters label{color:var(--ink-4)!important}
 
 /* GROUP CARD */
-.group-card{background:#fff;border-radius:var(--r);padding:20px 24px;box-shadow:0 1px 8px rgba(26,26,46,.05);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
-.group-name{font-weight:600;font-size:15px;color:var(--ink)}
-.group-meta{font-size:12px;color:var(--ink-faint);margin-top:3px}
+.group-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.group-name{font-weight:500;font-size:14px;color:var(--ink)}
+.group-meta{font-size:12px;color:var(--ink-4);margin-top:3px}
 .group-stats{display:flex;gap:24px;flex-shrink:0}
 .gstat{text-align:center}
-.gstat-num{font-size:22px;font-weight:700;color:var(--navy)}
-.gstat-lbl{font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.04em}
+.gstat-num{font-size:20px;font-weight:300;color:var(--ink)}
+.gstat-lbl{font-size:10px;color:var(--ink-4);text-transform:uppercase;letter-spacing:.08em}
 .group-actions{display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0}
 
 /* MODAL */
-.modal-bg{display:none;position:fixed;inset:0;background:rgba(26,26,46,.45);z-index:200;align-items:center;justify-content:center;padding:20px}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(17,24,39,.4);z-index:200;align-items:center;justify-content:center;padding:20px}
 .modal-bg.open{display:flex}
-.modal{background:#fff;border-radius:var(--r);padding:32px;width:100%;max-width:540px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 48px rgba(26,26,46,.2)}
-.modal-title{font-size:20px;font-weight:700;color:var(--ink);margin-bottom:20px;display:flex;align-items:center;justify-content:space-between}
-.modal-close{background:none;border:none;font-size:22px;cursor:pointer;color:var(--ink-faint);line-height:1;padding:0}
-.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;padding-top:20px;border-top:1px solid var(--cream-d)}
+.modal{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:28px;width:100%;max-width:540px;max-height:90vh;overflow-y:auto}
+.modal-title{font-size:16px;font-weight:600;color:var(--ink);margin-bottom:20px;display:flex;align-items:center;justify-content:space-between}
+.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--ink-4);line-height:1;padding:0}
+.modal-close:hover{color:var(--ink)}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:24px;padding-top:20px;border-top:1px solid var(--border)}
 
 /* INVITE TYPE SELECTOR */
 .test-types{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px}
-.test-type-btn{border:1.5px solid var(--cream-d);border-radius:8px;padding:12px;cursor:pointer;text-align:left;background:#fff;transition:all .15s;font-family:inherit}
-.test-type-btn:hover{border-color:var(--navy-mid)}
-.test-type-btn.selected{border-color:var(--navy);background:var(--navy-s)}
-.test-type-btn.selected.pn{border-color:var(--teal);background:var(--teal-s)}
-.test-type-icon{font-size:18px;margin-bottom:4px}
-.test-type-name{font-size:13px;font-weight:600;color:var(--ink)}
-.test-type-desc{font-size:11px;color:var(--ink-faint);margin-top:2px}
+.test-type-btn{border:1px solid var(--border);border-radius:var(--radius);padding:12px;cursor:pointer;text-align:left;background:var(--bg);transition:border-color .15s,background .15s;font-family:inherit}
+.test-type-btn:hover{border-color:var(--border-strong);background:var(--bg-subtle)}
+.test-type-btn.selected,.test-type-btn.selected.pn{border-color:var(--accent);background:var(--accent-subtle)}
+.test-type-icon{display:none}
+.test-type-name{font-size:13px;font-weight:500;color:var(--ink)}
+.test-type-desc{font-size:11px;color:var(--ink-4);margin-top:2px}
 
 /* PARTICIPANT PROFILE */
-.profile-section{background:var(--cream);border-radius:10px;padding:16px 20px;margin-bottom:12px}
-.profile-section-title{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:12px}
-.profile-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.profile-item-label{font-size:11px;font-weight:600;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px}
-.profile-item-value{font-size:14px;color:var(--ink);line-height:1.5}
-.quote-box{border-left:3px solid var(--teal);padding:10px 14px;background:var(--teal-s);border-radius:0 8px 8px 0;font-size:13px;font-style:italic;color:var(--ink-soft);margin-bottom:8px;line-height:1.6}
+.profile-section{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:12px}
+.profile-section-title{font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-4);margin-bottom:12px}
+.profile-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.profile-grid>div{padding:12px 16px;border-bottom:1px solid var(--border);border-right:1px solid var(--border)}
+.profile-grid>div:nth-child(2n){border-right:none}
+.profile-grid>div:nth-last-child(-n+2){border-bottom:none}
+.profile-item-label{font-size:10px;font-weight:500;color:var(--ink-4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px}
+.profile-item-value{font-size:13px;color:var(--ink);line-height:1.5}
+.quote-box{border-left:2px solid var(--accent);padding:2px 0 2px 16px;background:transparent;border-radius:0;font-size:13px;font-style:italic;color:var(--ink-2);margin-bottom:10px;line-height:1.6}
 
 /* PN: дословные ответы анкеты */
 .pn-answer-group{margin-bottom:14px}
-.pn-answer-q{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:6px}
-.pn-answer-item{font-size:13px;color:var(--ink-soft);padding:3px 0 3px 12px;border-left:2px solid var(--cream-d);margin-bottom:2px;white-space:pre-wrap}
-.pn-answer-text{font-size:13px;color:var(--ink-soft);line-height:1.6;white-space:pre-wrap}
-.pn-answer-ab{font-size:13px;color:var(--ink-soft);padding:3px 0}
-.red-flag{border-left:3px solid var(--accent);padding:10px 14px;background:var(--accent-s);border-radius:0 8px 8px 0;margin-bottom:8px}
-.red-flag-title{font-size:13px;font-weight:600;color:var(--accent);margin-bottom:3px}
-.tip-item{padding:12px 0;border-bottom:1px solid var(--cream-d)}
+.pn-answer-q{font-size:13px;font-weight:500;color:var(--ink);margin-bottom:6px}
+.pn-answer-item{font-size:13px;color:var(--ink-2);padding:3px 0 3px 12px;border-left:1px solid var(--border);margin-bottom:2px;white-space:pre-wrap}
+.pn-answer-text{font-size:13px;color:var(--ink-2);line-height:1.6;white-space:pre-wrap}
+.pn-answer-ab{font-size:13px;color:var(--ink-2);padding:3px 0}
+.red-flag{border-left:2px solid var(--danger);padding:12px 16px;background:var(--danger-subtle);border-radius:0 var(--radius) var(--radius) 0;margin-bottom:8px}
+.red-flag-title{font-size:13px;font-weight:500;color:var(--danger);margin-bottom:3px}
+.tip-item{padding:12px 0;border-bottom:1px solid var(--border)}
 .tip-item:last-child{border-bottom:none}
-.tip-title{font-size:13px;font-weight:600;color:var(--teal);margin-bottom:3px}
+.tip-title{font-size:13px;font-weight:500;color:var(--ink);margin-bottom:3px}
 
 /* INVITATION HISTORY */
-.inv-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--cream-d);gap:12px;flex-wrap:wrap}
+.inv-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);gap:12px;flex-wrap:wrap}
 .inv-row:last-child{border-bottom:none}
 
 /* TOAST */
-#toast{position:fixed;bottom:24px;right:24px;z-index:300;background:var(--navy);color:#fff;padding:12px 20px;border-radius:8px;font-size:14px;box-shadow:0 4px 20px rgba(0,0,0,.15);transform:translateY(60px);opacity:0;transition:all .3s;max-width:320px}
+#toast{position:fixed;bottom:24px;right:24px;z-index:300;background:var(--ink);color:#fff;padding:10px 16px;border-radius:var(--radius);font-size:13px;transform:translateY(60px);opacity:0;transition:all .3s;max-width:320px}
 #toast.show{transform:translateY(0);opacity:1}
-#toast.err{background:var(--accent)}
+#toast.err{background:var(--danger)}
 
 /* SPINNER */
-.spinner{width:28px;height:28px;border:3px solid var(--cream-d);border-top-color:var(--navy);border-radius:50%;animation:spin 1s linear infinite;margin:32px auto}
+.spinner{width:24px;height:24px;border:2px solid var(--border);border-top-color:var(--ink);border-radius:50%;animation:spin 1s linear infinite;margin:32px auto}
 @keyframes spin{to{transform:rotate(360deg)}}
-.empty-state{text-align:center;padding:48px 20px;color:var(--ink-faint)}
-.empty-state-icon{font-size:36px;margin-bottom:12px}
-.empty-state-text{font-size:14px}
+.empty-state{text-align:center;padding:48px 20px;color:var(--ink-4)}
+.empty-state-icon{display:none}
+.empty-state-text{font-size:13px}
 
 /* PAGINATION */
 .pagination{display:flex;gap:6px;align-items:center;justify-content:center;margin-top:16px}
-.pg-btn{padding:6px 12px;border:1.5px solid var(--cream-d);border-radius:6px;background:#fff;cursor:pointer;font-size:13px;color:var(--ink-soft)}
-.pg-btn:hover{border-color:var(--navy);color:var(--navy)}
-.pg-info{font-size:13px;color:var(--ink-faint);padding:0 8px}
+.pg-btn{padding:5px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);cursor:pointer;font-size:13px;color:var(--ink-2);font-family:inherit}
+.pg-btn:hover{border-color:var(--border-strong);background:var(--bg-subtle)}
+.pg-info{font-size:12px;color:var(--ink-4);padding:0 8px}
 
 /* INFO BOX */
-.info-box{border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px}
-.info-box.blue{background:var(--navy-s);border-left:3px solid var(--navy-mid);color:var(--ink-soft)}
-.info-box.teal{background:var(--teal-s);border-left:3px solid var(--teal);color:var(--ink-soft)}
+.info-box{border-radius:var(--radius);padding:12px 16px;margin-bottom:16px;font-size:13px;border:1px solid var(--border);background:var(--bg-subtle);color:var(--ink-2)}
+.info-box.blue,.info-box.teal{background:var(--accent-subtle);border-color:transparent;border-left:2px solid var(--accent);border-radius:0 var(--radius) var(--radius) 0;color:var(--ink-2)}
 
 @media(max-width:768px){.sidebar{display:none}.main-inner{padding:16px}.metrics{grid-template-columns:repeat(2,1fr)}.form-row{grid-template-columns:1fr}.test-types{grid-template-columns:1fr}}
 
 @media print {
   .sidebar,.page-header .btn,.btn,#toast{display:none!important}
   .main{width:100%!important}
-  .card{box-shadow:none!important;border:1px solid #ede8df!important;break-inside:avoid}
+  .main-inner{max-width:none;padding:0}
+  .card{border:1px solid var(--border)!important;break-inside:avoid}
   /* ответы анкеты PN: видны в PDF, карточка может переноситься, группа — нет */
   .pn-answers{display:block!important;break-inside:auto}
   .pn-answer-group{break-inside:avoid}
@@ -359,7 +390,7 @@ tr:hover td{background:var(--cream)}
           <div><div class="page-title">Аналитика НИ-теста</div><div class="page-sub">Результаты и распределения</div></div>
           <div style="display:flex;gap:8px;align-items:center">
             <div class="search-box"><input type="text" id="ni-search" placeholder="Поиск по имени или email..." oninput="debounce(()=>loadNIAnalytics(),350)" style="width:220px"></div>
-            <select id="ni-group-filter" onchange="loadNIAnalytics()" style="padding:8px 12px;border:1.5px solid var(--cream-d);border-radius:8px;font-size:13px">
+            <select id="ni-group-filter" onchange="loadNIAnalytics()" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px">
               <option value="">Все группы</option>
             </select>
           </div>
@@ -382,7 +413,7 @@ tr:hover td{background:var(--cream)}
       <div id="page-pn-profiles" class="page">
         <div class="page-header">
           <div><div class="page-title">Профили Narratifs</div><div class="page-sub">Сгенерированные профили участников</div></div>
-          <select id="pn-group-filter" onchange="loadPNProfiles()" style="padding:8px 12px;border:1.5px solid var(--cream-d);border-radius:8px;font-size:13px">
+          <select id="pn-group-filter" onchange="loadPNProfiles()" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px">
             <option value="">Все группы</option>
           </select>
         </div>
@@ -414,7 +445,7 @@ tr:hover td{background:var(--cream)}
       <div id="page-personal-narrative" class="page">
         <div class="page-header">
           <div><div class="page-title">Личный нарратив</div><div class="page-sub">Соотношение личной истории с семьёй, обществом и государством</div></div>
-          <select id="pnr-group-filter" onchange="loadPersonalNarrativeList()" style="padding:8px 12px;border:1.5px solid var(--cream-d);border-radius:8px;font-size:13px">
+          <select id="pnr-group-filter" onchange="loadPersonalNarrativeList()" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px">
             <option value="">Все группы</option>
           </select>
         </div>
@@ -611,7 +642,7 @@ tr:hover td{background:var(--cream)}
     </div>
     <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px">По одному участнику в строке: <b>email</b> или <b>email,Имя Фамилия</b>. Коды генерирует сервер по количеству, а связку «email/имя ↔ код» и сам CSV-ключ-файл собирает <b>ваш браузер</b> — адреса и имена <b>на сервер не отправляются</b>. Раздайте ссылки участникам сами (письма не рассылаются) и храните ключ-файл у себя.</p>
     <div class="field"><label>Участники — email или «email,Имя» (по одному в строке)</label>
-      <textarea id="kf-emails" rows="6" style="width:100%;padding:10px;border:1.5px solid var(--cream-d);border-radius:8px;font-family:inherit;font-size:14px;box-sizing:border-box" placeholder="a@company.com,Иван Иванов&#10;b@company.com,Мария Петрова"></textarea>
+      <textarea id="kf-emails" rows="6" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:inherit;font-size:14px;box-sizing:border-box" placeholder="a@company.com,Иван Иванов&#10;b@company.com,Мария Петрова"></textarea>
     </div>
     <div class="field"><label>Регион (для маршрутизации данных)</label>
       <select id="kf-region">
@@ -661,14 +692,14 @@ tr:hover td{background:var(--cream)}
 
     <div id="ui-block-new">
       <div class="field"><label>Участники — email или «email,Имя» (по одному в строке)</label>
-        <textarea id="ui-emails" rows="5" style="width:100%;padding:10px;border:1.5px solid var(--cream-d);border-radius:8px;font-family:inherit;font-size:14px;box-sizing:border-box" placeholder="a@company.com,Иван Иванов&#10;b@company.com"></textarea>
+        <textarea id="ui-emails" rows="5" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:inherit;font-size:14px;box-sizing:border-box" placeholder="a@company.com,Иван Иванов&#10;b@company.com"></textarea>
       </div>
     </div>
 
     <div id="ui-block-existing" style="display:none">
       <div class="field"><label>Кого приглашаем</label>
-        <input type="text" id="ui-search" placeholder="Поиск по имени, email или коду" oninput="uiRenderPicker()" style="width:100%;padding:9px 12px;border:1.5px solid var(--cream-d);border-radius:8px;font-family:inherit;font-size:14px;box-sizing:border-box;margin-bottom:8px">
-        <div id="ui-picker" style="max-height:220px;overflow-y:auto;border:1.5px solid var(--cream-d);border-radius:8px;padding:6px"></div>
+        <input type="text" id="ui-search" placeholder="Поиск по имени, email или коду" oninput="uiRenderPicker()" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);font-family:inherit;font-size:14px;box-sizing:border-box;margin-bottom:8px">
+        <div id="ui-picker" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius);padding:6px"></div>
         <div id="ui-picked" style="font-size:12px;color:var(--ink-faint);margin-top:6px"></div>
       </div>
     </div>
@@ -924,9 +955,9 @@ function nav(page) {
 async function loadHome() {
   const d = await api('/v2/stats'); if (!d) return;
   $('home-metrics').innerHTML = [
-    {v: d.active_groups, l: 'Активных групп', c: 'var(--navy)'},
-    {v: d.active_participants, l: 'Участников', c: 'var(--teal)'},
-    {v: d.completed_tests, l: 'Завершённых тестов', c: 'var(--green)'},
+    {v: d.active_groups, l: 'Активных групп', c: 'var(--ink)'},
+    {v: d.active_participants, l: 'Участников', c: 'var(--ink)'},
+    {v: d.completed_tests, l: 'Завершённых тестов', c: 'var(--ink)'},
   ].map(m => `<div class="metric"><div class="metric-val" style="color:${m.c}">${fmt(m.v)}</div><div class="metric-lbl">${m.l}</div></div>`).join('');
 
   $('home-recent').innerHTML = (d.recent || []).length === 0
@@ -1171,17 +1202,17 @@ function renderNIAnswers(data) {
     var q = findQ(NI_QUESTIONS.Q1, a.question_id);
     if (!q) return '';
     var opt = q.opts.find(function(o){ return o.v === a.answer_type; });
-    return '<div style="margin-bottom:12px"><div style="font-size:13px;font-weight:600;color:#1a1a2e;margin-bottom:4px">' + q.id + '. ' + q.text + '</div><div style="font-size:13px;color:#4a4a6a;padding-left:10px;border-left:2px solid #ede8df">' + (opt ? opt.t : a.answer_type) + '</div></div>';
+    return '<div style="margin-bottom:12px"><div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:4px">' + q.id + '. ' + q.text + '</div><div style="font-size:13px;color:var(--ink-2);padding-left:10px;border-left:2px solid var(--border)">' + (opt ? opt.t : a.answer_type) + '</div></div>';
   }).join('');
   var b2 = (data.block2 || []).map(function(a) {
     var q = findQ(NI_QUESTIONS.Q2, a.statement_id);
     if (!q) return '';
-    return '<div style="margin-bottom:12px"><div style="font-size:13px;font-weight:600;color:#1a1a2e;margin-bottom:4px">' + q.id + '. ' + q.text + '</div><div style="font-size:13px;color:#4a4a6a;padding-left:10px;border-left:2px solid #ede8df">Оценка: ' + a.score + ' / 5</div></div>';
+    return '<div style="margin-bottom:12px"><div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:4px">' + q.id + '. ' + q.text + '</div><div style="font-size:13px;color:var(--ink-2);padding-left:10px;border-left:2px solid var(--border)">Оценка: ' + a.score + ' / 5</div></div>';
   }).join('');
   var b3 = (data.block3 || []).map(function(a) {
     var q = findQ(NI_QUESTIONS.Q3, a.statement_id);
     if (!q) return '';
-    return '<div style="margin-bottom:12px"><div style="font-size:13px;font-weight:600;color:#1a1a2e;margin-bottom:4px">' + q.id + '. ' + q.text + '</div><div style="font-size:13px;color:#4a4a6a;padding-left:10px;border-left:2px solid #ede8df">Оценка: ' + a.score + ' / 5</div></div>';
+    return '<div style="margin-bottom:12px"><div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:4px">' + q.id + '. ' + q.text + '</div><div style="font-size:13px;color:var(--ink-2);padding-left:10px;border-left:2px solid var(--border)">Оценка: ' + a.score + ' / 5</div></div>';
   }).join('');
   return '<div class="card">' +
     '<div class="card-title">Ответы на НИ-тест</div>' +
@@ -1708,7 +1739,7 @@ function uiRenderPicker() {
   $('ui-picker').innerHTML = list.length ? list.map(p =>
     // .field label в общем CSS делает текст заглавным и жирным — для строк
     // списка это нужно погасить явно, иначе имена ломают вёрстку переносами.
-    '<label style="display:flex;align-items:center;gap:8px;padding:5px 6px;font-size:13px;cursor:pointer;border-radius:5px;text-transform:none;font-weight:400;letter-spacing:normal;margin-bottom:0;color:var(--ink)">'
+    '<label style="display:flex;align-items:center;gap:8px;padding:5px 6px;font-size:13px;cursor:pointer;border-radius:var(--radius-sm);text-transform:none;font-weight:400;letter-spacing:normal;margin-bottom:0;color:var(--ink)">'
     // .field input задаёт width:100% — для флажка это надо погасить, иначе он
     // растягивается на всю строку и отжимает имя вправо.
     + '<input type="checkbox" style="width:auto;flex:0 0 auto;padding:0;margin:0" value="' + p.id + '" ' + (UI_PICKED.has(p.id) ? 'checked' : '')
@@ -2224,7 +2255,7 @@ async function showPersonalNarrativeDetail(id) {
       ${d.family_narrative_summary ? `<div class="card" style="padding:14px;margin-bottom:12px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;margin-bottom:6px">Семья</div><div style="font-size:14px;line-height:1.6">${d.family_narrative_summary}</div></div>` : ''}
       ${d.society_narrative_summary ? `<div class="card" style="padding:14px;margin-bottom:12px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;margin-bottom:6px">Общество</div><div style="font-size:14px;line-height:1.6">${d.society_narrative_summary}</div></div>` : ''}
       ${d.state_narrative_summary ? `<div class="card" style="padding:14px;margin-bottom:12px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;margin-bottom:6px">Государство</div><div style="font-size:14px;line-height:1.6">${d.state_narrative_summary}</div></div>` : ''}
-      ${d.synthesis ? `<div style="padding:12px 14px;background:var(--green-s);border-left:3px solid var(--green);border-radius:4px;font-size:13px;margin-bottom:12px">💡 Синтез: ${d.synthesis}</div>` : ''}
+      ${d.synthesis ? `<div style="padding:12px 14px;background:var(--green-s);border-left:2px solid var(--green);border-radius:4px;font-size:13px;margin-bottom:12px">💡 Синтез: ${d.synthesis}</div>` : ''}
       ${tips.length ? `<div class="card" style="padding:14px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;margin-bottom:8px">Советы фасилитатору</div><ul style="padding-left:16px">${tips.map(t => `<li style="margin-bottom:6px">${t}</li>`).join('')}</ul></div>` : ''}
       <div style="margin-top:12px">
         <button class="btn btn-ghost btn-sm" onclick="downloadPersonalNarrativePdf('${id}', this)">📄 Скачать PDF</button>
@@ -2303,7 +2334,7 @@ async function showPNProfileDetail(invitationId) {
   const cv = d.company_vision || {};
 
   const traits = (l1.key_traits || []).map(t => `<div class="card" style="padding:10px 12px;margin-bottom:8px"><strong>${t.title || ''}</strong><div style="font-size:13px;color:var(--ink-soft);margin-top:4px">${t.description || ''}</div></div>`).join('');
-  const redFlags = (l2.red_flags || []).map(f => `<div style="padding:10px 14px;background:#fee2e2;border-left:3px solid var(--red);border-radius:4px;font-size:13px;margin-bottom:8px"><strong>${f.title || ''}</strong><br>${f.description || ''}</div>`).join('');
+  const redFlags = (l2.red_flags || []).map(f => `<div style="padding:10px 14px;background:var(--danger-subtle);border-left:2px solid var(--red);border-radius:4px;font-size:13px;margin-bottom:8px"><strong>${f.title || ''}</strong><br>${f.description || ''}</div>`).join('');
   const tips = (l2.facilitator_tips || []).map(t => `<li style="margin-bottom:6px"><strong>${t.title || ''}:</strong> ${t.tip || ''}</li>`).join('');
   const quotes = (l2.narrative_material?.key_quotes || []).map(q => `<li style="margin-bottom:6px;font-style:italic;color:var(--ink-soft)">"${q}"</li>`).join('');
 
@@ -2323,7 +2354,7 @@ async function showPNProfileDetail(invitationId) {
         </div>
         ${l2.psychotype?.notes ? `<div style="font-size:13px;color:var(--ink-soft);margin-top:8px">${l2.psychotype.notes}</div>` : ''}
       </div>
-      ${l2.narrative_material?.bridge_formula_seed ? `<div style="padding:10px 14px;background:var(--green-s);border-left:3px solid var(--green);border-radius:4px;font-size:13px;margin-bottom:12px">💡 Формула моста: <em>${l2.narrative_material.bridge_formula_seed}</em></div>` : ''}
+      ${l2.narrative_material?.bridge_formula_seed ? `<div style="padding:10px 14px;background:var(--green-s);border-left:2px solid var(--green);border-radius:4px;font-size:13px;margin-bottom:12px">💡 Формула моста: <em>${l2.narrative_material.bridge_formula_seed}</em></div>` : ''}
       ${quotes ? `<div class="card" style="padding:14px;margin-bottom:12px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Ключевые цитаты</div><ul style="padding-left:16px">${quotes}</ul></div>` : ''}
       ${redFlags ? `<div style="margin-bottom:16px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Red flags</div>${redFlags}</div>` : ''}
       ${tips ? `<div class="card" style="padding:14px;margin-bottom:12px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Советы фасилитатору</div><ul style="padding-left:16px">${tips}</ul></div>` : ''}
@@ -2640,16 +2671,16 @@ function showNarrativeDetail(r) {
           <div style="font-size:12px;color:var(--ink-faint);margin-top:2px">Образ будущего: ${r.future_access || '—'}</div>
         </div>
       </div>
-      ${r.personal_professional_gap ? `<div style="padding:10px 14px;background:var(--gold-s);border-left:3px solid var(--gold);border-radius:4px;font-size:13px;margin-bottom:12px">⚠️ Разрыв личного и профессионального нарратива: <strong>${r.personal_narrative}</strong> vs <strong>${r.professional_narrative}</strong></div>` : ''}
+      ${r.personal_professional_gap ? `<div style="padding:10px 14px;background:var(--gold-s);border-left:2px solid var(--gold);border-radius:4px;font-size:13px;margin-bottom:12px">⚠️ Разрыв личного и профессионального нарратива: <strong>${r.personal_narrative}</strong> vs <strong>${r.professional_narrative}</strong></div>` : ''}
       <div class="card" style="padding:12px;margin-bottom:12px">
         <div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Готовность к модулям</div>
         <div style="display:flex;gap:16px">
           ${[1,2,3].map(m => `<div style="text-align:center"><div style="font-size:11px;color:var(--ink-faint)">Модуль ${m}</div><div style="font-weight:600;color:${NS_READINESS_COLOR[readiness['module_'+m]]||'inherit'}">${readiness['module_'+m]||'—'}</div></div>`).join('')}
         </div>
       </div>
-      ${r.facilitator_alert ? `<div style="padding:10px 14px;background:#fee2e2;border-left:3px solid var(--red);border-radius:4px;font-size:13px;margin-bottom:12px"><strong>⚠️ Внимание фасилитатору:</strong> ${r.facilitator_alert}</div>` : ''}
+      ${r.facilitator_alert ? `<div style="padding:10px 14px;background:var(--danger-subtle);border-left:2px solid var(--red);border-radius:4px;font-size:13px;margin-bottom:12px"><strong>⚠️ Внимание фасилитатору:</strong> ${r.facilitator_alert}</div>` : ''}
       ${markers ? `<div class="card" style="padding:12px;margin-bottom:12px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Ключевые маркеры</div><ul style="padding-left:16px">${markers}</ul></div>` : ''}
-      ${r.bridge_formula_seed ? `<div style="padding:10px 14px;background:var(--green-s);border-left:3px solid var(--green);border-radius:4px;font-size:13px;margin-bottom:12px">💡 Зерно формулы моста: <em>${r.bridge_formula_seed}</em></div>` : ''}
+      ${r.bridge_formula_seed ? `<div style="padding:10px 14px;background:var(--green-s);border-left:2px solid var(--green);border-radius:4px;font-size:13px;margin-bottom:12px">💡 Зерно формулы моста: <em>${r.bridge_formula_seed}</em></div>` : ''}
       ${tips ? `<div class="card" style="padding:12px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Советы фасилитатору</div><ul style="padding-left:16px">${tips}</ul></div>` : ''}
       <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-navy btn-sm" id="ns-deep-btn" onclick="runDeepAnalysis('${r.session_id}')">🔬 Глубокий анализ</button>
@@ -2676,7 +2707,7 @@ async function runDeepAnalysis(sessionId) {
   btn.disabled = false; btn.textContent = '🔬 Глубокий анализ';
 
   if (!d || d.error) {
-    wrap.innerHTML = `<div style="padding:12px;background:#fee2e2;border-radius:6px;font-size:13px;color:var(--red)">${(d && d.error) || 'Ошибка запроса'}</div>`;
+    wrap.innerHTML = `<div style="padding:12px;background:var(--danger-subtle);border-radius:6px;font-size:13px;color:var(--red)">${(d && d.error) || 'Ошибка запроса'}</div>`;
     return;
   }
   renderDeepAnalysis(d);
@@ -2713,7 +2744,7 @@ function renderDeepAnalysis(d) {
       <div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Ключевые цитаты</div>
       ${quotes}
     </div>` : ''}
-    <div style="padding:12px 14px;background:var(--green-s);border-left:3px solid var(--green);border-radius:4px;font-size:13px;margin-bottom:10px">
+    <div style="padding:12px 14px;background:var(--green-s);border-left:2px solid var(--green);border-radius:4px;font-size:13px;margin-bottom:10px">
       💬 <strong>Приглашение:</strong> ${d.invitation || ''}
     </div>
     <div class="card" style="padding:14px">
@@ -2730,15 +2761,15 @@ let NS_SAVED_REPORT_AT = null;
 // библиотеку графиков ради четырёх диаграмм смысла нет.
 
 const NS_NARRATIVE_COLOR = {
-  'выживание': '#c8432a', 'жертва': '#d97706', 'борьба': '#c9a84c',
-  'стагнация': '#4a4a6a', 'переход': '#2d5a8e', 'строительство': '#2d6a4f',
-  'миссия': '#5a2d82',
+  'выживание': 'var(--danger)', 'жертва': 'var(--warning)', 'борьба': 'var(--warning)',
+  'стагнация': 'var(--ink-2)', 'переход': 'var(--accent)', 'строительство': 'var(--success)',
+  'миссия': 'var(--ink-3)',
 };
 const NS_NARRATIVE_ORDER = ['выживание','жертва','борьба','стагнация','переход','строительство','миссия'];
 const NS_LEVEL_COLOR = {
-  'низкая': '#c8432a', 'средняя': '#c9a84c', 'высокая': '#2d6a4f',
-  'отсутствует': '#c8432a', 'расплывчатый': '#c9a84c', 'конкретный': '#2d6a4f',
-  'не готов': '#c8432a', 'требует внимания': '#c9a84c', 'готов': '#2d6a4f',
+  'низкая': 'var(--danger)', 'средняя': 'var(--warning)', 'высокая': 'var(--success)',
+  'отсутствует': 'var(--danger)', 'расплывчатый': 'var(--warning)', 'конкретный': 'var(--success)',
+  'не готов': 'var(--danger)', 'требует внимания': 'var(--warning)', 'готов': 'var(--success)',
 };
 
 const nsSum = d => Object.values(d || {}).reduce((a, b) => a + (b || 0), 0);
@@ -2758,7 +2789,7 @@ function nsLandscape(dist) {
     const pct = Math.round(c / total * 100);
     return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:13px${c ? '' : ';opacity:.45'}">
       <div style="width:170px;flex-shrink:0;display:flex;align-items:center;gap:7px">
-        <span style="width:11px;height:11px;border-radius:3px;background:${NS_NARRATIVE_COLOR[k]};flex-shrink:0"></span>
+        <span style="width:11px;height:11px;border-radius:var(--radius-sm);background:${NS_NARRATIVE_COLOR[k]};flex-shrink:0"></span>
         <span>${nsPlainLabel(k)}</span>
       </div>
       <div style="flex:1;min-width:120px;background:var(--cream-d);border-radius:4px;height:18px;overflow:hidden">
@@ -2825,7 +2856,7 @@ function nsStackedBar(label, dist, order) {
       <span>${label}</span>
       <span style="color:var(--ink-faint);font-size:11.5px">${order.filter(k => dist[k] > 0).map(k => k + ' ' + dist[k]).join(' · ')}</span>
     </div>
-    <div style="display:flex;height:22px;border-radius:5px;overflow:hidden;background:var(--cream-d)">${segs}</div>
+    <div style="display:flex;height:22px;border-radius:var(--radius-sm);overflow:hidden;background:var(--cream-d)">${segs}</div>
   </div>`;
 }
 
@@ -2864,7 +2895,7 @@ function renderGroupNarrative(r, savedAt) {
     .join('');
 
   const gap = r.personal_professional_gap && typeof r.personal_professional_gap === 'object'
-    ? `<div style="padding:10px 14px;background:var(--gold-s);border-left:3px solid var(--gold);border-radius:4px;font-size:13px;margin-bottom:12px">
+    ? `<div style="padding:10px 14px;background:var(--gold-s);border-left:2px solid var(--gold);border-radius:4px;font-size:13px;margin-bottom:12px">
          Разрыв личного и профессионального нарратива — у <strong>${r.personal_professional_gap.count}</strong> из ${r.group_size} (${r.personal_professional_gap.share_pct}%)
        </div>` : '';
 
@@ -2888,7 +2919,7 @@ function renderGroupNarrative(r, savedAt) {
   const alerts = alertTexts.length
     ? `<div style="margin-bottom:12px">
          <div style="font-size:12px;font-weight:600;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Алерты фасилитатору — ${alertTexts.length} из ${r.group_size}</div>
-         ${alertTexts.map(a => `<div style="padding:7px 12px;background:var(--red-s);border-radius:5px;font-size:12.5px;margin-bottom:5px">${a}</div>`).join('')}
+         ${alertTexts.map(a => `<div style="padding:7px 12px;background:var(--red-s);border-radius:var(--radius-sm);font-size:12.5px;margin-bottom:5px">${a}</div>`).join('')}
        </div>` : '';
 
   const carrierTexts = (r.resource_carriers_keyed || []).length
@@ -2896,7 +2927,7 @@ function renderGroupNarrative(r, savedAt) {
     : (r.resource_carriers || []);
 
   const carriers = carrierTexts.map(c =>
-    `<span style="display:inline-block;padding:5px 12px;background:var(--green-s);color:var(--green);border-radius:14px;font-size:12px;font-weight:600;margin:0 6px 6px 0">${c}</span>`
+    `<span style="display:inline-block;padding:5px 12px;background:var(--green-s);color:var(--green);border-radius:var(--radius);font-size:12px;font-weight:600;margin:0 6px 6px 0">${c}</span>`
   ).join('');
 
   // Три модуля одним блоком. opening_move — это первый шаг Модуля 1, поэтому
@@ -2911,7 +2942,7 @@ function renderGroupNarrative(r, savedAt) {
     return `<div style="margin-bottom:12px">
       <div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:6px">С чего начать ${label}</div>
       ${lead.map(t => `<div style="padding:12px 16px;background:var(--navy-s);border-left:4px solid var(--navy);border-radius:4px;font-size:14px;line-height:1.65;margin-bottom:5px">${t}</div>`).join('')}
-      ${items.map(t => `<div style="padding:8px 12px;background:var(--cream);border-left:3px solid var(--navy-mid);border-radius:4px;font-size:13px;line-height:1.6;margin-bottom:5px">${t}</div>`).join('')}
+      ${items.map(t => `<div style="padding:8px 12px;background:var(--cream);border-left:2px solid var(--navy-mid);border-radius:4px;font-size:13px;line-height:1.6;margin-bottom:5px">${t}</div>`).join('')}
     </div>`;
   }).join('');
 
@@ -2938,16 +2969,16 @@ function renderGroupNarrative(r, savedAt) {
         </div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
-        <div style="text-align:center;padding:12px;background:var(--cream);border-radius:8px">
+        <div style="text-align:center;padding:12px;background:var(--cream);border-radius:var(--radius)">
           <div style="font-size:11px;color:var(--ink-faint);margin-bottom:4px">ДОМИНИРУЮЩИЙ НАРРАТИВ</div>
           <div style="font-size:15px;font-weight:700">${NS_NARRATIVE_LABELS[r.group_dominant_narrative]||r.group_dominant_narrative||'—'}</div>
           ${r.group_dominant_share_pct ? `<div style="font-size:11px;color:var(--ink-faint);margin-top:2px">${r.group_dominant_share_pct}% группы</div>` : ''}
         </div>
-        <div style="text-align:center;padding:12px;background:var(--cream);border-radius:8px">
+        <div style="text-align:center;padding:12px;background:var(--cream);border-radius:var(--radius)">
           <div style="font-size:11px;color:var(--ink-faint);margin-bottom:4px">АГЕНТНОСТЬ ГРУППЫ</div>
           <div style="font-size:15px;font-weight:700;color:${NS_AGENTIVITY_COLOR[r.group_agentivity]||'inherit'}">${r.group_agentivity||'—'}</div>
         </div>
-        <div style="text-align:center;padding:12px;background:var(--cream);border-radius:8px">
+        <div style="text-align:center;padding:12px;background:var(--cream);border-radius:var(--radius)">
           <div style="font-size:11px;color:var(--ink-faint);margin-bottom:4px">ОБРАЗ БУДУЩЕГО</div>
           <div style="font-size:15px;font-weight:700;color:${NS_FUTURE_COLOR[r.group_future_access]||'inherit'}">${r.group_future_access||'—'}</div>
         </div>
@@ -2997,9 +3028,9 @@ function renderGroupNarrative(r, savedAt) {
       ${r.readiness_read ? `<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:700;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Что готовность значит практически</div><div style="padding:14px 16px;background:var(--cream);border-left:4px solid var(--navy-mid);border-radius:6px;font-size:14px;line-height:1.7">${r.readiness_read}</div></div>` : ''}
       <div style="font-size:12px;font-weight:700;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Для фасилитатора</div>
       ${modules}
-      ${r.crisis_narrative ? `<div style="padding:10px 14px;background:#fee2e2;border-left:3px solid var(--red);border-radius:4px;font-size:13px;margin-bottom:12px">⚠️ Кризисный нарратив для Блока 3 М1: <strong>${r.crisis_narrative}</strong></div>` : ''}
+      ${r.crisis_narrative ? `<div style="padding:10px 14px;background:var(--danger-subtle);border-left:2px solid var(--red);border-radius:4px;font-size:13px;margin-bottom:12px">⚠️ Кризисный нарратив для Блока 3 М1: <strong>${r.crisis_narrative}</strong></div>` : ''}
       ${alerts}
-      <div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Нарративные ресурсы — носители конструктивных историй</div>${carriers || `<div style="padding:10px 14px;background:var(--gold-s);border-left:3px solid var(--gold);border-radius:4px;font-size:13px;line-height:1.6">Носителей конструктивного нарратива в группе нет: опоры внутри группы нет, ресурс придётся вносить извне.</div>`}</div>
+      <div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Нарративные ресурсы — носители конструктивных историй</div>${carriers || `<div style="padding:10px 14px;background:var(--gold-s);border-left:2px solid var(--gold);border-radius:4px;font-size:13px;line-height:1.6">Носителей конструктивного нарратива в группе нет: опоры внутри группы нет, ресурс придётся вносить извне.</div>`}</div>
       ${seeds ? `<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Зёрна формулы моста</div>${seeds}</div>` : ''}
     </div>`;
 }
