@@ -1190,7 +1190,7 @@ async function loadParticipants(page) {
         <td><span class="badge ${p.status==='active'?'badge-green':'badge-gray'}">${p.status==='active'?'Активный':'Архив'}</span></td>
         <td style="display:flex;gap:4px">
           <button class="btn btn-ghost btn-sm" onclick="openParticipantDetail(${p.id})">→</button>
-          ${(function(){var c=((p.invitations||[]).filter(function(i){return i.type==='ni_test'&&i.code;})[0]||{}).code;return c?`<button class="btn btn-ghost btn-sm" onclick="downloadFullReport('${c}')" title="Полный PDF-отчёт (НИ-тест)">📄</button>`:'';})()}
+          ${(function(){var c=((p.invitations||[]).filter(function(i){return i.type==='ni_test'&&i.code;})[0]||{}).code;return c?`<button class="btn btn-ghost btn-sm" onclick="downloadFullReport('${c}')" title="Полный PDF-отчёт (НИ-тест)">📄</button><button class="btn btn-ghost btn-sm" onclick="downloadFullReport('${c}','express')" title="Краткий PDF-отчёт (НИ-тест)">📃</button>`:'';})()}
           <button class="btn btn-navy btn-sm" onclick="quickInvite(${p.id},'${(p.name||p.email||('#'+p.id)).replace(/'/g,"\\'")}')">📧</button>
           <button class="btn btn-ghost-red btn-sm" onclick="deleteParticipant(${p.id},'${(p.name||p.email||('#'+p.id)).replace(/'/g,"\\'")}')">🗑</button>
         </td>
@@ -1648,16 +1648,17 @@ async function downloadGroupNarrativePdf() {
   } catch (e) { toast('Ошибка соединения', true); }
 }
 
-async function downloadFullReport(code) {
+async function downloadFullReport(code, level) {
   if (!code) { toast('Нет кода НИ-теста', true); return; }
-  toast('Готовим отчёт...');
+  level = level === 'express' ? 'express' : 'full';
+  toast(level === 'express' ? 'Готовим краткий отчёт...' : 'Готовим полный отчёт...');
   try {
-    const r = await fetch(API + '/v2/report-pdf/' + encodeURIComponent(code), { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+    const r = await fetch(API + '/v2/report-pdf/' + encodeURIComponent(code) + '?level=' + level, { headers: { 'Authorization': 'Bearer ' + TOKEN } });
     if (!r.ok) { const e = await r.json().catch(() => ({})); toast('Отчёт недоступен: ' + (e.error || r.status), true); return; }
     const blob = await r.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'ADIN_full_' + code + '.pdf'; a.click();
+    a.download = 'ADIN_' + level + '_' + code + '.pdf'; a.click();
     URL.revokeObjectURL(a.href);
   } catch (e) { toast('Ошибка соединения', true); }
 }
@@ -2156,7 +2157,8 @@ async function loadNIAnalytics() {
 function makePdfBtns(sessionId, name) {
   var sid = (sessionId || '').toString();
   var nm  = (name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-  var pdf = "<button class=\"btn btn-ghost btn-sm\" onclick=\"downloadNIPdf('" + sid + "','" + nm + "')\">⬇ PDF</button>";
+  var pdf = "<button class=\"btn btn-ghost btn-sm\" onclick=\"downloadNIPdf('" + sid + "','" + nm + "')\" title=\"Полный отчёт\">⬇ Полный</button>"
+          + "<button class=\"btn btn-ghost btn-sm\" style=\"margin-left:4px\" onclick=\"downloadNIPdf('" + sid + "','" + nm + "','express')\" title=\"Краткий отчёт — как у участника\">⬇ Краткий</button>";
   var regen = "<button class=\"btn btn-ghost btn-sm\" style=\"color:var(--teal);margin-left:4px\" onclick=\"regeneratePersonal('" + sid + "',this)\" title=\"Перегенерировать\">&#x1F504;</button>";
   return pdf + regen;
 }
@@ -2178,15 +2180,16 @@ async function regeneratePersonal(sessionId, btn) {
   }
 }
 
-async function downloadNIPdf(sessionId, name) {
+async function downloadNIPdf(sessionId, name, level) {
+  level = level === 'express' ? 'express' : 'full';
   toast('Генерируем PDF...');
-  const url = API + '/admin/participants/' + sessionId + '/report-pdf';
+  const url = API + '/admin/participants/' + sessionId + '/report-pdf?level=' + level;
   const r = await fetch(url, {headers:{'Authorization':'Bearer '+TOKEN}});
   if (!r.ok) { toast('Ошибка генерации PDF', true); return; }
   const blob = await r.blob();
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'report_' + (name||'participant') + '.pdf';
+  a.download = 'report_' + (level === 'express' ? 'express_' : '') + (name||'participant') + '.pdf';
   a.click();
   URL.revokeObjectURL(a.href);
   toast('PDF скачан');
