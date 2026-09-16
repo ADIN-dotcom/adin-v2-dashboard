@@ -10,12 +10,13 @@
   --bg:#ffffff;
   --bg-subtle:#f8f9fb;
   --bg-hover:#f3f4f6;
-  --border:#e5e7eb;
-  --border-strong:#d1d5db;
+  --border:#dfe3e8;
+  --border-strong:#c4cad3;
   --ink:#111827;
-  --ink-2:#374151;
-  --ink-3:#6b7280;
-  --ink-4:#9ca3af;
+  --ink-2:#2f3542;
+  --ink-3:#4b5563;
+  --ink-4:#6b7280;
+  --on-ink:#ffffff;
   --accent:#2563eb;
   --accent-subtle:#eff6ff;
   --accent-text:#1d4ed8;
@@ -28,6 +29,7 @@
   --radius:6px;
   --radius-sm:4px;
   --sidebar:220px;
+  color-scheme:light;
 
   /* Псевдонимы старой палитры → токены Slate Précis.
      Inline-стили в разметке и JS-шаблонах ссылаются на них;
@@ -43,7 +45,30 @@
   --purple:var(--ink-3);--purple-s:var(--bg-hover);
   --r:var(--radius);
 }
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased}
+/* Тёмная тема: те же токены, другие значения. Включается data-theme="dark" на <html>. */
+:root[data-theme="dark"]{
+  --bg:#0f1115;--bg-subtle:#161920;--bg-hover:#1f242e;
+  --border:#2a3039;--border-strong:#3b4351;
+  --ink:#f3f4f6;--ink-2:#d1d5db;--ink-3:#a1a8b3;--ink-4:#7b8290;
+  --on-ink:#0f1115;
+  --accent:#60a5fa;--accent-subtle:#172554;--accent-text:#93c5fd;
+  --success:#4ade80;--success-subtle:#0b2e1a;
+  --warning:#fbbf24;--warning-subtle:#3a2606;
+  --danger:#f87171;--danger-subtle:#3f0d0d;
+  color-scheme:dark;
+}
+:root[data-theme="dark"] .card,:root[data-theme="dark"] .metric,:root[data-theme="dark"] .group-card,
+:root[data-theme="dark"] .modal,:root[data-theme="dark"] .login-card,:root[data-theme="dark"] .profile-section{background:var(--bg-subtle)}
+:root[data-theme="dark"] .modal-bg{background:rgba(0,0,0,.6)}
+:root[data-theme="dark"] .login-input,:root[data-theme="dark"] .field input,:root[data-theme="dark"] .field select,:root[data-theme="dark"] .field textarea,
+:root[data-theme="dark"] .search-box input,:root[data-theme="dark"] .filters select,:root[data-theme="dark"] .filters input,:root[data-theme="dark"] .test-type-btn,:root[data-theme="dark"] .pg-btn{background:var(--bg-subtle)}
+:root[data-theme="dark"] .btn-navy{background:var(--ink);color:var(--on-ink)}
+:root[data-theme="dark"] .btn-teal,:root[data-theme="dark"] .btn-accent,:root[data-theme="dark"] .btn-primary-action{color:var(--on-ink)}
+:root[data-theme="dark"] .badge-completed,:root[data-theme="dark"] .badge-sent,:root[data-theme="dark"] .badge-opened,:root[data-theme="dark"] .badge-green,:root[data-theme="dark"] .badge-gold,:root[data-theme="dark"] .badge-accent{border-color:transparent}
+:root[data-theme="dark"] .search-box::before{filter:invert(.6)}
+:root[data-theme="dark"] .sb-link.active{background:var(--accent-subtle)}
+
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased;transition:background .15s,color .15s}
 ::placeholder{color:var(--ink-4)}
 
 /* LOGIN */
@@ -86,7 +111,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
 /* BUTTONS */
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;font-weight:500;cursor:pointer;transition:background .15s,border-color .15s,color .15s;font-family:inherit;white-space:nowrap;background:transparent;color:var(--ink-2);line-height:1.2}
 .btn:hover{border-color:var(--border-strong);background:var(--bg-subtle)}
-.btn-navy{background:var(--ink);color:#fff;border-color:transparent}.btn-navy:hover{background:var(--ink-2);border-color:transparent}
+.btn-navy{background:var(--ink);color:var(--on-ink);border-color:transparent}.btn-navy:hover{background:var(--ink-2);border-color:transparent}
 .btn-teal,.btn-accent{background:var(--accent);color:#fff;border-color:transparent}.btn-teal:hover,.btn-accent:hover{background:var(--accent-text);border-color:transparent}
 .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--ink-2)}.btn-ghost:hover{border-color:var(--border-strong);background:var(--bg-subtle)}
 .btn-ghost-red{background:transparent;border:1px solid var(--border);color:var(--danger)}.btn-ghost-red:hover{border-color:var(--danger);background:var(--danger-subtle)}
@@ -211,7 +236,7 @@ td>.btn+.btn{margin-left:4px}
 .inv-row:last-child{border-bottom:none}
 
 /* TOAST */
-#toast{position:fixed;bottom:24px;right:24px;z-index:300;background:var(--ink);color:#fff;padding:10px 16px;border-radius:var(--radius);font-size:13px;transform:translateY(60px);opacity:0;transition:all .3s;max-width:320px}
+#toast{position:fixed;bottom:24px;right:24px;z-index:300;background:var(--ink);color:var(--on-ink);padding:10px 16px;border-radius:var(--radius);font-size:13px;transform:translateY(60px);opacity:0;transition:all .3s;max-width:320px}
 #toast.show{transform:translateY(0);opacity:1}
 #toast.err{background:var(--danger)}
 
@@ -235,6 +260,8 @@ td>.btn+.btn{margin-left:4px}
 @media(max-width:768px){.sidebar{display:none}.main-inner{padding:16px}.metrics{grid-template-columns:repeat(2,1fr)}.form-row{grid-template-columns:1fr}.test-types{grid-template-columns:1fr}}
 
 @media print {
+  :root,:root[data-theme="dark"]{--bg:#fff;--bg-subtle:#f8f9fb;--bg-hover:#f3f4f6;--border:#dfe3e8;--border-strong:#c4cad3;--ink:#111827;--ink-2:#2f3542;--ink-3:#4b5563;--ink-4:#6b7280;--on-ink:#fff;--accent:#2563eb;--accent-subtle:#eff6ff;--accent-text:#1d4ed8;--success:#16a34a;--success-subtle:#f0fdf4;--warning:#d97706;--warning-subtle:#fffbeb;--danger:#dc2626;--danger-subtle:#fef2f2;color-scheme:light}
+  .card,.metric,.group-card{background:#fff!important}
   .sidebar,.page-header .btn,.btn,#toast{display:none!important}
   .main{width:100%!important}
   .main-inner{max-width:none;padding:0}
@@ -283,7 +310,10 @@ td>.btn+.btn{margin-left:4px}
     </nav>
     <div class="sb-footer">
       <div class="sb-user">adin.test.2026@gmail.com</div>
-      <button class="sb-logout" onclick="logout()">← Выйти</button>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <button class="sb-logout" onclick="logout()">← Выйти</button>
+        <button class="sb-logout" id="theme-toggle" onclick="toggleTheme()" title="Переключить тему">🌙 Тёмная</button>
+      </div>
     </div>
   </aside>
 
@@ -870,6 +900,26 @@ td>.btn+.btn{margin-left:4px}
 
 <script>
 const API = 'https://adin-ni-backend-production.up.railway.app/api';
+// ── ТЕМА ──────────────────────────────────────────────────────
+// Светлая по умолчанию; выбор запоминается в localStorage, при первом
+// заходе берём системную настройку (prefers-color-scheme).
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  const b = document.getElementById('theme-toggle');
+  if (b) b.textContent = t === 'dark' ? '☀️ Светлая' : '🌙 Тёмная';
+}
+function toggleTheme() {
+  const t = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  try { localStorage.setItem('adin_theme', t); } catch (e) {}
+  applyTheme(t);
+}
+(function () {
+  let t = null;
+  try { t = localStorage.getItem('adin_theme'); } catch (e) {}
+  if (!t) t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+  applyTheme(t);
+})();
+
 let TOKEN = localStorage.getItem('adin_token');
 let selectedTestType = null;
 let currentParticipantId = null;
@@ -3030,7 +3080,7 @@ function renderGroupNarrative(r, savedAt) {
           ${r.group_narrative_description.fractures ? `<div style="padding:14px 16px;background:var(--red-s);border-left:4px solid var(--red);border-radius:6px;font-size:14px;line-height:1.7;margin-bottom:10px;color:var(--ink)">${r.group_narrative_description.fractures}</div>` : ''}
         </div>
       ` : ''}
-      ${r.central_tension ? `<div style="padding:14px 16px;background:var(--navy);color:#fff;border-radius:6px;font-size:14.5px;line-height:1.6;margin-bottom:16px"><strong>Центральное напряжение:</strong> ${r.central_tension}</div>` : ''}
+      ${r.central_tension ? `<div style="padding:14px 16px;background:var(--navy);color:var(--on-ink);border-radius:6px;font-size:14.5px;line-height:1.6;margin-bottom:16px"><strong>Центральное напряжение:</strong> ${r.central_tension}</div>` : ''}
       ${r.bridge_common_theme ? `<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:700;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Общая тема в формулах моста</div><div style="padding:14px 16px;background:var(--green-s);border-left:4px solid var(--green);border-radius:6px;font-size:14px;line-height:1.7">${r.bridge_common_theme}</div></div>` : ''}
       ${r.readiness_read ? `<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:700;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Что готовность значит практически</div><div style="padding:14px 16px;background:var(--cream);border-left:4px solid var(--navy-mid);border-radius:6px;font-size:14px;line-height:1.7">${r.readiness_read}</div></div>` : ''}
       <div style="font-size:12px;font-weight:700;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Для фасилитатора</div>
