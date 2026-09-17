@@ -1542,9 +1542,10 @@ function selectTestType(type, btn) {
   document.querySelectorAll('.test-type-btn').forEach(b => b.classList.remove('selected'));
   btn.classList.add('selected');
   $('inv-send-btn').disabled = false;
-  // Язык реально влияет только на НИ-тест и Нарративный статус (Profils
-  // Narratifs пока сознательно не локализован — см. sendV2Invitation в email.js).
-  $('inv-lang-field').style.display = (type === 'ni_test' || type === 'narrative_status') ? '' : 'none';
+  // Язык теперь влияет на все инструменты: НИ-тест, Нарративный статус и
+  // Profils Narratifs (формы, генерация профиля, PDF и письма — ru/en).
+  // Личный нарратив пока только по-русски, но язык сохраняется в приглашении.
+  $('inv-lang-field').style.display = '';
 }
 
 function quickInvite(pid, name) {
