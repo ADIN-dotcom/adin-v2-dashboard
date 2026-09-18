@@ -2469,8 +2469,10 @@ async function showPNProfileDetail(invitationId) {
           <div><strong>Энергия:</strong> ${l2.psychotype?.energy || '—'}</div>
           <div><strong>Решения:</strong> ${l2.psychotype?.decisions || '—'}</div>
           <div><strong>Структура:</strong> ${l2.psychotype?.structure || '—'}</div>
+          ${l2.agency_signal ? `<div><strong>Агентность:</strong> ${l2.agency_signal}</div>` : ''}
         </div>
         ${l2.psychotype?.notes ? `<div style="font-size:13px;color:var(--ink-soft);margin-top:8px">${l2.psychotype.notes}</div>` : ''}
+        ${l2.agency_notes ? `<div style="font-size:13px;color:var(--ink-soft);margin-top:8px"><strong>Агентность.</strong> ${l2.agency_notes}</div>` : ''}
       </div>
       ${l2.narrative_material?.bridge_formula_seed ? `<div style="padding:10px 14px;background:var(--green-s);border-left:2px solid var(--green);border-radius:4px;font-size:13px;margin-bottom:12px">💡 Формула моста: <em>${l2.narrative_material.bridge_formula_seed}</em></div>` : ''}
       ${quotes ? `<div class="card" style="padding:14px;margin-bottom:12px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Ключевые цитаты</div><ul style="padding-left:16px">${quotes}</ul></div>` : ''}
@@ -2552,6 +2554,10 @@ const PN_LABELS = {
       { question: 'Принятие решений', fields: ['decision_1','decision_2','decision_3'] },
       { question: 'Отношение к изменениям', fields: ['change_1','change_2','change_3','change_4','change_5'] },
       { question: 'Ожидания от сотрудников', fields: ['expect_sub_1','expect_sub_2','expect_sub_3','expect_sub_4'] }
+    ],
+    single: [
+      { field: 'dream_obstacle', question: 'Что мешает компании стать такой, о какой мечтаете' },
+      { field: 'agency_change', question: 'Что из желаемых изменений могли бы сделать сами' }
     ]
   }
 };
@@ -2622,7 +2628,9 @@ async function openPNProfile(invitationId, name, company) {
         <div><div class="profile-item-label">Энергия</div><div class="profile-item-value">${pt.energy||'—'}</div></div>
         <div><div class="profile-item-label">Решения</div><div class="profile-item-value">${pt.decisions||'—'}</div></div>
         <div><div class="profile-item-label">Структура</div><div class="profile-item-value">${pt.structure||'—'}</div></div>
+        ${l2?.agency_signal ? `<div><div class="profile-item-label">Агентность</div><div class="profile-item-value">${l2.agency_signal}</div></div>` : ''}
       </div>
+      ${l2?.agency_notes ? `<div style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin-top:10px">${l2.agency_notes}</div>` : ''}
     </div>
     <div class="card">
       <div class="card-title">Психологический портрет</div>
