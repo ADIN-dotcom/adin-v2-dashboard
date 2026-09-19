@@ -305,6 +305,7 @@ td>.btn+.btn{margin-left:4px}
       <div class="sb-link pn" onclick="nav('pn-profiles')" data-page="pn-profiles"><span class="sb-ico">🧠</span> Профили PN</div>
       <div class="sb-link" onclick="nav('personal-narrative')" data-page="personal-narrative"><span class="sb-ico">🪞</span> Личный нарратив</div>
       <div class="sb-link" onclick="nav('narrative-status')" data-page="narrative-status"><span class="sb-ico">🔮</span> Нарративный статус</div>
+      <div class="sb-link" onclick="nav('societe')" data-page="societe"><span class="sb-ico">🏛️</span> SOCIETE</div>
       <div class="sb-section">Система</div>
       <div class="sb-link" onclick="nav('settings')" data-page="settings"><span class="sb-ico">⚙️</span> Настройки</div>
     </nav>
@@ -523,6 +524,20 @@ td>.btn+.btn{margin-left:4px}
         <div id="ns-participants-table"><div class="spinner"></div></div>
       </div>
 
+      <div id="page-societe" class="page">
+        <div class="page-header">
+          <div><div class="page-title">SOCIETE</div><div class="page-sub">Видение компании: какую хотят, какой видят, что мешает, что готовы делать сами</div></div>
+          <div style="display:flex;gap:8px">
+            <select id="soc-group-filter" onchange="loadSociete()" style="padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;background:var(--bg);color:var(--ink)">
+              <option value="">Все группы</option>
+            </select>
+            <button class="btn btn-navy" onclick="generateSocieteGroup()" id="btn-societe-group">🏛️ Групповой анализ</button>
+          </div>
+        </div>
+        <div id="soc-group-report" style="display:none;margin-bottom:20px"></div>
+        <div id="soc-table"><div class="spinner"></div></div>
+      </div>
+
       <div id="page-settings" class="page">
         <div class="page-header">
           <div><div class="page-title">Настройки</div><div class="page-sub">Параметры системы</div></div>
@@ -547,6 +562,19 @@ td>.btn+.btn{margin-left:4px}
 
     </div>
   
+      <div class="modal-bg" id="modal-societe-detail">
+        <div class="modal" style="max-width:720px">
+          <div class="modal-title">
+            <span id="modal-soc-title">SOCIETE</span>
+            <button class="modal-close" onclick="closeModal('modal-societe-detail')">×</button>
+          </div>
+          <div id="modal-soc-content"></div>
+          <div class="modal-actions">
+            <button class="btn btn-ghost" onclick="closeModal('modal-societe-detail')">Закрыть</button>
+          </div>
+        </div>
+      </div>
+
       <div class="modal-bg" id="modal-narrative-detail">
         <div class="modal" style="max-width:640px">
           <div class="modal-title">
@@ -1043,6 +1071,7 @@ function nav(page) {
   if (page === 'personal-narrative') loadPersonalNarrativeList();
   if (page === 'settings') loadSettings();
   if (page === 'narrative-status') loadNarrativeStatus();
+  if (page === 'societe') loadSociete();
 }
 
 // ── HOME ──────────────────────────────────────────────────────
@@ -3220,6 +3249,238 @@ async function generateGroupNarrative() {
   NS_SAVED_REPORT_AT = new Date().toISOString();
   btn.textContent = '\u{1F52E} Обновить анализ';
   renderGroupNarrative(d.result);
+}
+
+// ── SOCIETE — видение компании ─────────────────────────────────
+// Самостоятельный инструмент (не PN): индивидуальные анализы в societe_results,
+// групповой свод в societe_group. Перечисления — русский канон, как в НС.
+const SOC_LEVEL_COLOR = {
+  'глубокий': 'var(--red)', 'умеренный': 'var(--gold)', 'нет': 'var(--green)',
+  'высокая': 'var(--green)', 'средняя': 'var(--gold)', 'низкая': 'var(--red)', 'отсутствует': 'var(--red)',
+};
+const SOC_TYPES = ['люди и доверие', 'смысл и миссия', 'свобода и инициатива', 'порядок и ясность', 'рост и развитие', 'стабильность и защищённость', 'инерция и усталость'];
+let SOC_SAVED_REPORT_AT = null;
+const socName = r => fmt(r.name) === '—' ? (kfName(r) || fmt(r.email) || 'Участник') : r.name;
+const socEsc = v => String(v == null ? '' : v).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+async function loadSociete() {
+  const sel = $('soc-group-filter');
+  const groupId = sel.value;
+  const wrap = $('soc-table');
+  wrap.innerHTML = '<div class="spinner"></div>';
+  if (sel.options.length === 1) {
+    const groups = await api('/v2/groups');
+    if (groups) groups.forEach(g => { const o = document.createElement('option'); o.value = g.id; o.textContent = g.name; sel.appendChild(o); });
+  }
+  await loadSocieteGroupReport(groupId);
+
+  const d = groupId ? await api('/societe/group/' + groupId) : await api('/societe/all');
+  if (!d || !d.length) {
+    wrap.innerHTML = '<div style="text-align:center;padding:48px;color:var(--ink-faint)">Анкет SOCIETE пока нет.<br>Анализ появляется после отправки формы участником.</div>';
+    return;
+  }
+  wrap.innerHTML = `
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>Участник</th><th>Хочет</th><th>Видит</th><th>Разрыв</th><th>Причина</th><th>Агентность</th><th>Дата</th><th></th>
+        </tr></thead>
+        <tbody>${d.map(r => `<tr>
+          <td><strong>${socEsc(socName(r))}</strong><br><span style="font-size:11px;color:var(--ink-faint)">${socEsc(r.group_name || r.company || '')}</span></td>
+          <td style="color:var(--accent);font-weight:500">${r.dream_type || '—'}</td>
+          <td style="font-weight:500">${r.reality_type || '—'}</td>
+          <td style="color:${SOC_LEVEL_COLOR[r.gap_level]||'inherit'};font-weight:500">${r.gap_level || '—'}</td>
+          <td style="color:var(--ink-soft)">${r.obstacle_locus || '—'}</td>
+          <td style="color:${SOC_LEVEL_COLOR[r.agency]||'inherit'};font-weight:500">${r.agency || '—'}</td>
+          <td style="color:var(--ink-faint);font-size:12px">${r.created_at ? new Date(r.created_at).toLocaleDateString('ru') : '—'}</td>
+          <td style="white-space:nowrap">${r.raw_content
+            ? `<button class="btn btn-ghost btn-sm" onclick="showSocieteDetail(${r.id})">Детали</button> <button class="btn btn-ghost btn-sm" onclick="downloadSocietePdf(${r.id})">📄 PDF</button>`
+            : `<span style="font-size:12px;color:var(--ink-faint)">без анализа</span> <button class="btn btn-ghost btn-sm" onclick="reanalyzeSociete(${r.id}, this)">Повторить</button>`}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+}
+
+function socChip(v, colored) {
+  const c = colored && SOC_LEVEL_COLOR[v] ? SOC_LEVEL_COLOR[v] : 'var(--ink)';
+  return `<span style="font-weight:600;color:${c}">${socEsc(v || '—')}</span>`;
+}
+function socBlock(title, html) {
+  return `<div style="margin-bottom:14px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">${title}</div>${html}</div>`;
+}
+
+async function showSocieteDetail(id) {
+  const r = await api('/societe/result/' + id);
+  if (!r || r.error) { toast('Не удалось загрузить анализ', true); return; }
+  let a = r.raw_content; if (typeof a === 'string') { try { a = JSON.parse(a); } catch (e) { a = null; } }
+  if (!a) { toast('Анализ ещё не выполнен', true); return; }
+  const li = arr => '<ul style="padding-left:18px;margin:0">' + (arr || []).map(x => '<li style="margin-bottom:5px">' + socEsc(x) + '</li>').join('') + '</ul>';
+  $('modal-soc-title').textContent = socName(r) + ' · SOCIETE';
+  $('modal-soc-content').innerHTML = `
+    <div style="max-width:680px">
+      <p style="font-size:14px;line-height:1.65;color:var(--ink);padding:12px 16px;background:var(--bg-subtle);border-left:3px solid var(--ink);margin:0 0 16px">${socEsc(a.summary)}</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+        <div class="card" style="padding:12px;margin:0">
+          <div style="font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Компания мечты</div>
+          <div style="font-weight:600;color:var(--accent)">${socEsc(r.dream_type)}</div>
+          <div style="font-size:13px;color:var(--ink-soft);margin-top:6px">${socEsc(a.dream_summary)}</div>
+        </div>
+        <div class="card" style="padding:12px;margin:0">
+          <div style="font-size:11px;color:#a16207;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Компания сейчас</div>
+          <div style="font-weight:600;color:#a16207">${socEsc(r.reality_type)}</div>
+          <div style="font-size:13px;color:var(--ink-soft);margin-top:6px">${socEsc(a.reality_summary)}</div>
+        </div>
+      </div>
+      <div style="font-size:13px;margin-bottom:8px">Разрыв: ${socChip(r.gap_level, true)} · причина, которую называет участник: ${socChip(r.obstacle_locus)}</div>
+      <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin:0 0 6px">${socEsc(a.gap_description)}</p>
+      ${a.benchmark_denominator ? `<p style="font-size:13px;color:var(--ink-faint);line-height:1.6;margin:0 0 14px">Образцы: ${socEsc(a.benchmark_denominator)}</p>` : ''}
+      ${socBlock('Руководство · ' + socEsc(r.mgmt_expectation), `<div style="font-size:13px;color:var(--ink-soft);line-height:1.6">${socEsc(a.ideal_leadership)}</div>`)}
+      ${socBlock('Команда', `<div style="font-size:13px;color:var(--ink-soft);line-height:1.6">${socEsc(a.ideal_team)}</div>`)}
+      ${socBlock('Изменения · ' + socEsc(r.change_focus), `<div style="font-size:13px;color:var(--ink-soft);line-height:1.6">${socEsc(a.changes_summary)}</div>`)}
+      ${socBlock('Агентность · ' + socChip(r.agency, true), `<div style="font-size:13px;color:var(--ink-soft);line-height:1.6">${socEsc(a.agency_notes)}</div>`)}
+      ${(a.positive_signals || []).length ? socBlock('Что уже работает', li(a.positive_signals)) : ''}
+      ${(a.key_quotes || []).length ? socBlock('Ключевые цитаты', (a.key_quotes || []).map(q => `<div style="font-style:italic;color:var(--ink-soft);padding-left:12px;border-left:2px solid var(--border);margin-bottom:6px">«${socEsc(q)}»</div>`).join('')) : ''}
+      ${(a.red_flags || []).length ? socBlock('Красные флаги', (a.red_flags || []).map(f => `<div style="padding:8px 12px;background:var(--danger-subtle);border-left:2px solid var(--red);border-radius:4px;font-size:13px;margin-bottom:6px"><strong>${socEsc(f.title)}</strong><br>${socEsc(f.description)}</div>`).join('')) : ''}
+      ${(a.recommendations || []).length ? socBlock('Рекомендации', li(a.recommendations)) : ''}
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn btn-ghost btn-sm" onclick="downloadSocietePdf(${r.id})">📄 Скачать PDF</button>
+        <button class="btn btn-ghost btn-sm" onclick="reanalyzeSociete(${r.id}, this)">🔄 Повторить анализ</button>
+      </div>
+    </div>`;
+  openModal('modal-societe-detail');
+}
+
+async function reanalyzeSociete(id, btn) {
+  if (!confirm('Повторить анализ SOCIETE? Это платный вызов ИИ (~40 с).')) return;
+  if (btn) { btn.disabled = true; btn.textContent = 'Анализируем…'; }
+  const d = await api('/societe/result/' + id + '/reanalyze', { method: 'POST' });
+  if (btn) { btn.disabled = false; btn.textContent = '🔄 Повторить анализ'; }
+  if (!d || !d.success) { toast((d && d.error) || 'Ошибка анализа', true); return; }
+  toast('Анализ обновлён');
+  closeModal('modal-societe-detail');
+  loadSociete();
+}
+
+async function downloadSocietePdf(id) {
+  toast('Готовим PDF...');
+  try {
+    const r = await fetch(API + '/societe/report-pdf/' + id, { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); toast('PDF недоступен: ' + (e.error || r.status), true); return; }
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'ADIN_societe_' + id + '.pdf'; a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (e) { toast('Ошибка соединения', true); }
+}
+
+async function downloadSocieteGroupPdf() {
+  const groupId = $('soc-group-filter').value;
+  if (!groupId) { toast('Выберите группу', true); return; }
+  toast('Готовим PDF...');
+  try {
+    const r = await fetch(API + '/societe/group/' + groupId + '/report-pdf', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); toast('PDF недоступен: ' + (e.error || r.status), true); return; }
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'ADIN_societe_group_' + groupId + '.pdf'; a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (e) { toast('Ошибка соединения', true); }
+}
+
+async function loadSocieteGroupReport(groupId) {
+  const wrap = $('soc-group-report'); const btn = $('btn-societe-group');
+  wrap.style.display = 'none'; wrap.innerHTML = ''; SOC_SAVED_REPORT_AT = null;
+  if (btn) btn.textContent = '🏛️ Групповой анализ';
+  if (!groupId) return;
+  const row = await api('/societe/group/' + groupId + '/report');
+  if (!row || row.error) return;
+  let r = row.raw_content; if (typeof r === 'string') { try { r = JSON.parse(r); } catch (e) { r = null; } }
+  if (!r) return;
+  SOC_SAVED_REPORT_AT = row.generated_at || null;
+  if (btn) btn.textContent = '🏛️ Обновить анализ';
+  renderSocieteGroup(r, row.generated_at);
+}
+
+async function generateSocieteGroup() {
+  const groupId = $('soc-group-filter').value;
+  if (!groupId) { toast('Выберите группу для группового анализа'); return; }
+  if (SOC_SAVED_REPORT_AT && !confirm('Свод по этой группе уже есть (от ' + fmtDate(SOC_SAVED_REPORT_AT) + ').\nЗапустить анализ заново? Это платный вызов ИИ.')) return;
+  const btn = $('btn-societe-group');
+  btn.disabled = true; btn.textContent = 'Анализируем…';
+  $('soc-group-report').style.display = 'none'; $('soc-group-report').innerHTML = '';
+  const d = await api('/societe/group/' + groupId + '/analyze', { method: 'POST' });
+  btn.disabled = false;
+  if (!d || !d.success) {
+    btn.textContent = SOC_SAVED_REPORT_AT ? '🏛️ Обновить анализ' : '🏛️ Групповой анализ';
+    toast((d && d.error) || 'Ошибка группового анализа', true); return;
+  }
+  SOC_SAVED_REPORT_AT = new Date().toISOString();
+  btn.textContent = '🏛️ Обновить анализ';
+  renderSocieteGroup(d.result, SOC_SAVED_REPORT_AT);
+}
+
+function socBars(dist, order, n, color) {
+  return order.map(k => { const v = (dist || {})[k] || 0; return `
+    <div style="display:grid;grid-template-columns:150px 1fr 24px;gap:8px;align-items:center;margin-bottom:4px;font-size:12.5px">
+      <span style="color:var(--ink-soft)">${k}</span>
+      <div style="height:10px;background:var(--bg-subtle);border-radius:0 3px 3px 0"><div style="height:10px;width:${n ? v / n * 100 : 0}%;background:${color || SOC_LEVEL_COLOR[k] || 'var(--ink-2)'};border-radius:0 3px 3px 0"></div></div>
+      <span style="text-align:right;color:var(--ink-faint);font-variant-numeric:tabular-nums">${v}</span>
+    </div>`; }).join('');
+}
+
+function renderSocieteGroup(r, savedAt) {
+  const a = r.aggregate || r;
+  const n = a.classified_count || a.group_size || 0;
+  const pct = (d, k) => n ? Math.round(((d || {})[k] || 0) / n * 100) : 0;
+  const tile = (k, v, s, c) => `<div class="card" style="padding:12px;margin:0"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em">${k}</div><div style="font-weight:700;font-size:15px;color:${c};margin:4px 0 2px">${socEsc(v || '—')}</div><div style="font-size:12px;color:var(--ink-faint)">${socEsc(s)}</div></div>`;
+  const para = (title, text) => text ? `<div style="margin-bottom:14px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">${title}</div><div style="font-size:13.5px;line-height:1.65;color:var(--ink)">${socEsc(text)}</div></div>` : '';
+  const li = arr => '<ul style="padding-left:18px;margin:0">' + (arr || []).map(x => '<li style="margin-bottom:6px;font-size:13px">' + socEsc(x) + '</li>').join('') + '</ul>';
+  const wrap = $('soc-group-report');
+  wrap.innerHTML = `
+    <div class="card">
+      <div class="card-title"><span>Групповой свод SOCIETE · ${a.group_size || n} участников${a.unclassified_count ? ' · ' + a.unclassified_count + ' без анализа' : ''}</span>
+        <span style="display:flex;gap:8px;align-items:center;font-weight:400;font-size:12px;color:var(--ink-faint)">${savedAt ? 'от ' + fmtDate(savedAt) : ''}<button class="btn btn-ghost btn-sm" onclick="downloadSocieteGroupPdf()">📄 PDF</button></span></div>
+      ${r.summary ? `<p style="font-size:14px;line-height:1.65;padding:12px 16px;background:var(--bg-subtle);border-left:3px solid var(--ink);margin:0 0 16px">${socEsc(r.summary)}</p>` : ''}
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px">
+        ${tile('Хотят', a.group_dream, pct(a.dream_distribution, a.group_dream) + '% · ' + (a.dream_consensus ? 'консенсус' : 'консенсуса нет'), 'var(--accent)')}
+        ${tile('Видят', a.group_reality, pct(a.reality_distribution, a.group_reality) + '% группы', '#a16207')}
+        ${tile('Разрыв глубокий', ((a.gap_distribution || {})['глубокий'] || 0) + ' из ' + n, 'умеренный ' + ((a.gap_distribution || {})['умеренный'] || 0) + ' · нет ' + ((a.gap_distribution || {})['нет'] || 0), 'var(--red)')}
+        ${tile('Агентность', a.group_agency, 'высокая ' + ((a.agency_distribution || {})['высокая'] || 0) + ' · средняя ' + ((a.agency_distribution || {})['средняя'] || 0) + ' · низкая ' + ((a.agency_distribution || {})['низкая'] || 0), SOC_LEVEL_COLOR[a.group_agency] || 'var(--ink)')}
+      </div>
+      <div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Хотим ↔ имеем</div>
+      <div style="display:flex;gap:16px;font-size:12px;color:var(--ink-soft);margin-bottom:8px"><span><i style="display:inline-block;width:10px;height:10px;background:var(--accent);margin-right:5px;border-radius:2px"></i>компания мечты</span><span><i style="display:inline-block;width:10px;height:10px;background:#a16207;margin-right:5px;border-radius:2px"></i>компания сейчас</span></div>
+      <div style="margin-bottom:18px">${SOC_TYPES.map(t => `
+        <div style="display:grid;grid-template-columns:200px 1fr 24px;gap:8px;align-items:center;margin-bottom:8px;font-size:12.5px">
+          <span style="color:var(--ink-soft)">${t}</span>
+          <div style="display:grid;gap:2px">
+            <div style="height:9px;background:var(--bg-subtle)"><div style="height:9px;width:${n ? ((a.dream_distribution || {})[t] || 0) / n * 100 : 0}%;background:var(--accent);border-radius:0 3px 3px 0"></div></div>
+            <div style="height:9px;background:var(--bg-subtle)"><div style="height:9px;width:${n ? ((a.reality_distribution || {})[t] || 0) / n * 100 : 0}%;background:#a16207;border-radius:0 3px 3px 0"></div></div>
+          </div>
+          <span style="text-align:right;color:var(--ink-faint);font-size:11px;line-height:1.1;font-variant-numeric:tabular-nums">${(a.dream_distribution || {})[t] || 0}<br>${(a.reality_distribution || {})[t] || 0}</span>
+        </div>`).join('')}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px 28px;margin-bottom:18px">
+        <div><div style="font-size:12px;font-weight:600;margin-bottom:6px">Где видят причину разрыва</div>${socBars(a.obstacle_distribution, ['системная','культурная','лидерская','внешняя','не названа'], n, 'var(--ink-2)')}</div>
+        <div><div style="font-size:12px;font-weight:600;margin-bottom:6px">Чего ждут от руководства</div>${socBars(a.mgmt_expectation_distribution, ['доверие-автономия','ясность-структура','поддержка','вызов-развитие'], n, 'var(--accent)')}</div>
+        <div><div style="font-size:12px;font-weight:600;margin-bottom:6px">Куда направлены изменения</div>${socBars(a.change_focus_distribution, ['процессы','люди-культура','коммуникация','стратегия','условия труда'], n, 'var(--ink-2)')}</div>
+        <div><div style="font-size:12px;font-weight:600;margin-bottom:6px">Готовность действовать самим</div>${socBars(a.agency_distribution, ['высокая','средняя','низкая','отсутствует'], n)}</div>
+      </div>
+      ${para('Какую компанию хочет команда', r.wanted_company)}
+      ${para('Какой видит её сейчас', r.seen_company)}
+      ${para('Где главный разрыв', r.main_gap)}
+      ${r.central_tension ? `<div style="font-size:15px;font-weight:500;line-height:1.5;padding:14px 18px;border:1px solid var(--ink);margin:0 0 16px">${socEsc(r.central_tension)}</div>` : ''}
+      ${para('Где картины расходятся', r.divergences)}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div>${para('Чего команда ждёт от руководства', r.leadership_expectation)}</div>
+        <div>${para('Что люди готовы делать сами', r.self_driven_resource)}</div>
+      </div>
+      ${(r.red_flags || []).length ? `<div style="margin-bottom:14px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Красные флаги</div>${(r.red_flags || []).map(f => `<div style="padding:8px 12px;background:var(--danger-subtle);border-left:2px solid var(--red);border-radius:4px;font-size:13px;margin-bottom:6px"><strong>${socEsc(f.title)}</strong><br>${socEsc(f.description)}</div>`).join('')}</div>` : ''}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Рекомендации руководству</div>${li(r.recommendations_for_leadership)}</div>
+        <div><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Рекомендации фасилитатору</div>${li(r.recommendations_for_facilitator)}</div>
+      </div>
+      ${(a.curated_quotes || []).length ? `<div style="margin-top:16px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Голоса группы</div>${(a.curated_quotes || []).map(q => `<div style="font-style:italic;color:var(--ink-soft);padding-left:12px;border-left:2px solid var(--border);margin-bottom:8px;font-size:13px">«${socEsc(q.quote)}»<div style="font-style:normal;font-size:11px;color:var(--ink-faint)">мечта: ${socEsc(q.dream_type)}</div></div>`).join('')}</div>` : ''}
+    </div>`;
+  wrap.style.display = 'block';
 }
 </script>
 </body>
