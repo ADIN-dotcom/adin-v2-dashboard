@@ -1058,7 +1058,7 @@ async function loadHome() {
     ? '<div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-text">Завершённых тестов пока нет</div></div>'
     : `<table><thead><tr><th>Участник</th><th>Тест</th><th>Результат</th><th>Дата</th></tr></thead><tbody>
       ${d.recent.map(r => `<tr>
-        <td class="participant-name" style="cursor:pointer" onclick="openParticipantDetail(${r.participant_id})"><strong>${fmt(r.name) === '—' ? (kfName(r) || fmt(r.email) || 'Участник') : r.name}</strong><br><span style="font-size:11px;color:var(--ink-faint)">${fmt(r.company)}</span></td>
+        <td class="participant-name" style="cursor:pointer" onclick="openParticipantDetail(${r.participant_id})">${(function(){ const t = pTitle(r, 'Участник'); return `<strong>${t}</strong><br><span style="font-size:11px;color:var(--ink-faint)">${[emailSub(r, t), r.company].filter(Boolean).join(' · ')}</span>`; })()}</td>
         <td><span class="badge badge-${r.test_type === 'ni_test' ? 'navy' : 'teal'}">${TEST_LABELS[r.test_type] || r.test_type}</span></td>
         <td>${r.test_type === 'ni_test' ? `<strong>${fmt(r.overall_score)}</strong>/100 · ${fmt(r.dominant_type_name)}` : fmt(r.psychotype)}</td>
         <td>${fmtDate(r.completed_at)}</td>
@@ -1218,8 +1218,9 @@ async function loadParticipants(page) {
     ? '<tr><td colspan="6"><div class="empty-state"><div class="empty-state-icon">👥</div><div class="empty-state-text">Участников не найдено</div></div></td></tr>'
     : rows.map(p => `<tr>
         <td class="participant-name">
-          <strong onclick="openParticipantDetail(${p.id})">${fmt(p.name) === '—' ? (kfName(p) || p.email || ((p.invitations && p.invitations.length) ? ('Код #'+p.id) : 'Приглашений нет')) : p.name}</strong>
-          <br><span style="font-size:11px;color:var(--ink-faint)">${p.name ? p.email : (kfName(p) ? ('из ключ-файла · ' + kfCode(p)) : '')}</span>
+          ${(function(){ const t = pTitle(p, (p.invitations && p.invitations.length) ? ('Код #'+p.id) : 'Приглашений нет');
+             const sub = [emailSub(p, t), (!p.name && kfName(p)) ? ('из ключ-файла · ' + kfCode(p)) : ''].filter(Boolean).join(' · ');
+             return `<strong onclick="openParticipantDetail(${p.id})">${t}</strong><br><span style="font-size:11px;color:var(--ink-faint)">${sub}</span>`; })()}
         </td>
         <td>${fmt(p.company)}</td>
         <td>${(p.groups && p.groups.length) ? p.groups.map(g => g.name).join(', ') : '—'}</td>
@@ -1645,6 +1646,15 @@ function loadKeyfileNames(input) {
   reader.readAsText(file);
   input.value = '';
 }
+// Заголовок строки участника: имя → имя из ключ-файла → email → запасной текст.
+function pTitle(p, fallback) {
+  return fmt(p && p.name) === '—' ? (kfName(p) || (p && p.email) || fallback) : p.name;
+}
+// Подпись email под заголовком — всегда, кроме случая, когда email уже и есть заголовок.
+function emailSub(p, title) {
+  return p && p.email && p.email !== title ? p.email : '';
+}
+
 // Имя по ключ-файлу: ищем любой код/токен участника в KEYFILE.
 function kfName(p) {
   if (!window.KEYFILE || !p || !Array.isArray(p.invitations)) return null;
@@ -2320,7 +2330,7 @@ async function loadPersonalNarrativeList() {
   const SOURCE_LABELS = { personal: 'Личное', family: 'Семья', society: 'Общество', state: 'Государство' };
 
   $('pnr-table').innerHTML = rows.map(r => `<tr style="cursor:pointer" onclick="showPersonalNarrativeDetail('${r.id}')">
-    <td><strong>${fmt(r.name) === '—' ? (kfName(r) || fmt(r.email) || 'Участник') : r.name}</strong></td>
+    ${(function(){ const t = pTitle(r, 'Участник'); return `<td><strong>${t}</strong><br><span style="font-size:11px;color:var(--ink-faint)">${emailSub(r, t)}</span></td>`; })()}
     <td>${fmt(r.group_name)}</td>
     <td>${SOURCE_LABELS[r.dominant_source] || fmt(r.dominant_source)}</td>
     <td>${r.conflict_source ? (SOURCE_LABELS[r.conflict_source] || r.conflict_source) : '<span style="color:var(--ink-faint)">нет</span>'}</td>
@@ -2423,7 +2433,7 @@ async function loadPNProfiles() {
   }
 
   $('pn-profiles-table').innerHTML = rows.map(r => `<tr style="cursor:pointer" onclick="showPNProfileDetail(${r.invitation_id})">
-    <td><strong>${fmt(r.name) === '—' ? (kfName(r) || fmt(r.email) || ('Приглашение #' + r.invitation_id)) : r.name}</strong></td>
+    ${(function(){ const t = pTitle(r, 'Приглашение #' + r.invitation_id); return `<td><strong>${t}</strong><br><span style="font-size:11px;color:var(--ink-faint)">${emailSub(r, t)}</span></td>`; })()}
     <td>${fmt(r.group_name)}</td>
     <td>${fmt(r.psychotype)}</td>
     <td>${fmt(r.energy_type)}</td>
