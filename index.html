@@ -305,7 +305,7 @@ td>.btn+.btn{margin-left:4px}
       <div class="sb-link pn" onclick="nav('pn-profiles')" data-page="pn-profiles"><span class="sb-ico">🧠</span> Профили PN</div>
       <div class="sb-link" onclick="nav('personal-narrative')" data-page="personal-narrative"><span class="sb-ico">🪞</span> Личный нарратив</div>
       <div class="sb-link" onclick="nav('narrative-status')" data-page="narrative-status"><span class="sb-ico">🔮</span> Нарративный статус</div>
-      <div class="sb-link" onclick="nav('societe')" data-page="societe"><span class="sb-ico">🏛️</span> SOCIETE</div>
+      <div class="sb-link" onclick="nav('societe')" data-page="societe"><span class="sb-ico">🏛️</span> Société · PN</div>
       <div class="sb-section">Система</div>
       <div class="sb-link" onclick="nav('settings')" data-page="settings"><span class="sb-ico">⚙️</span> Настройки</div>
     </nav>
@@ -377,8 +377,8 @@ td>.btn+.btn{margin-left:4px}
               <option value="ni_test">НИ-тест</option>
               <option value="narrative_status">Нарративный статус</option>
               <option value="personal_narrative">Личный нарратив</option>
-              <option value="profils_questionnaire">PN · о себе</option>
-              <option value="profils_societe">PN · о компании</option>
+              <option value="profils_questionnaire">Personne · PN</option>
+              <option value="profils_societe">Société · PN</option>
             </select>
           </div>
           <div>
@@ -526,7 +526,7 @@ td>.btn+.btn{margin-left:4px}
 
       <div id="page-societe" class="page">
         <div class="page-header">
-          <div><div class="page-title">SOCIETE</div><div class="page-sub">Видение компании: какую хотят, какой видят, что мешает, что готовы делать сами</div></div>
+          <div><div class="page-title">Société · PN</div><div class="page-sub">Видение компании: какую хотят, какой видят, что мешает, что готовы делать сами</div></div>
           <div style="display:flex;gap:8px">
             <select id="soc-group-filter" onchange="loadSociete()" style="padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;background:var(--bg);color:var(--ink)">
               <option value="">Все группы</option>
@@ -557,7 +557,7 @@ td>.btn+.btn{margin-left:4px}
       <div class="modal-bg" id="modal-societe-detail">
         <div class="modal" style="max-width:720px">
           <div class="modal-title">
-            <span id="modal-soc-title">SOCIETE</span>
+            <span id="modal-soc-title">Société · PN</span>
             <button class="modal-close" onclick="closeModal('modal-societe-detail')">×</button>
           </div>
           <div id="modal-soc-content"></div>
@@ -716,8 +716,8 @@ td>.btn+.btn{margin-left:4px}
         <option value="ni_test">НИ-тест</option>
         <option value="narrative_status">Нарративный статус</option>
           <option value="personal_narrative">Личный нарратив</option>
-        <option value="profils_questionnaire">Profils — Questionnaire</option>
-        <option value="profils_societe">Profils — SOCIETE</option>
+        <option value="profils_questionnaire">Personne · PN</option>
+        <option value="profils_societe">Société · PN</option>
       </select>
     </div>
     <div class="field"><label>Язык теста</label>
@@ -750,8 +750,8 @@ td>.btn+.btn{margin-left:4px}
         <option value="ni_test">НИ-тест</option>
         <option value="narrative_status">Нарративный статус</option>
         <option value="personal_narrative">Личный нарратив</option>
-        <option value="profils_questionnaire">Profils — Questionnaire</option>
-        <option value="profils_societe">Profils — SOCIETE</option>
+        <option value="profils_questionnaire">Personne · PN</option>
+        <option value="profils_societe">Société · PN</option>
       </select>
     </div>
     <div class="field"><label>Язык теста</label>
@@ -803,8 +803,8 @@ td>.btn+.btn{margin-left:4px}
         <option value="ni_test">НИ-тест</option>
         <option value="narrative_status">Нарративный статус</option>
         <option value="personal_narrative">Личный нарратив</option>
-        <option value="profils_questionnaire">Profils — Questionnaire</option>
-        <option value="profils_societe">Profils — SOCIETE</option>
+        <option value="profils_questionnaire">Personne · PN</option>
+        <option value="profils_societe">Société · PN</option>
       </select>
     </div>
     <div class="field"><label>Группа (необязательно)</label>
@@ -853,8 +853,8 @@ td>.btn+.btn{margin-left:4px}
         <option value="ni_test">НИ-тест</option>
         <option value="narrative_status">Нарративный статус</option>
         <option value="personal_narrative">Личный нарратив</option>
-        <option value="profils_questionnaire">Profils — Questionnaire</option>
-        <option value="profils_societe">Profils — SOCIETE</option>
+        <option value="profils_questionnaire">Personne · PN</option>
+        <option value="profils_societe">Société · PN</option>
       </select>
     </div>
     <div class="field"><label>Язык теста</label>
@@ -894,12 +894,12 @@ td>.btn+.btn{margin-left:4px}
         </button>
         <button class="test-type-btn pn" onclick="selectTestType('profils_questionnaire',this)">
           <div class="test-type-icon">👤</div>
-          <div class="test-type-name">Questionnaire</div>
+          <div class="test-type-name">Personne · PN</div>
           <div class="test-type-desc">Личный опросник</div>
         </button>
         <button class="test-type-btn pn" onclick="selectTestType('profils_societe',this)">
           <div class="test-type-icon">🏢</div>
-          <div class="test-type-name">SOCIETE</div>
+          <div class="test-type-name">Société · PN</div>
           <div class="test-type-desc">Опросник о компании</div>
         </button>
         <button class="test-type-btn" onclick="selectTestType('narrative_status',this)">
@@ -1011,8 +1011,8 @@ const fmt = v => v == null ? '—' : v;
 
 const TEST_LABELS = {
   ni_test: 'НИ-тест',
-  profils_questionnaire: 'Questionnaire',
-  profils_societe: 'SOCIETE',
+  profils_questionnaire: 'Personne · PN',
+  profils_societe: 'Société · PN',
   narrative_status: 'Нарр. статус',
   personal_narrative: 'Личный нарратив'
 };
@@ -3249,7 +3249,7 @@ async function loadSociete() {
 
   const d = groupId ? await api('/societe/group/' + groupId) : await api('/societe/all');
   if (!d || !d.length) {
-    wrap.innerHTML = '<div style="text-align:center;padding:48px;color:var(--ink-faint)">Анкет SOCIETE пока нет.<br>Анализ появляется после отправки формы участником.</div>';
+    wrap.innerHTML = '<div style="text-align:center;padding:48px;color:var(--ink-faint)">Анкет Société · PN пока нет.<br>Анализ появляется после отправки формы участником.</div>';
     return;
   }
   wrap.innerHTML = `
@@ -3288,7 +3288,7 @@ async function showSocieteDetail(id) {
   let a = r.raw_content; if (typeof a === 'string') { try { a = JSON.parse(a); } catch (e) { a = null; } }
   if (!a) { toast('Анализ ещё не выполнен', true); return; }
   const li = arr => '<ul style="padding-left:18px;margin:0">' + (arr || []).map(x => '<li style="margin-bottom:5px">' + socEsc(x) + '</li>').join('') + '</ul>';
-  $('modal-soc-title').textContent = socName(r) + ' · SOCIETE';
+  $('modal-soc-title').textContent = socName(r) + ' · Société · PN';
   $('modal-soc-content').innerHTML = `
     <div style="max-width:680px">
       <p style="font-size:14px;line-height:1.65;color:var(--ink);padding:12px 16px;background:var(--bg-subtle);border-left:3px solid var(--ink);margin:0 0 16px">${socEsc(a.summary)}</p>
@@ -3324,7 +3324,7 @@ async function showSocieteDetail(id) {
 }
 
 async function reanalyzeSociete(id, btn) {
-  if (!confirm('Повторить анализ SOCIETE? Это платный вызов ИИ (~40 с).')) return;
+  if (!confirm('Повторить анализ Société · PN? Это платный вызов ИИ (~40 с).')) return;
   if (btn) { btn.disabled = true; btn.textContent = 'Анализируем…'; }
   const d = await api('/societe/result/' + id + '/reanalyze', { method: 'POST' });
   if (btn) { btn.disabled = false; btn.textContent = '🔄 Повторить анализ'; }
@@ -3411,7 +3411,7 @@ function renderSocieteGroup(r, savedAt) {
   const wrap = $('soc-group-report');
   wrap.innerHTML = `
     <div class="card">
-      <div class="card-title"><span>Групповой свод SOCIETE · ${a.group_size || n} участников${a.unclassified_count ? ' · ' + a.unclassified_count + ' без анализа' : ''}</span>
+      <div class="card-title"><span>Групповой свод Société · PN · ${a.group_size || n} участников${a.unclassified_count ? ' · ' + a.unclassified_count + ' без анализа' : ''}</span>
         <span style="display:flex;gap:8px;align-items:center;font-weight:400;font-size:12px;color:var(--ink-faint)">${savedAt ? 'от ' + fmtDate(savedAt) : ''}<button class="btn btn-ghost btn-sm" onclick="downloadSocieteGroupPdf()">📄 PDF</button></span></div>
       ${r.summary ? `<p style="font-size:14px;line-height:1.65;padding:12px 16px;background:var(--bg-subtle);border-left:3px solid var(--ink);margin:0 0 16px">${socEsc(r.summary)}</p>` : ''}
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px">
