@@ -546,7 +546,6 @@ td>.btn+.btn{margin-left:4px}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
           <div class="card">
             <div class="card-title">Система</div>
-            <div class="field"><label>Email администратора</label><input type="email" id="s-admin-email"></div>
             <div class="field"><label>URL НИ-теста</label><input type="text" id="s-test-url"></div>
             <div class="field"><label>URL Questionnaire</label><input type="text" id="s-q-url"></div>
             <div class="field"><label>URL SOCIETE</label><input type="text" id="s-s-url"></div>
@@ -2702,7 +2701,6 @@ async function openPNProfile(invitationId, name, company) {
 // ── SETTINGS ──────────────────────────────────────────────────
 async function loadSettings() {
   const d = await api('/admin/settings'); if (!d) return;
-  $('s-admin-email').value = d.admin_email || '';
   $('s-test-url').value = d.test_url || '';
   $('s-q-url').value = d.questionnaire_url || '';
   $('s-s-url').value = d.societe_url || '';
@@ -2710,7 +2708,6 @@ async function loadSettings() {
 
 async function saveSettings() {
   const d = await api('/admin/settings', {method:'PUT', body:{
-    admin_email: $('s-admin-email').value,
     test_url: $('s-test-url').value,
     questionnaire_url: $('s-q-url').value,
     societe_url: $('s-s-url').value
