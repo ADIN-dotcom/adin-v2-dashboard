@@ -301,11 +301,11 @@ td>.btn+.btn{margin-left:4px}
       <div class="sb-link" onclick="nav('groups')" data-page="groups"><span class="sb-ico">📁</span> Группы</div>
       <div class="sb-link" onclick="nav('participants')" data-page="participants"><span class="sb-ico">👥</span> Участники</div>
       <div class="sb-section">Результаты</div>
-      <div class="sb-link" onclick="nav('ni-analytics')" data-page="ni-analytics"><span class="sb-ico">📊</span> Аналитика НИ</div>
-      <div class="sb-link pn" onclick="nav('pn-profiles')" data-page="pn-profiles"><span class="sb-ico">🧠</span> Профили PN</div>
-      <div class="sb-link" onclick="nav('personal-narrative')" data-page="personal-narrative"><span class="sb-ico">🪞</span> Личный нарратив</div>
-      <div class="sb-link" onclick="nav('narrative-status')" data-page="narrative-status"><span class="sb-ico">🔮</span> Нарративный статус</div>
+      <div class="sb-link" onclick="nav('ni-analytics')" data-page="ni-analytics"><span class="sb-ico">📊</span> TIN аналитика</div>
+      <div class="sb-link" onclick="nav('narrative-status')" data-page="narrative-status"><span class="sb-ico">🔮</span> SN аналитика</div>
+      <div class="sb-link pn" onclick="nav('pn-profiles')" data-page="pn-profiles"><span class="sb-ico">🧠</span> Personne · PN</div>
       <div class="sb-link" onclick="nav('societe')" data-page="societe"><span class="sb-ico">🏛️</span> Société · PN</div>
+      <div class="sb-link" onclick="nav('personal-narrative')" data-page="personal-narrative"><span class="sb-ico">🪞</span> Личный нарратив</div>
       <div class="sb-section">Система</div>
       <div class="sb-link" onclick="nav('settings')" data-page="settings"><span class="sb-ico">⚙️</span> Настройки</div>
     </nav>
@@ -425,7 +425,7 @@ td>.btn+.btn{margin-left:4px}
       <!-- АНАЛИТИКА НИ -->
       <div id="page-ni-analytics" class="page">
         <div class="page-header">
-          <div><div class="page-title">Аналитика НИ-теста</div><div class="page-sub">Результаты и распределения</div></div>
+          <div><div class="page-title">TIN аналитика</div><div class="page-sub">Результаты и распределения</div></div>
           <div style="display:flex;gap:8px;align-items:center">
             <div class="search-box"><input type="text" id="ni-search" placeholder="Поиск по имени или email..." oninput="debounce(()=>loadNIAnalytics(),350)" style="width:220px"></div>
             <select id="ni-group-filter" onchange="loadNIAnalytics()" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px">
@@ -450,7 +450,7 @@ td>.btn+.btn{margin-left:4px}
       <!-- ПРОФИЛИ PN -->
       <div id="page-pn-profiles" class="page">
         <div class="page-header">
-          <div><div class="page-title">Профили Narratifs</div><div class="page-sub">Сгенерированные профили участников</div></div>
+          <div><div class="page-title">Personne · PN</div><div class="page-sub">Сгенерированные профили участников</div></div>
           <select id="pn-group-filter" onchange="loadPNProfiles()" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px">
             <option value="">Все группы</option>
           </select>
@@ -512,7 +512,7 @@ td>.btn+.btn{margin-left:4px}
       </div>
       <div id="page-narrative-status" class="page">
         <div class="page-header">
-          <div><div class="page-title">Нарративный статус</div><div class="page-sub">Анализ нарративного пространства группы</div></div>
+          <div><div class="page-title">SN аналитика</div><div class="page-sub">Анализ нарративного пространства группы</div></div>
           <div style="display:flex;gap:8px">
             <select id="ns-group-filter" onchange="loadNarrativeStatus()" style="padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit">
               <option value="">Все группы</option>
