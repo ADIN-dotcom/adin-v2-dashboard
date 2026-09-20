@@ -1388,6 +1388,16 @@ async function submitGenerateCode() {
   if (typeof openParticipantDetail === 'function') openParticipantDetail(participantId);
 }
 
+// Удаление лишнего (повторного, ошибочного) приглашения из карточки участника.
+// Бэкенд отклонит удаление пройденного приглашения — результаты не теряются.
+async function deleteInvitation(invId, participantId, label, code) {
+  if (!confirm('Удалить приглашение «' + label + '»' + (code ? ' (код ' + code + ')' : '') + '?\nКод перестанет действовать.')) return;
+  const d = await api('/v2/invitations/' + invId, { method: 'DELETE' });
+  if (!d || d.error) { alert('Не удалось удалить: ' + (d && d.error ? d.error : 'ошибка сети')); return; }
+  toast('Приглашение удалено');
+  openParticipantDetail(participantId);
+}
+
 async function openParticipantDetail(id) {
   currentParticipantId = id;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1421,6 +1431,7 @@ async function openParticipantDetail(id) {
         <div style="display:flex;align-items:center;gap:12px">
           <span class="badge ${STATUS_BADGES[i.status]||'badge-gray'}">${STATUS_LABELS[i.status]||i.status}</span>
           <span style="font-size:12px;color:var(--ink-faint)">${fmtDate(i.sent_at)}</span>
+          ${i.status !== 'completed' ? `<button class="btn btn-ghost-red btn-sm" title="Удалить приглашение" onclick="deleteInvitation(${i.id},${d.id},'${TEST_LABELS[i.test_type]||i.test_type}',\'${i.code||''}\')">🗑</button>` : ''}
           ${i.status === 'completed' && i.test_type !== 'ni_test' ? `<button class="btn btn-teal btn-sm" onclick="openPNProfile(${i.id},'${(d.name||d.email||'Участник').replace(/'/g,"\\'")}','${d.company||''}')">Профиль</button>` : ''}
         </div>
       </div>`).join('');
