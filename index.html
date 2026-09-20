@@ -540,16 +540,9 @@ td>.btn+.btn{margin-left:4px}
 
       <div id="page-settings" class="page">
         <div class="page-header">
-          <div><div class="page-title">Настройки</div><div class="page-sub">Параметры системы</div></div>
-          <button class="btn btn-navy" onclick="saveSettings()">Сохранить</button>
+          <div><div class="page-title">Настройки</div><div class="page-sub">Адреса форм задаются в окружении Railway (FRONTEND_URL, QUESTIONNAIRE_URL, SOCIETE_URL)</div></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
-          <div class="card">
-            <div class="card-title">Система</div>
-            <div class="field"><label>URL НИ-теста</label><input type="text" id="s-test-url"></div>
-            <div class="field"><label>URL Questionnaire</label><input type="text" id="s-q-url"></div>
-            <div class="field"><label>URL SOCIETE</label><input type="text" id="s-s-url"></div>
-          </div>
           <div class="card">
             <div class="card-title">Смена пароля</div>
             <div class="field"><label>Новый пароль</label><input type="password" id="s-pwd-new"></div>
@@ -1068,7 +1061,6 @@ function nav(page) {
   if (page === 'ni-analytics') { loadNIGroupFilter(); loadNIAnalytics(); }
   if (page === 'pn-profiles') loadPNProfiles();
   if (page === 'personal-narrative') loadPersonalNarrativeList();
-  if (page === 'settings') loadSettings();
   if (page === 'narrative-status') loadNarrativeStatus();
   if (page === 'societe') loadSociete();
 }
@@ -2698,22 +2690,6 @@ async function openPNProfile(invitationId, name, company) {
     </div>`;
 }
 
-// ── SETTINGS ──────────────────────────────────────────────────
-async function loadSettings() {
-  const d = await api('/admin/settings'); if (!d) return;
-  $('s-test-url').value = d.test_url || '';
-  $('s-q-url').value = d.questionnaire_url || '';
-  $('s-s-url').value = d.societe_url || '';
-}
-
-async function saveSettings() {
-  const d = await api('/admin/settings', {method:'PUT', body:{
-    test_url: $('s-test-url').value,
-    questionnaire_url: $('s-q-url').value,
-    societe_url: $('s-s-url').value
-  }});
-  if (d?.success) toast('Настройки сохранены'); else toast('Ошибка', true);
-}
 
 function changePwd() {
   const n = $('s-pwd-new').value, c = $('s-pwd-confirm').value;
