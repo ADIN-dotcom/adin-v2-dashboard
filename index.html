@@ -635,7 +635,7 @@ td>.btn+.btn{margin-left:4px}
     <input type="hidden" id="ep-id">
     <div class="form-row">
       <div class="field"><label>Имя</label><input type="text" id="ep-name"></div>
-      <div class="field"><label>Email</label><input type="email" id="ep-email" disabled style="opacity:.6"></div>
+      <div class="field"><label>Email</label><input type="email" id="ep-email" placeholder="для отправки приглашений"></div>
     </div>
     <div class="form-row">
       <div class="field"><label>Компания</label><input type="text" id="ep-company"></div>
@@ -1498,6 +1498,7 @@ function openEditParticipant() {
     $('ep-id').value = d.id;
     $('ep-name').value = d.name || '';
     $('ep-email').value = d.email || '';
+    $('ep-email').dataset.orig = d.email || '';
     $('ep-company').value = d.company || '';
     $('ep-position').value = d.position || '';
     $('ep-country').value = d.country || '';
@@ -1528,6 +1529,10 @@ async function saveParticipant() {
     lang_additional: $('ep-lang-add').value||null, religion: $('ep-religion').value||null,
     status: $('ep-status').value
   };
+  // Email отправляем только если его изменили: бэкенд принимает его лишь
+  // при ALLOW_EMAIL_EDIT=1 (временное послабление обезличивания).
+  const emailNow = ($('ep-email').value || '').trim();
+  if (emailNow && emailNow !== ($('ep-email').dataset.orig || '')) body.email = emailNow;
   const d = await api('/v2/participants/'+id, {method:'PUT', body});
   if (d && d.id) {
     closeModal('modal-edit-participant');
