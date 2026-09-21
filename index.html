@@ -46,6 +46,8 @@
   --r:var(--radius);
 }
 /* Тёмная тема: те же токены, другие значения. Включается data-theme="dark" на <html>. */
+/* RU-инстанс: именной путь скрыт, сервер его всё равно не примет */
+[data-region="ru"] .named-only{display:none !important}
 :root[data-theme="dark"]{
   --bg:#0f1115;--bg-subtle:#161920;--bg-hover:#1f242e;
   --border:#2a3039;--border-strong:#3b4351;
@@ -353,7 +355,7 @@ td>.btn+.btn{margin-left:4px}
             <button class="btn btn-ghost btn-sm" onclick="document.getElementById('kf-file-names').click()" title="Загрузить свой ключ-файл, чтобы видеть имена. Файл читается локально в браузере и на сервер не отправляется.">📂 Имена</button>
             <input type="file" id="kf-file-names" accept=".csv,text/csv" style="display:none" onchange="loadKeyfileNames(this)">
             <button class="btn btn-navy" onclick="openUnifiedInvite()">✉️ Пригласить</button>
-            <button class="btn btn-ghost btn-sm" onclick="openModal('modal-add-participant')">+ Добавить</button>
+            <button class="btn btn-ghost btn-sm named-only" onclick="openModal('modal-add-participant')">+ Добавить</button>
           </div>
         </div>
         <div class="search-box"><input type="text" id="p-search" placeholder="Поиск: код · или имя/email при загруженном ключ-файле" oninput="debounce(()=>loadParticipants(1),350)"></div>
@@ -416,7 +418,7 @@ td>.btn+.btn{margin-left:4px}
           <div style="display:flex;gap:8px">
             <button class="btn btn-ghost btn-sm" onclick="openEditParticipant()">✏️ Редактировать</button>
             <button class="btn btn-teal btn-sm" onclick="window.print()">⬇ Скачать PDF</button>
-            <button class="btn btn-primary-action btn-sm" onclick="openInviteParticipant()">📧 Отправить тест</button>
+            <button class="btn btn-primary-action btn-sm named-only" onclick="openInviteParticipant()">📧 Отправить тест</button>
           </div>
         </div>
         <div id="pd-content"><div class="spinner"></div></div>
@@ -634,8 +636,8 @@ td>.btn+.btn{margin-left:4px}
     </div>
     <input type="hidden" id="ep-id">
     <div class="form-row">
-      <div class="field"><label>Имя</label><input type="text" id="ep-name"></div>
-      <div class="field"><label>Email</label><input type="email" id="ep-email" placeholder="для отправки приглашений"></div>
+      <div class="field named-only"><label>Имя</label><input type="text" id="ep-name"></div>
+      <div class="field named-only"><label>Email</label><input type="email" id="ep-email" placeholder="для отправки приглашений"></div>
     </div>
     <div class="form-row">
       <div class="field"><label>Компания</label><input type="text" id="ep-company"></div>
@@ -825,7 +827,7 @@ td>.btn+.btn{margin-left:4px}
       </select>
     </div>
 
-    <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:4px 0 10px;cursor:pointer">
+    <label class="named-only" style="display:flex;align-items:center;gap:8px;font-size:13px;margin:4px 0 10px;cursor:pointer">
       <input type="checkbox" id="ui-send-email" onchange="uiUpdateHint()"> Отправлять письмо автоматически
     </label>
     <div id="ui-hint" class="info-box blue" style="font-size:12.5px"></div>
@@ -956,7 +958,33 @@ td>.btn+.btn{margin-left:4px}
 <div id="toast"></div>
 
 <script>
-const API = 'https://adin-ni-backend-production.up.railway.app/api';
+// Адрес API — по месту размещения (вариант A, 21 сентября 2026). С GitHub Pages
+// и из локального файла — Railway, как раньше. Копия дашборда, которую nginx
+// отдаёт рядом с бэкендом (RU-инстанс на Timeweb, путь /admin), зовёт /api
+// того же домена — без CORS и без правок кода.
+const API = (location.hostname.endsWith('github.io') || location.protocol === 'file:')
+  ? 'https://adin-ni-backend-production.up.railway.app/api'
+  : '/api';
+// Регион бэкенда из /health. На 'ru' сервер не принимает имена и email ни в одном
+// роуте, поэтому именной путь в интерфейсе прячется — элементы с классом
+// .named-only (см. CSS [data-region="ru"]).
+let REGION = 'intl';
+async function loadRegion() {
+  try {
+    const d = await fetch(API.replace(/\/api$/, '') + '/health').then(r => r.json());
+    REGION = d.region === 'ru' ? 'ru' : 'intl';
+  } catch (e) { REGION = 'intl'; }
+  document.documentElement.dataset.region = REGION;
+  if (REGION === 'ru') {
+    // Метка региона в приглашениях — всегда ru; выбирать нечего.
+    const sel = document.getElementById('ui-region'); if (sel) sel.value = 'ru';
+    const fld = document.getElementById('ui-region-field'); if (fld) fld.classList.add('named-only');
+  }
+  document.querySelectorAll('.sb-sub, .login-sub').forEach(el => {
+    el.textContent = 'Панель управления' + (REGION === 'ru' ? ' · RU' : '');
+  });
+}
+loadRegion();
 // ── ТЕМА ──────────────────────────────────────────────────────
 // Светлая по умолчанию; выбор запоминается в localStorage, при первом
 // заходе берём системную настройку (prefers-color-scheme).
@@ -1249,7 +1277,7 @@ async function loadParticipants(page) {
         <td style="display:flex;gap:4px">
           <button class="btn btn-ghost btn-sm" onclick="openParticipantDetail(${p.id})">→</button>
           ${(function(){var c=((p.invitations||[]).filter(function(i){return i.type==='ni_test'&&i.code;})[0]||{}).code;return c?`<button class="btn btn-ghost btn-sm" onclick="downloadFullReport('${c}')" title="Полный PDF-отчёт (НИ-тест)">📄</button><button class="btn btn-ghost btn-sm" onclick="downloadFullReport('${c}','express')" title="Краткий PDF-отчёт (НИ-тест)">📃</button>`:'';})()}
-          <button class="btn btn-navy btn-sm" onclick="quickInvite(${p.id},'${(p.name||p.email||('#'+p.id)).replace(/'/g,"\\'")}')">📧</button>
+          <button class="btn btn-navy btn-sm named-only" onclick="quickInvite(${p.id},'${(p.name||p.email||('#'+p.id)).replace(/'/g,"\\'")}')">📧</button>
           <button class="btn btn-ghost-red btn-sm" onclick="deleteParticipant(${p.id},'${(p.name||p.email||('#'+p.id)).replace(/'/g,"\\'")}')">🗑</button>
         </td>
       </tr>`).join('');
