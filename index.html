@@ -2328,21 +2328,13 @@ async function downloadNIPdf(sessionId, name, level) {
 }
 
 async function exportGroupCSV() {
+  // Фильтр этой вкладки заполняется из /admin/groups — это UUID старого
+  // пространства ключей (groups.id), а не v2_groups.id. Поэтому экспорт идёт
+  // через /admin/participants/export?group=<uuid>, который фильтрует по
+  // test_sessions.group_id. Раньше UUID уходил в /v2/groups/:id/export-csv,
+  // ждущий integer, и сервер отвечал 500 → «Ошибка экспорта».
   const group = $('ni-group-filter').value;
-  // Если группа не выбрана — экспортируем всех через старый маршрут
-  if (!group) {
-    const url = API + '/admin/participants/export';
-    const r = await fetch(url, {headers:{'Authorization':'Bearer '+TOKEN}});
-    if (!r.ok) { toast('Ошибка экспорта', true); return; }
-    const blob = await r.blob();
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'ni_results.csv'; a.click();
-    URL.revokeObjectURL(a.href);
-    toast('CSV скачан');
-    return;
-  }
-  const url = API + '/v2/groups/'+group+'/export-csv';
+  const url = API + '/admin/participants/export' + (group ? '?group=' + encodeURIComponent(group) : '');
   const r = await fetch(url, {headers:{'Authorization':'Bearer '+TOKEN}});
   if (!r.ok) { toast('Ошибка экспорта', true); return; }
   const blob = await r.blob();
