@@ -2548,7 +2548,7 @@ async function showPNProfileDetail(invitationId) {
     return;
   }
 
-  const displayName = fmt(d.name) === '—' ? (kfName({ invitations: [{ token: d.token }] }) || fmt(d.email) || ('Приглашение #' + invitationId)) : d.name;
+  const displayName = fmt(d.name) === '—' ? (kfName({ invitations: [{ code: d.code, token: d.token }] }) || fmt(d.email) || ('Приглашение #' + invitationId)) : d.name;
   document.getElementById('pn-pd-title').textContent = displayName;
   document.getElementById('pn-pd-sub').textContent = d.generated_at ? new Date(d.generated_at).toLocaleDateString('ru') : '';
 
