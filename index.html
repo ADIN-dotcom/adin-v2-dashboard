@@ -1133,6 +1133,25 @@ function nav(page) {
 }
 
 // ── HOME ──────────────────────────────────────────────────────
+// Краткий результат в таблице «Последние завершённые тесты»: у каждого
+// инструмента он свой — балл и тип у НИ-теста, психотип у Profils, доминирующий
+// нарратив и агентность у Нарративного статуса.
+function homeResult(r) {
+  if (r.test_type === 'ni_test') return `<strong>${fmt(r.overall_score)}</strong>/100 · ${fmt(r.dominant_type_name)}`;
+  if (r.test_type === 'narrative_status') {
+    if (!r.dominant_narrative) return '—';
+    const label = NS_NARRATIVE_LABELS[r.dominant_narrative] || r.dominant_narrative;
+    return r.agentivity ? `${label} · агентность ${r.agentivity}` : label;
+  }
+  if (r.test_type === 'personal_narrative') {
+    if (!r.dominant_source) return '—';
+    const src = NARR_SOURCE_LABELS[r.dominant_source] || r.dominant_source;
+    const conflict = r.conflict_source ? (NARR_SOURCE_LABELS[r.conflict_source] || r.conflict_source) : null;
+    return conflict ? `${src} · конфликт: ${conflict}` : src;
+  }
+  return fmt(r.psychotype);
+}
+
 async function loadHome() {
   const d = await api('/v2/stats'); if (!d) return;
   $('home-metrics').innerHTML = [
@@ -1147,7 +1166,7 @@ async function loadHome() {
       ${d.recent.map(r => `<tr>
         <td class="participant-name" style="cursor:pointer" onclick="openParticipantDetail(${r.participant_id})">${(function(){ const t = pTitle(r, 'Участник'); return `<strong>${t}</strong><br><span style="font-size:11px;color:var(--ink-faint)">${[emailSub(r, t), r.company].filter(Boolean).join(' · ')}</span>`; })()}</td>
         <td><span class="badge badge-${r.test_type === 'ni_test' ? 'navy' : 'teal'}">${TEST_LABELS[r.test_type] || r.test_type}</span></td>
-        <td>${r.test_type === 'ni_test' ? `<strong>${fmt(r.overall_score)}</strong>/100 · ${fmt(r.dominant_type_name)}` : fmt(r.psychotype)}</td>
+        <td>${homeResult(r)}</td>
         <td>${fmtDate(r.completed_at)}</td>
       </tr>`).join('')}
     </tbody></table>`;
@@ -2422,7 +2441,7 @@ async function loadPersonalNarrativeList() {
     return;
   }
 
-  const SOURCE_LABELS = { personal: 'Личное', family: 'Семья', society: 'Общество', state: 'Государство' };
+  const SOURCE_LABELS = NARR_SOURCE_LABELS;
 
   $('pnr-table').innerHTML = rows.map(r => `<tr style="cursor:pointer" onclick="showPersonalNarrativeDetail('${r.id}')">
     ${(function(){ const t = pTitle(r, 'Участник'); return `<td><strong>${t}</strong><br><span style="font-size:11px;color:var(--ink-faint)">${emailSub(r, t)}</span></td>`; })()}
@@ -2454,7 +2473,7 @@ async function showPersonalNarrativeDetail(id) {
   document.getElementById('pnr-pd-title').textContent = displayName;
   document.getElementById('pnr-pd-sub').textContent = d.created_at ? new Date(d.created_at).toLocaleDateString('ru') : '';
 
-  const SOURCE_LABELS = { personal: 'Личное', family: 'Семья', society: 'Общество', state: 'Государство' };
+  const SOURCE_LABELS = NARR_SOURCE_LABELS;
   const tips = Array.isArray(d.facilitator_tips) ? d.facilitator_tips : [];
 
   document.getElementById('pnr-pd-content').innerHTML = `
@@ -2777,6 +2796,9 @@ function changePwd() {
 // ═══════════════════════════════════════════════════════════════
 // НАРРАТИВНЫЙ СТАТУС
 // ═══════════════════════════════════════════════════════════════
+
+// Источники личного нарратива — подписи нужны и разделу, и главной странице.
+const NARR_SOURCE_LABELS = { personal: 'Личное', family: 'Семья', society: 'Общество', state: 'Государство' };
 
 const NS_NARRATIVE_LABELS = {
   'выживание': '🔴 Выживание',
