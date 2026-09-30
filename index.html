@@ -826,14 +826,14 @@ td>.btn+.btn{margin-left:4px}
       </div>
     </div>
 
-    <div class="field"><label>Тип теста</label>
-      <select id="ui-test-type">
-        <option value="ni_test">НИ-тест</option>
-        <option value="narrative_status">Нарративный статус</option>
-        <option value="personal_narrative">Личный нарратив</option>
-        <option value="profils_questionnaire">Personne · PN</option>
-        <option value="profils_societe">Société · PN</option>
-      </select>
+    <div class="field"><label>Тесты — можно выбрать несколько</label>
+      <div id="ui-test-types" style="display:flex;flex-direction:column;gap:6px;padding:4px 0">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" class="ui-test" value="ni_test" checked> TIN (НИ-тест)</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" class="ui-test" value="narrative_status"> SN (Нарративный статус)</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" class="ui-test" value="personal_narrative"> Личный нарратив</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" class="ui-test" value="profils_questionnaire"> Personne · PN</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" class="ui-test" value="profils_societe"> Société · PN</label>
+      </div>
     </div>
     <div class="field"><label>Группа (необязательно)</label>
       <select id="ui-group"><option value="">Без группы</option></select>
@@ -2047,7 +2047,10 @@ function uiParseEmails() {
 
 function uiKeyfileDownload(rows, newEntries, suffix) {
   mergeIntoMasterKeyfile(newEntries);
-  const csv = '\ufeff' + ['email,name,code,language,link', ...rows].join('\r\n');
+  // Колонка «test» добавлена 30 сентября 2026: в один ключ-файл попадают коды
+  // нескольких тестов сразу. Загрузчик имён ищет колонки по заголовкам,
+  // поэтому прежние файлы читаются как раньше.
+  const csv = '\ufeff' + ['email,name,code,test,language,link', ...rows].join('\r\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -2055,24 +2058,47 @@ function uiKeyfileDownload(rows, newEntries, suffix) {
   URL.revokeObjectURL(a.href);
 }
 
+// Выбранные тесты: можно отметить несколько — тогда за одно нажатие участник
+// получает по коду на каждый тест, а ключ-файл скачивается один на все.
+function uiSelectedTests() {
+  return Array.from(document.querySelectorAll('#ui-test-types .ui-test:checked')).map(c => c.value);
+}
+
 async function uiSubmit() {
   const mail = $('ui-send-email').checked;
-  const testType = $('ui-test-type').value;
+  const tests = uiSelectedTests();
   const groupId = $('ui-group').value || null;
   const lang = $('ui-lang').value;
   const btn = $('ui-btn');
+  if (!tests.length) { toast('Отметьте хотя бы один тест', true); return; }
   btn.disabled = true;
   try {
-    if (UI_MODE === 'new') {
-      const people = uiParseEmails();
-      if (!people.length) { toast('Введите хотя бы один email', true); return; }
-      if (mail) await uiNewWithEmail(people, testType, groupId, lang, btn);
-      else await uiNewAnonymous(people, testType, groupId, lang, btn);
+    const people = UI_MODE === 'new' ? uiParseEmails() : null;
+    const ids = UI_MODE === 'new' ? null : Array.from(UI_PICKED);
+    if (UI_MODE === 'new' && !people.length) { toast('Введите хотя бы один email', true); return; }
+    if (UI_MODE !== 'new' && !ids.length) { toast('Выберите хотя бы одного участника', true); return; }
+
+    const allRows = [], allEntries = {}, problems = [];
+    let sent = 0;
+    for (const testType of tests) {
+      const res = UI_MODE === 'new'
+        ? (mail ? await uiNewWithEmail(people, testType, groupId, lang, btn)
+                : await uiNewAnonymous(people, testType, groupId, lang, btn))
+        : (mail ? await uiExistingWithEmail(ids, testType, groupId, lang, btn)
+                : await uiExistingCodes(ids, testType, groupId, lang, btn));
+      if (!res) continue;
+      if (res.rows) allRows.push(...res.rows);
+      if (res.entries) Object.assign(allEntries, res.entries);
+      if (res.problems) problems.push(...res.problems);
+      if (res.sent) sent += res.sent;
+    }
+
+    if (mail) {
+      uiFinish('Приглашений отправлено: ' + sent + ' (тестов: ' + tests.length + ')', problems);
     } else {
-      const ids = Array.from(UI_PICKED);
-      if (!ids.length) { toast('Выберите хотя бы одного участника', true); return; }
-      if (mail) await uiExistingWithEmail(ids, testType, groupId, lang, btn);
-      else await uiExistingCodes(ids, testType, groupId, lang, btn);
+      if (allRows.length) uiKeyfileDownload(allRows, allEntries, UI_MODE === 'new' ? 'invite' : 'existing');
+      uiFinish('Выпущено кодов: ' + allRows.length + ' (тестов: ' + tests.length + ')'
+        + (allRows.length ? ' — ключ-файл скачан' : ''), problems);
     }
   } finally {
     btn.disabled = false; btn.textContent = 'Пригласить';
@@ -2099,29 +2125,28 @@ async function uiNewWithEmail(people, testType, groupId, lang, btn) {
     if (inv && inv.success) sent++;
     else problems.push(p.email + ' — ' + ((inv && inv.error) || 'письмо не ушло'));
   }
-  uiFinish('Приглашений отправлено: ' + sent, problems);
+  return { sent, problems };
 }
 
 // Новые без письма: обезличенная выдача, ключ-файл собирается здесь.
 async function uiNewAnonymous(people, testType, groupId, lang, btn) {
-  btn.textContent = 'Выпускаем коды…';
+  btn.textContent = 'Выпускаем коды (' + TEST_LABELS[testType] + ')…';
   const r = await api('/v2/generate-codes', { method: 'POST', body: {
     people: people.map(p => ({ email: p.email })),
     group_id: groupId, test_type: testType, language: lang,
     region: $('ui-region').value } });
   const codes = (r && r.codes) || [];
-  if (!codes.length) { toast('Ошибка: ' + ((r && r.error) || 'коды не выпущены'), true); return; }
-  if (codes.length < people.length) { toast('Сервер вернул меньше кодов, чем участников', true); return; }
+  const rows = [], entries = {}, problems = [];
+  if (!codes.length) { problems.push(TEST_LABELS[testType] + ' — ' + ((r && r.error) || 'коды не выпущены')); return { rows, entries, problems }; }
+  if (codes.length < people.length) problems.push(TEST_LABELS[testType] + ' — сервер вернул меньше кодов, чем участников');
 
-  const rows = [], entries = {};
   people.forEach((p, i) => {
     const c = codes[i] || {};
     if (!c.key) return;
     entries[String(c.key).toUpperCase()] = p.name || p.email;
-    rows.push([csvEsc(p.email), csvEsc(p.name), csvEsc(c.key), csvEsc(c.language || lang), csvEsc(c.link)].join(','));
+    rows.push([csvEsc(p.email), csvEsc(p.name), csvEsc(c.key), csvEsc(TEST_LABELS[testType]), csvEsc(c.language || lang), csvEsc(c.link)].join(','));
   });
-  uiKeyfileDownload(rows, entries, 'invite');
-  uiFinish('Выпущено кодов: ' + rows.length + ' — ключ-файл скачан, адреса на сервер не сохранены', []);
+  return { rows, entries, problems };
 }
 
 // Уже в системе + письмо: у анонимных участников email нет, бэкенд вернёт
@@ -2137,24 +2162,23 @@ async function uiExistingWithEmail(ids, testType, groupId, lang, btn) {
     if (inv && inv.success) sent++;
     else problems.push(uiLabel(p) + ' — ' + ((inv && inv.error) || 'письмо не ушло'));
   }
-  uiFinish('Приглашений отправлено: ' + sent, problems);
+  return { sent, problems };
 }
 
 // Уже в системе без письма: ещё один код каждому выбранному.
 async function uiExistingCodes(ids, testType, groupId, lang, btn) {
   const rows = [], entries = {}; const problems = [];
   for (let i = 0; i < ids.length; i++) {
-    btn.textContent = 'Выпускаем ' + (i + 1) + ' из ' + ids.length + '…';
+    btn.textContent = 'Выпускаем ' + (i + 1) + ' из ' + ids.length + ' (' + TEST_LABELS[testType] + ')…';
     const p = UI_ALL.find(x => x.id === ids[i]) || { id: ids[i] };
     const r = await api('/v2/participants/' + ids[i] + '/generate-code', { method: 'POST', body: {
       test_type: testType, group_id: groupId, language: lang } });
     if (!r || !r.success) { problems.push(uiLabel(p) + ' — ' + ((r && r.error) || 'код не выпущен')); continue; }
     const label = uiLabel(p);
     entries[String(r.code).toUpperCase()] = label;
-    rows.push([csvEsc(p.email || ''), csvEsc(label), csvEsc(r.code), csvEsc(r.language || lang), csvEsc(r.link)].join(','));
+    rows.push([csvEsc(p.email || ''), csvEsc(label), csvEsc(r.code), csvEsc(TEST_LABELS[testType]), csvEsc(r.language || lang), csvEsc(r.link)].join(','));
   }
-  if (rows.length) uiKeyfileDownload(rows, entries, 'existing');
-  uiFinish('Выпущено кодов: ' + rows.length + (rows.length ? ' — ключ-файл скачан' : ''), problems);
+  return { rows, entries, problems };
 }
 
 function uiFinish(summary, problems) {
