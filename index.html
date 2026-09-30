@@ -1133,6 +1133,20 @@ function nav(page) {
 }
 
 // ── HOME ──────────────────────────────────────────────────────
+// Имя скачиваемого файла задаёт сервер (заголовок Content-Disposition) — так
+// оно одинаково и при скачивании по прямой ссылке, и из дашборда. Раньше имя
+// собиралось здесь второй раз и расходилось с серверным.
+function filenameFromResponse(r, fallback) {
+  try {
+    const cd = r.headers.get('Content-Disposition') || '';
+    const star = cd.match(/filename\*=UTF-8''([^;]+)/i);
+    if (star) return decodeURIComponent(star[1].trim().replace(/^"|"$/g, ''));
+    const plain = cd.match(/filename="?([^";]+)"?/i);
+    if (plain) return plain[1].trim();
+  } catch (e) { /* заголовок недоступен — используем запасное имя */ }
+  return fallback;
+}
+
 // Краткий результат в таблице «Последние завершённые тесты»: у каждого
 // инструмента он свой — балл и тип у НИ-теста, психотип у Profils, доминирующий
 // нарратив и агентность у Нарративного статуса.
@@ -1814,7 +1828,7 @@ async function downloadNarrativeStatusPdf(sessionId, level) {
     const blob = await r.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'ADIN_narrative_status_' + level + '_' + sessionId + '.pdf'; a.click();
+    a.download = filenameFromResponse(r, 'ADIN_narrative_status_' + level + '_' + sessionId + '.pdf'); a.click();
     URL.revokeObjectURL(a.href);
   } catch (e) { toast('Ошибка соединения', true); }
 }
@@ -1833,7 +1847,7 @@ async function downloadGroupNarrativePdf() {
     const blob = await r.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'ADIN_narrative_status_group.pdf'; a.click();
+    a.download = filenameFromResponse(r, 'ADIN_narrative_status_group.pdf'); a.click();
     URL.revokeObjectURL(a.href);
   } catch (e) { toast('Ошибка соединения', true); }
 }
@@ -1848,7 +1862,7 @@ async function downloadFullReport(code, level) {
     const blob = await r.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'ADIN_' + level + '_' + code + '.pdf'; a.click();
+    a.download = filenameFromResponse(r, 'ADIN_' + level + '_' + code + '.pdf'); a.click();
     URL.revokeObjectURL(a.href);
   } catch (e) { toast('Ошибка соединения', true); }
 }
@@ -2379,7 +2393,7 @@ async function downloadNIPdf(sessionId, name, level) {
   const blob = await r.blob();
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'report_' + (level === 'express' ? 'express_' : '') + (name||'participant') + '.pdf';
+  a.download = filenameFromResponse(r, 'report_' + (level === 'express' ? 'express_' : '') + (name||'participant') + '.pdf');
   a.click();
   URL.revokeObjectURL(a.href);
   toast('PDF скачан');
@@ -2516,7 +2530,7 @@ async function downloadPersonalNarrativePdf(id, btn) {
     const blob = await r.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'ADIN_personal_narrative_' + id + '.pdf'; a.click();
+    a.download = filenameFromResponse(r, 'ADIN_personal_narrative_' + id + '.pdf'); a.click();
     URL.revokeObjectURL(a.href);
   } catch (e) { toast('Ошибка соединения', true); }
   finally { btn.disabled = false; btn.textContent = '📄 Скачать PDF'; }
@@ -2622,7 +2636,7 @@ async function downloadPNProfilePdf(invitationId, btn) {
     const blob = await r.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'ADIN_profil_' + invitationId + '.pdf'; a.click();
+    a.download = filenameFromResponse(r, 'ADIN_profil_' + invitationId + '.pdf'); a.click();
     URL.revokeObjectURL(a.href);
   } catch (e) { toast('Ошибка соединения', true); }
   finally { btn.disabled = false; btn.textContent = '📄 Скачать PDF'; }
@@ -3438,7 +3452,7 @@ async function downloadSocietePdf(id) {
     if (!r.ok) { const e = await r.json().catch(() => ({})); toast('PDF недоступен: ' + (e.error || r.status), true); return; }
     const blob = await r.blob();
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = 'ADIN_societe_' + id + '.pdf'; a.click();
+    a.href = URL.createObjectURL(blob); a.download = filenameFromResponse(r, 'ADIN_societe_' + id + '.pdf'); a.click();
     URL.revokeObjectURL(a.href);
   } catch (e) { toast('Ошибка соединения', true); }
 }
@@ -3452,7 +3466,7 @@ async function downloadSocieteGroupPdf() {
     if (!r.ok) { const e = await r.json().catch(() => ({})); toast('PDF недоступен: ' + (e.error || r.status), true); return; }
     const blob = await r.blob();
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = 'ADIN_societe_group_' + groupId + '.pdf'; a.click();
+    a.href = URL.createObjectURL(blob); a.download = filenameFromResponse(r, 'ADIN_societe_group_' + groupId + '.pdf'); a.click();
     URL.revokeObjectURL(a.href);
   } catch (e) { toast('Ошибка соединения', true); }
 }
