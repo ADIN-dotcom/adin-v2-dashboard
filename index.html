@@ -479,10 +479,14 @@ td>.btn+.btn{margin-left:4px}
       <div id="page-pn-profiles" class="page">
         <div class="page-header">
           <div><div class="page-title">Personne · PN</div><div class="page-sub">Сгенерированные профили участников</div></div>
-          <select id="pn-group-filter" onchange="loadPNProfiles()" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px">
-            <option value="">Все группы</option>
-          </select>
+          <div style="display:flex;gap:8px">
+            <select id="pn-group-filter" onchange="loadPNProfiles()" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px">
+              <option value="">Все группы</option>
+            </select>
+            <button class="btn btn-navy" onclick="generatePnGroup()" id="btn-pn-group">🧠 Групповой анализ</button>
+          </div>
         </div>
+        <div id="pn-group-report" style="display:none;margin-bottom:20px"></div>
         <div class="card" style="padding:0">
           <div class="tbl-wrap">
             <table>
@@ -2576,6 +2580,7 @@ async function loadPNProfiles() {
   }
 
   const groupId = sel.value;
+  loadPnGroupReport(groupId);
   const url = '/admin/pn/profiles' + (groupId ? ('?group_id=' + groupId) : '');
   const rows = await api(url);
 
@@ -2593,6 +2598,89 @@ async function loadPNProfiles() {
     <td style="color:var(--ink-faint);font-size:12px">${r.generated_at ? new Date(r.generated_at).toLocaleDateString('ru') : '—'}</td>
     <td><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();showPNProfileDetail(${r.invitation_id})">Открыть →</button></td>
   </tr>`).join('');
+}
+
+// ── Групповой отчёт Personne · PN ─────────────────────────────────────────────
+// Графики — в PDF; здесь краткий свод: плитки, сводный образ, противоречия,
+// рекомендации. Свод хранится с русскими ключами тем.
+let PN_SAVED_REPORT_AT = null;
+const pnCap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : '—';
+
+async function loadPnGroupReport(groupId) {
+  const wrap = $('pn-group-report'); const btn = $('btn-pn-group');
+  wrap.style.display = 'none'; wrap.innerHTML = ''; PN_SAVED_REPORT_AT = null;
+  if (btn) btn.textContent = '🧠 Групповой анализ';
+  if (!groupId) return;
+  const row = await api('/pn-group/group/' + groupId + '/report');
+  if (!row || row.error) return;
+  let r = row.raw_content; if (typeof r === 'string') { try { r = JSON.parse(r); } catch (e) { r = null; } }
+  if (!r) return;
+  PN_SAVED_REPORT_AT = row.generated_at || null;
+  if (btn) btn.textContent = '🧠 Обновить анализ';
+  renderPnGroup(r, row.generated_at);
+}
+
+async function generatePnGroup() {
+  const groupId = $('pn-group-filter').value;
+  if (!groupId) { toast('Выберите группу для группового анализа'); return; }
+  if (PN_SAVED_REPORT_AT && !confirm('Свод по этой группе уже есть (от ' + fmtDate(PN_SAVED_REPORT_AT) + ').\nЗапустить анализ заново? Это платный вызов ИИ; уже размеченные анкеты повторно не размечаются.')) return;
+  const btn = $('btn-pn-group');
+  btn.disabled = true; btn.textContent = 'Анализируем… (до 2 минут)';
+  $('pn-group-report').style.display = 'none'; $('pn-group-report').innerHTML = '';
+  const d = await api('/pn-group/group/' + groupId + '/analyze', { method: 'POST' });
+  btn.disabled = false;
+  if (!d || !d.success) {
+    btn.textContent = PN_SAVED_REPORT_AT ? '🧠 Обновить анализ' : '🧠 Групповой анализ';
+    toast((d && d.error) || 'Ошибка группового анализа', true); return;
+  }
+  PN_SAVED_REPORT_AT = new Date().toISOString();
+  btn.textContent = '🧠 Обновить анализ';
+  renderPnGroup(d.result, PN_SAVED_REPORT_AT);
+}
+
+async function downloadPnGroupPdf() {
+  const groupId = $('pn-group-filter').value;
+  if (!groupId) { toast('Выберите группу', true); return; }
+  toast('Готовим PDF...');
+  try {
+    const r = await fetch(API + '/pn-group/group/' + groupId + '/report-pdf', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); toast('PDF недоступен: ' + (e.error || r.status), true); return; }
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = filenameFromResponse(r, 'ADIN_pn_group_' + groupId + '.pdf'); a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (e) { toast('Ошибка соединения', true); }
+}
+
+function renderPnGroup(r, savedAt) {
+  const a = r.aggregate || {};
+  const n = a.group_size || 0;
+  const q = a.quality || {}, en = a.energy || {}, cl = a.climate || {};
+  const goal = (a.goal_themes || [])[0] || ['—', 0];
+  const tone = Object.entries(cl).sort((x, y) => y[1] - x[1])[0] || ['—', 0];
+  const TONE_COLOR = { 'ресурс': '#15803d', 'нейтрально': 'var(--ink)', 'напряжение': 'var(--red)' };
+  const tile = (k, v, s, c) => `<div class="card" style="padding:12px;margin:0"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em">${k}</div><div style="font-weight:700;font-size:15px;color:${c};margin:4px 0 2px">${socEsc(v)}</div><div style="font-size:12px;color:var(--ink-faint)">${socEsc(s)}</div></div>`;
+  const para = (title, text) => text ? `<div style="margin-bottom:14px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">${title}</div><div style="font-size:13.5px;line-height:1.65;color:var(--ink)">${socEsc(text)}</div></div>` : '';
+  const li = arr => '<ul style="padding-left:18px;margin:0 0 14px">' + (arr || []).map(x => '<li style="margin-bottom:6px;font-size:13px">' + socEsc(x) + '</li>').join('') + '</ul>';
+  const wrap = $('pn-group-report');
+  wrap.innerHTML = `
+    <div class="card">
+      <div class="card-title"><span>Групповой свод Personne · PN · ${n} участников</span>
+        <span style="display:flex;gap:8px;align-items:center;font-weight:400;font-size:12px;color:var(--ink-faint)">${savedAt ? 'от ' + fmtDate(savedAt) : ''}<button class="btn btn-ghost btn-sm" onclick="downloadPnGroupPdf()">📄 PDF с графиками</button></span></div>
+      ${r.summary ? `<p style="font-size:14px;line-height:1.65;padding:12px 16px;background:var(--bg-subtle);border-left:3px solid var(--ink);margin:0 0 16px">${socEsc(r.summary)}</p>` : ''}
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px">
+        ${tile('Участников', String(n), 'заполнено ' + (q.filled_pct || 0) + '% · пустых ' + (q.empty_answers || 0), 'var(--ink)')}
+        ${tile('Энергия', (en.extra || 0) + ' / ' + (en.ambi || 0) + ' / ' + (en.intro || 0), 'экстраверты · смешанные · интроверты', 'var(--accent)')}
+        ${tile('Главная цель', pnCap(goal[0]), goal[1] + ' из ' + n, 'var(--accent)')}
+        ${tile('Климат', pnCap(tone[0]), tone[1] + ' из ' + n, TONE_COLOR[tone[0]] || 'var(--ink)')}
+      </div>
+      ${para('Сводный образ', r.portrait)}
+      ${r.bridge_formula ? `<p style="font-size:13.5px;font-weight:600;padding:10px 14px;background:#fffbeb;border-left:3px solid #d97706;margin:0 0 16px">Формула моста: ${socEsc(r.bridge_formula)}</p>` : ''}
+      ${(r.tensions || []).length ? `<div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Ключевые противоречия</div>${li((r.tensions || []).map(t => t.title + ' — ' + t.description))}` : ''}
+      ${(r.recommendations_for_facilitator || []).length ? `<div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Фасилитатору</div>${li(r.recommendations_for_facilitator)}` : ''}
+      ${(r.recommendations_for_leadership || []).length ? `<div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Руководству</div>${li(r.recommendations_for_leadership)}` : ''}
+    </div>`;
+  wrap.style.display = 'block';
 }
 
 async function showPNProfileDetail(invitationId) {
