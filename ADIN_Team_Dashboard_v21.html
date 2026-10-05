@@ -1660,8 +1660,8 @@ function renderParticipants() {
 
   document.getElementById('participants-tbody').innerHTML =
     filtered.map(r => `<tr>
-      <td><strong>${r.name||'—'}</strong><br>
-        <span style="font-size:11px;color:var(--ink-faint)">${r.email||''}</span></td>
+      <td><strong>${r.name||r.email||'—'}</strong>${r.name&&r.email
+        ? `<br><span style="font-size:11px;color:var(--ink-faint)">${r.email}</span>` : ''}</td>
       <td><span class="badge badge-${TYPE_KEY[r.type]||'A'}">${r.type||'—'}</span></td>
       <td><span class="badge badge-${r.level||1}">${r.levelName||'Ур.'+r.level||'—'}</span></td>
       <td style="font-size:12px">${r.temporal||'—'}</td>
