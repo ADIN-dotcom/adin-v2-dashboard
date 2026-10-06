@@ -1882,12 +1882,15 @@ function printScreenGroupNarrative() {
   window.print();
 }
 
-async function downloadGroupNarrativePdf() {
+// audience='facilitator' — полный отчёт; 'group' — версия для самих участников:
+// без алертов, дословных цитат и идентификаторов. Состав определяет сервер.
+async function downloadGroupNarrativePdf(audience) {
   const groupId = document.getElementById('ns-group-filter').value;
   if (!groupId) { toast('Выберите группу', true); return; }
-  toast('Готовим PDF...');
+  toast(audience === 'group' ? 'Готовим PDF для группы...' : 'Готовим PDF...');
   try {
-    const r = await fetch(API + '/narrative-status/group/' + groupId + '/report-pdf', {
+    const q = audience === 'group' ? '?audience=group' : '';
+    const r = await fetch(API + '/narrative-status/group/' + groupId + '/report-pdf' + q, {
       headers: { 'Authorization': 'Bearer ' + TOKEN }
     });
     if (!r.ok) { const e = await r.json().catch(() => ({})); toast('PDF недоступен: ' + (e.error || r.status), true); return; }
@@ -3381,7 +3384,8 @@ function renderGroupNarrative(r, savedAt) {
         <div style="font-size:16px;font-weight:700;color:var(--navy)">Групповой нарративный статус</div>
         <div style="display:flex;align-items:center;gap:12px">
         <span style="font-size:13px;color:var(--ink-faint)">${r.group_size} участников${r.unclassified_count ? ' · ' + r.unclassified_count + ' без анализа' : ''}${savedAt ? ' · отчёт от ' + fmtDate(savedAt) : ''}</span>
-          <button class="btn" onclick="downloadGroupNarrativePdf()" style="padding:6px 12px;font-size:12.5px" title="Отчёт с сервера. Участники обозначены номером и кодами — имя на сервере не хранится.">&#128196; PDF</button>
+          <button class="btn" onclick="downloadGroupNarrativePdf()" style="padding:6px 12px;font-size:12.5px" title="Полный отчёт фасилитатору: алерты, цитаты, номера участников и коды TIN.">&#128196; PDF фасилитатору</button>
+          <button class="btn" onclick="downloadGroupNarrativePdf('group')" style="padding:6px 12px;font-size:12.5px" title="Версия для самих участников: без алертов, без дословных цитат и без идентификаторов — никто не узнает себя или соседа.">&#128101; PDF для группы</button>
           <button class="btn" onclick="printScreenGroupNarrative()" style="padding:6px 12px;font-size:12.5px" title="Этот отчёт как он выглядит на экране — с именами из вашего ключ-файла. Откроется диалог печати, выберите «Сохранить как PDF».">&#128424;&#65039; PDF экрана</button>
         </div>
       </div>
