@@ -3326,13 +3326,25 @@ function renderGroupNarrative(r, savedAt) {
          ${alertTexts.map(a => `<div style="padding:7px 12px;background:var(--red-s);border-radius:var(--radius-sm);font-size:12.5px;margin-bottom:5px">${a}</div>`).join('')}
        </div>` : '';
 
-  const carrierTexts = (r.resource_carriers_keyed || []).length
-    ? r.resource_carriers_keyed.map(c => nsWho(c) + ' — ' + c.narrative)
-    : (r.resource_carriers || []);
+  // Опора и потенциал — разные вещи: на первых можно опереться сейчас, вторым
+  // сначала нужен горизонт. Градацию считает бэкенд (поле tier); отчёты,
+  // посчитанные до её появления, показываются одним списком, как раньше.
+  const carrierChip = (text, tone) =>
+    `<span style="display:inline-block;padding:5px 12px;background:var(--${tone}-s);color:var(--${tone});border-radius:var(--radius);font-size:12px;font-weight:600;margin:0 6px 6px 0">${text}</span>`;
+  const carrierGroup = (label, list, tone) => list.length
+    ? `<div style="margin-bottom:8px"><div style="font-size:11.5px;color:var(--ink-faint);margin-bottom:5px">${label}</div>${
+        list.map(c => carrierChip(nsWho(c) + ' — ' + c.narrative, tone)).join('')}</div>`
+    : '';
 
-  const carriers = carrierTexts.map(c =>
-    `<span style="display:inline-block;padding:5px 12px;background:var(--green-s);color:var(--green);border-radius:var(--radius);font-size:12px;font-weight:600;margin:0 6px 6px 0">${c}</span>`
-  ).join('');
+  const keyedCarriers = r.resource_carriers_keyed || [];
+  const carriers = keyedCarriers.some(c => c.tier)
+    ? carrierGroup('Опора — ресурсный нарратив и конкретный образ будущего',
+                   keyedCarriers.filter(c => c.tier === 'опора'), 'green')
+      + carrierGroup('Потенциал — ресурсный нарратив, но образ будущего ещё расплывчатый',
+                     keyedCarriers.filter(c => c.tier === 'потенциал'), 'gold')
+    : (keyedCarriers.length
+        ? keyedCarriers.map(c => carrierChip(nsWho(c) + ' — ' + c.narrative, 'green')).join('')
+        : (r.resource_carriers || []).map(c => carrierChip(c, 'green')).join(''));
 
   // Три модуля одним блоком. opening_move — это первый шаг Модуля 1, поэтому
   // он открывает модуль, а не живёт отдельно от рекомендаций к нему;
