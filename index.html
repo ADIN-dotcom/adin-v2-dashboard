@@ -296,6 +296,14 @@ td>.btn+.btn{margin-left:4px}
   .pn-answers{display:block!important;break-inside:auto}
   .pn-answer-group{break-inside:avoid}
   body{background:white!important}
+  /* «PDF экрана»: ns-print-hide расставляет printScreenGroupNarrative() на всех
+     соседей отчёта вверх по дереву. Прячем display'ем, а не visibility: при
+     visibility блок остаётся в потоке на своём месте, и Chrome печатает
+     пустые страницы до него, а абсолютное позиционирование ломает разбиение
+     длинного отчёта на страницы. */
+  .ns-print-hide{display:none!important}
+  /* Диаграммы и полосы — цветом по фону: без этого браузер печатает их пустыми. */
+  #ns-group-report{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   @page{margin:20mm;size:A4}
 }
 </style>
@@ -1839,6 +1847,41 @@ async function downloadNarrativeStatusPdf(sessionId, level) {
 
 // Групповой отчёт НС в PDF. Верстается из уже сохранённого анализа —
 // нового вызова ИИ не делает и денег не стоит.
+// «PDF экрана» — печать того же отчёта, что виден на экране, средствами
+// браузера. Нужна потому, что серверный PDF не может показать имена: связка
+// «код ↔ человек» живёт в ключ-файле этого браузера и на сервер не уходит.
+// Здесь она не покидает машину — страница печатается локально.
+//
+// Прячем всё лишнее, помечая соседей отчёта вверх по дереву: так сам отчёт
+// остаётся в обычном потоке и разбивается на страницы штатно.
+function printScreenGroupNarrative() {
+  const report = document.getElementById('ns-group-report');
+  if (!report || report.style.display === 'none' || !report.innerHTML.trim()) {
+    toast('Сначала откройте или постройте групповой отчёт', true);
+    return;
+  }
+
+  const hidden = [];
+  for (let node = report; node && node !== document.body; node = node.parentElement) {
+    for (const sib of node.parentElement.children) {
+      if (sib !== node && !sib.classList.contains('ns-print-hide')) {
+        sib.classList.add('ns-print-hide');
+        hidden.push(sib);
+      }
+    }
+  }
+
+  const restore = () => {
+    hidden.forEach(el => el.classList.remove('ns-print-hide'));
+    window.removeEventListener('afterprint', restore);
+  };
+  window.addEventListener('afterprint', restore);
+  // Запасной путь: Safari и часть браузеров afterprint не присылают.
+  setTimeout(restore, 60000);
+
+  window.print();
+}
+
 async function downloadGroupNarrativePdf() {
   const groupId = document.getElementById('ns-group-filter').value;
   if (!groupId) { toast('Выберите группу', true); return; }
@@ -3326,7 +3369,8 @@ function renderGroupNarrative(r, savedAt) {
         <div style="font-size:16px;font-weight:700;color:var(--navy)">Групповой нарративный статус</div>
         <div style="display:flex;align-items:center;gap:12px">
         <span style="font-size:13px;color:var(--ink-faint)">${r.group_size} участников${r.unclassified_count ? ' · ' + r.unclassified_count + ' без анализа' : ''}${savedAt ? ' · отчёт от ' + fmtDate(savedAt) : ''}</span>
-          <button class="btn" onclick="downloadGroupNarrativePdf()" style="padding:6px 12px;font-size:12.5px">&#128196; PDF</button>
+          <button class="btn" onclick="downloadGroupNarrativePdf()" style="padding:6px 12px;font-size:12.5px" title="Отчёт с сервера. Участники обозначены номером и кодами — имя на сервере не хранится.">&#128196; PDF</button>
+          <button class="btn" onclick="printScreenGroupNarrative()" style="padding:6px 12px;font-size:12.5px" title="Этот отчёт как он выглядит на экране — с именами из вашего ключ-файла. Откроется диалог печати, выберите «Сохранить как PDF».">&#128424;&#65039; PDF экрана</button>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
