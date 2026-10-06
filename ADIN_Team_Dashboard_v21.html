@@ -484,9 +484,10 @@ svg.radar{overflow:visible}
             border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit">
             ⬇ Скачать как текст
           </button>
-          <button onclick="openDashboardKeySettings()" title="Ключ доступа к AI-генерации"
+          <button id="key-btn" onclick="openDashboardKeySettings()" title="Ключ доступа к AI-генерации"
             style="padding:6px 10px;background:transparent;color:var(--ink-faint);border:1px solid var(--cream-d);
             border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit">⚙</button>
+          <span id="key-state" style="font-size:12px;color:var(--ink-faint);white-space:nowrap"></span>
         </div>
       </div>
       <div id="narrative-ai-status" style="display:none;margin-bottom:12px"></div>
@@ -1545,6 +1546,26 @@ const TOOL_WEB_URL = 'https://adin-dotcom.github.io/adin-v2-dashboard/ADIN_Team_
 // Проверяем по существу — запрос к серверу возможен только с http(s).
 const openedOffline = () => !/^https?:$/.test(location.protocol);
 
+// Состояние ключа было видно только после нажатия «Глубокое описание» — и то
+// одинаковым текстом при разных причинах. Показываем его сразу рядом с ⚙.
+function renderKeyState() {
+  const el = document.getElementById('key-state');
+  if (!el) return;
+  const n = (getDashboardKey() || '').length;
+  if (openedOffline()) {
+    el.textContent = 'открыто с диска — AI недоступен';
+    el.style.color = 'var(--red, #c8432a)';
+  } else if (n) {
+    el.textContent = 'ключ задан (' + n + ')';
+    el.style.color = 'var(--teal, #2D6A4F)';
+  } else {
+    el.textContent = 'ключ не задан';
+    el.style.color = 'var(--ink-faint)';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', renderKeyState);
+
 function openDashboardKeySettings() {
   const current = getDashboardKey() || '';
   const warning = openedOffline()
@@ -1557,6 +1578,7 @@ function openDashboardKeySettings() {
   setDashboardKey(saved || null);
   // Подтверждение: без него не видно, попал ли ключ из буфера в поле вообще.
   // Показываем длину, а не сам ключ — чтобы он не оставался на экране.
+  renderKeyState();
   if (!saved) { alert('Ключ удалён.'); return; }
   alert(storageOk()
     ? 'Ключ сохранён в этом браузере — ' + saved.length + ' символов. Вводить заново не придётся.'
