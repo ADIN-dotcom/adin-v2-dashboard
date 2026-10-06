@@ -517,6 +517,105 @@ const LEVEL_COLOR = ['','#C8432A','#E07B2A','#2D6A4F','#1E3A5F'];
 const COMP_NAMES = ['Осознанности','Авторства','Резонанса','Переосмысления','Воплощения'];
 const COMP_KEYS = ['Осознанности','Авторства','Резонанса','Переосмысления','Воплощения'];
 const ZTPI_NAMES = ['PN','PP','NF','NH','F'];
+
+// ── ЕДИНЫЕ ПРАВИЛА ОЦЕНКИ ПОКАЗАТЕЛЕЙ ──────────────────────────────────────
+// Один источник порогов на весь отчёт: страница шкал, сводная таблица, зоны
+// риска и данные для «Аналитического заключения». Раньше пороги жили в четырёх
+// независимых местах и расходились: F 13,8 получал «ВНИМАНИЕ» на странице ZTPI
+// и «НОРМА» в таблице, потому что у нормы не было верхней границы; PN давал
+// «ВНИМАНИЕ» при >7 на странице, при >8 в таблице и попадал в риски лишь при >10.
+//
+// bands — список [условие, статус, текст]; побеждает первое подошедшее.
+// Статусы РИСК и КРИТИЧНО автоматически попадают в зоны риска, поэтому
+// отдельных правил для них там больше нет.
+const STATUS_BADGE = { 'КРИТИЧНО':'badge-1', 'РИСК':'badge-1', 'ВНИМАНИЕ':'badge-2', 'НОРМА':'badge-3', 'РЕСУРС':'badge-3' };
+const STATUS_COLOR = { 'КРИТИЧНО':'#C8432A', 'РИСК':'#C8432A', 'ВНИМАНИЕ':'#E07B2A', 'НОРМА':'#2D6A4F', 'РЕСУРС':'#2D6A4F' };
+
+const z1 = v => v.toFixed(1) + '/15';
+const pc = v => v.toFixed(0) + '%';
+
+// Компетенции оценивают по одной шкале — различается только название.
+function compScale(label) {
+  return {
+    label, fmt: pc, norm: '>50%',
+    bands: [
+      [v => v < 35, 'РИСК',     v => `${label} ${pc(v)}: компетенция провалена — опираться на неё в программе развития нельзя.`],
+      [v => v < 50, 'ВНИМАНИЕ', v => `${label} ${pc(v)}: ниже нормы, требует отдельной работы.`],
+      [v => v > 60, 'РЕСУРС',   v => `${label} ${pc(v)}: сильная сторона — точка входа в программу развития.`],
+    ],
+    ok: v => `${label} (${pc(v)}) в норме.`,
+  };
+}
+
+const SCALES = {
+  pn: { label: 'Командный PN', fmt: z1, norm: '≤7',
+    bands: [
+      [v => v > 10, 'КРИТИЧНО', v => `Высокий командный PN (${z1(v)}): команда интерпретирует настоящее через прошлые неудачи. Изменения воспринимаются как угроза.`],
+      [v => v > 7,  'ВНИМАНИЕ', v => `Умеренный PN (${z1(v)}): часть команды несёт груз прошлого опыта.`],
+    ],
+    ok: v => `Командный PN (${z1(v)}) в норме.` },
+
+  pp: { label: 'Командный PP', fmt: z1, norm: '>9 — ресурс',
+    bands: [
+      [v => v > 9, 'РЕСУРС', v => `Высокий PP (${z1(v)}): позитивный прошлый опыт — опора для «якорей успеха» при запуске изменений.`],
+    ],
+    ok: v => `Командный PP (${z1(v)}) без выраженного ресурса.` },
+
+  nf: { label: 'Командный NF', fmt: z1, norm: '≤9',
+    bands: [
+      [v => v > 9, 'РИСК', v => `Высокое NF (${z1(v)}): значительная часть команды чувствует себя жертвой обстоятельств.`],
+    ],
+    ok: v => `Командный NF (${z1(v)}) в норме.` },
+
+  // Для NH методологического порога нет ни в одном разделе отчёта, поэтому
+  // шкала показывается, но не оценивается — вместо выдуманного порога.
+  nh: { label: 'Командный NH', fmt: z1, norm: '—', bands: [], evaluated: false,
+    ok: v => `Командный NH (${z1(v)}) — порог не определён.` },
+
+  f:  { label: 'Командный F', fmt: z1, norm: '8–11',
+    bands: [
+      [v => v < 6,  'РИСК',     v => `Низкое Будущее (${z1(v)}): команда слабо ориентирована на цели и изменения.`],
+      [v => v < 8,  'ВНИМАНИЕ', v => `Будущее ниже нормы (${z1(v)}): образ будущего размыт.`],
+      [v => v > 11, 'ВНИМАНИЕ', v => `Высокое Будущее (${z1(v)}): риск игнорирования текущих проблем и выгорания.`],
+    ],
+    ok: v => `Командный F (${z1(v)}) в норме.` },
+
+  awareness:  compScale('Осознанность'),
+  authorship: compScale('Авторство'),
+  resonance:  compScale('Резонанс'),
+  reframing:  compScale('Переосмысление'),
+  embodiment: compScale('Воплощение'),
+};
+
+// Единственная точка оценки. Возвращает статус, текст и то, как показать
+// значение и норму в таблице, — чтобы ни один раздел не считал это сам.
+function evalScale(key, value) {
+  const sc = SCALES[key];
+  if (!sc) return null;
+  const v = Number(value) || 0;
+  for (const [cond, status, text] of sc.bands) {
+    if (cond(v)) return { key, status, text: text(v), label: sc.label, value: sc.fmt(v), norm: sc.norm };
+  }
+  return { key, status: sc.evaluated === false ? 'не оценивается' : 'НОРМА',
+           text: sc.ok(v), label: sc.label, value: sc.fmt(v), norm: sc.norm };
+}
+
+const SCALE_ORDER = ['pn','pp','nf','nh','f','awareness','authorship','resonance','reframing','embodiment'];
+const COMP_SCALE_KEYS = ['awareness','authorship','resonance','reframing','embodiment'];
+
+// В списках зон заголовок (до первого двоеточия) выделяем жирным — так же,
+// как выглядят структурные правила.
+const boldLead = t => String(t).replace(/^([^:]{1,70}):/, '<b>$1:</b>');
+
+// Значения всех шкал одним объектом — из него строятся и таблица, и зоны,
+// и интерпретация ZTPI.
+function scaleValues() {
+  return {
+    pn: avg(DATA,'pn'), pp: avg(DATA,'pp'), nf: avg(DATA,'nf'), nh: avg(DATA,'nh'), f: avg(DATA,'f'),
+    awareness: avg(DATA,'awareness'), authorship: avg(DATA,'authorship'), resonance: avg(DATA,'resonance'),
+    reframing: avg(DATA,'reframing'), embodiment: avg(DATA,'embodiment'),
+  };
+}
 const ZTPI_COLORS = ['#C8432A','#2D6A4F','#E07B2A','#5A2D82','#1E3A5F'];
 
 // ═══════════════════════════════════════════════════════════
@@ -905,7 +1004,8 @@ function renderOverview() {
     {v:avgScore, l:'Средний балл НИ', s:'из 100'},
     {v:avgLevel, l:'Средний уровень', s:'зрелости'},
     {v:topType[0], l:'Доминирующий тип', s:topType[1]+' чел. ('+Math.round(topType[1]/n*100)+'%)'},
-    {v:pct1+'%', l:'На уровне 1', s:'зона риска'},
+    // Подпись была константой и утверждала «зона риска» даже при 0%.
+    {v:pct1+'%', l:'На уровне 1', s: pct1 > 30 ? 'зона риска' : (pct1 > 0 ? 'под наблюдением' : 'никого')},
   ].map(m=>`
     <div class="metric">
       <div class="metric-val" style="color:var(--navy)">${m.v}</div>
@@ -1154,23 +1254,18 @@ function renderTemporal() {
     {label:'Будущее (F)',         val:parseFloat(avgF.toFixed(1)),  color:'#1E3A5F', suffix:avgF.toFixed(1)+'/15'},
   ], 15);
 
-  // Интерпретация
+  // Интерпретация — из тех же SCALES, что и сводная таблица: разойтись они
+  // теперь не могут. Комбинации двух шкал остаются отдельными правилами.
   const interp = [];
-  if (avgPN > 10) interp.push({level:'КРИТИЧНО', color:'#C8432A',
-    text:`Высокий командный PN (${avgPN.toFixed(1)}/15): команда интерпретирует настоящее через прошлые неудачи. Изменения воспринимаются как угроза.`});
-  else if (avgPN > 7) interp.push({level:'ВНИМАНИЕ', color:'#E07B2A',
-    text:`Умеренный PN (${avgPN.toFixed(1)}/15): часть команды несёт груз прошлого опыта.`});
-
-  if (avgF < 6) interp.push({level:'РИСК', color:'#C8432A',
-    text:`Низкое Будущее (${avgF.toFixed(1)}/15): команда слабо ориентирована на цели и изменения.`});
-  else if (avgF > 11) interp.push({level:'ВНИМАНИЕ', color:'#E07B2A',
-    text:`Высокое Будущее (${avgF.toFixed(1)}/15): риск игнорирования текущих проблем и выгорания.`});
+  const ztpiVals = { pn: avgPN, pp: avgPP, nf: avgNF, f: avgF };
+  ['pn','pp','nf','f'].forEach(k => {
+    const e = evalScale(k, ztpiVals[k]);
+    if (e && e.status !== 'НОРМА' && e.status !== 'не оценивается')
+      interp.push({ level: e.status, color: STATUS_COLOR[e.status] || '#2D6A4F', text: e.text });
+  });
 
   if (avgPN > 9 && avgF < 7) interp.push({level:'КРИТИЧНО', color:'#C8432A',
     text:'Команда застряла в прошлом и не видит будущего. Стратегические инициативы встретят сильное сопротивление.'});
-
-  if (avgNF > 9) interp.push({level:'РИСК', color:'#E07B2A',
-    text:`Высокое NF (${avgNF.toFixed(1)}/15): значительная часть команды чувствует себя жертвой обстоятельств.`});
 
   if (avgPP > 10 && avgF > 9) interp.push({level:'РЕСУРС', color:'#2D6A4F',
     text:'Высокий PP + высокое F: команда опирается на позитивный опыт и ориентирована на будущее — оптимальный профиль.'});
@@ -1292,14 +1387,19 @@ function computeZones() {
   const dominantPct = dominantType[1]/n*100;
   const missingTypes = ['Аналитик','Стратег','Критик','Драматург'].filter(t=>!types[t]);
 
-  // РИСКИ
+  // Оценка всех шкал одним проходом — её же использует сводная таблица.
+  const scales = scaleValues();
+  const evals = SCALE_ORDER.map(k => evalScale(k, scales[k]));
+
+  // РИСКИ: структурные правила плюс всё, что шкалы оценили как РИСК или
+  // КРИТИЧНО. Раньше шкалы перечислялись здесь вручную и список разъехался
+  // с таблицей: Резонанс получал в таблице «РИСК», а в зоны не попадал вовсе.
   const risks = [];
   if (pct1 > 40) risks.push(`<b>Культурный риск (критический):</b> ${Math.round(pct1)}% команды на уровне 1 — автоматические реакции определяют культуру`);
   if (dominantPct > 60) risks.push(`<b>Нарративная монокультура:</b> ${dominantType[0]} составляет ${Math.round(dominantPct)}% — системная слепота к другим способам интерпретации`);
-  if (avgPN > 10) risks.push(`<b>Высокий командный PN (${avgPN.toFixed(1)}/15):</b> прошлые неудачи управляют текущими решениями`);
-  if (avgPN > 9 && avgF < 7) risks.push(`<b>Временна́я ловушка:</b> высокий PN + низкое F — команда застряла в прошлом без образа будущего`);
   if (missingTypes.length > 0) risks.push(`<b>Слепые зоны:</b> типы ${missingTypes.join(', ')} отсутствуют — эти способы интерпретации системно выключены`);
-  if (avgAuthorship < 35) risks.push(`<b>Низкое Авторство (${avgAuthorship.toFixed(0)}%):</b> команда не чувствует возможности влиять — изменения встретят пассивное сопротивление`);
+  evals.filter(e => e.status === 'РИСК' || e.status === 'КРИТИЧНО').forEach(e => risks.push(boldLead(e.text)));
+  if (avgPN > 9 && avgF < 7) risks.push(`<b>Временна́я ловушка:</b> высокий PN + низкое F — команда застряла в прошлом без образа будущего`);
   if (risks.length === 0) risks.push('✅ Явных зон риска не выявлено');
 
   // КОНФЛИКТЫ
@@ -1310,6 +1410,10 @@ function computeZones() {
     'Аналитик':  { risk: '«паралич анализа» — разбор бесконечно ветвится, до действия не доходит', healthy: 'останавливается на «уже достаточно понял» и делает шаг' },
   };
   const conflicts = [];
+  // Пары, по которым конфликт действительно сработал. Слово «напряжённая»
+  // в блоках здорового режима раньше стояло всегда, даже когда раздел
+  // «Зоны конфликтов» сообщал, что острых конфликтов не выявлено.
+  const tensePairs = new Set();
   const criticCount = (types['Критик']||0);
   const dramaturgCount = (types['Драматург']||0);
   const strategCount = (types['Стратег']||0);
@@ -1323,11 +1427,13 @@ function computeZones() {
   const analyticHealthy = DATA.filter(r=>r.type==='Аналитик'&&r.level>=3);
 
   if (criticsLvl1.length > 0 && dramaturgLvl1.length > 0)
+    tensePairs.add('Критик+Драматург'),
     conflicts.push(`<b>Критик (ур.1) + Драматург (ур.1):</b> конфликт «правда vs гармония» — ${criticsLvl1.length} на ${dramaturgLvl1.length} чел. ` +
       `Оба признака дисфункции: Критик — ${DYSFUNCTION_INFO['Критик'].risk}; Драматург — ${DYSFUNCTION_INFO['Драматург'].risk}.`);
   if (criticCount >= 2 && dominantType[0]==='Критик')
     conflicts.push(`<b>Несколько Критиков:</b> конкурирующие нарративы «правильного» — может создавать атмосферу взаимной критики`);
   if (strategCount > 0 && analyticCount > 0 && strategLvl1.length > 0)
+    tensePairs.add('Стратег+Аналитик'),
     conflicts.push(`<b>Стратег (ур.1) + Аналитик:</b> конфликт скорости и качества — Стратег давит на действие, Аналитик тормозит. ` +
       `Признак дисфункции Стратега: ${DYSFUNCTION_INFO['Стратег'].risk}.`);
   if (avgPN > 8 && avgAuthorship < 40)
@@ -1336,34 +1442,56 @@ function computeZones() {
 
   // РЕСУРСЫ
   const resources = [];
+
+  // Мультипликаторы. Когда зрелых больше половины команды, признак «ур.3–4»
+  // перестаёт различать людей и отмечает всех — в этом случае оставляем
+  // только уровень 4 (если он есть).
   const lvl34 = DATA.filter(r=>r.level>=3);
-  if (lvl34.length > 0)
-    resources.push(`<b>Зрелые участники (ур.3–4):</b> ${lvl34.map(r=>r.name||r.email).join(', ')} — потенциальные мультипликаторы развития`);
-  const highComp = ['awareness','authorship','resonance','reframing','embodiment']
-    .map((k,i) => ({name:COMP_NAMES[i], val:avg(DATA,k)}))
-    .filter(c => c.val > 60);
-  if (highComp.length > 0)
-    resources.push(`<b>Сильные компетенции:</b> ${highComp.map(c=>c.name+' '+c.val.toFixed(0)+'%').join(', ')} — точка входа в программу развития`);
-  if (avgPP > 9) resources.push(`<b>Высокий PP (${avgPP.toFixed(1)}/15):</b> позитивный прошлый опыт — используйте как «якоря успеха» при запуске изменений`);
+  const lvl4  = DATA.filter(r=>r.level===4);
+  const narrowed = (n > 0 && lvl34.length / n > 0.5 && lvl4.length > 0);
+  const multipliers = narrowed ? lvl4 : lvl34;
+  if (multipliers.length > 0)
+    resources.push(`<b>Зрелые участники (${narrowed ? 'ур.4' : 'ур.3–4'}):</b> ${multipliers.map(r=>r.name||r.email).join(', ')} — потенциальные мультипликаторы развития`);
+
+  // Сильные компетенции и высокий PP — из тех же шкал, а не отдельными порогами.
+  const strongComps = evals.filter(e => COMP_SCALE_KEYS.includes(e.key) && e.status === 'РЕСУРС');
+  if (strongComps.length > 0)
+    resources.push(`<b>Сильные компетенции:</b> ${strongComps.map(e => e.label + ' ' + e.value).join(', ')} — точка входа в программу развития`);
+  const ppEval = evals.find(e => e.key === 'pp');
+  if (ppEval && ppEval.status === 'РЕСУРС')
+    resources.push(`<b>Высокий PP (${ppEval.value}):</b> позитивный прошлый опыт — используйте как «якоря успеха» при запуске изменений`);
+
   const underrep = Object.entries(types).filter(([t,c]) => c===1).map(([t]) => t);
   if (underrep.length > 0)
     resources.push(`<b>Редкие типы (1 чел.):</b> ${underrep.join(', ')} — недоиспользованный ресурс, нужно создать пространство для их голоса`);
-  if (criticsHealthy.length > 0 && (dramaturgCount > 0))
-    resources.push(`<b>Здоровый режим в паре Критик+Драматург:</b> ${criticsHealthy.map(r=>r.name||r.email).join(', ')} ` +
-      `— ${DYSFUNCTION_INFO['Критик'].healthy}; использовать как медиатора именно в этой напряжённой паре`);
-  if (dramaturgHealthy.length > 0 && (criticCount > 0))
-    resources.push(`<b>Здоровый режим в паре Критик+Драматург:</b> ${dramaturgHealthy.map(r=>r.name||r.email).join(', ')} ` +
-      `— ${DYSFUNCTION_INFO['Драматург'].healthy}; использовать как медиатора именно в этой напряжённой паре`);
-  if (strategHealthy.length > 0 && (analyticCount > 0))
-    resources.push(`<b>Здоровый режим в паре Стратег+Аналитик:</b> ${strategHealthy.map(r=>r.name||r.email).join(', ')} ` +
-      `— ${DYSFUNCTION_INFO['Стратег'].healthy}; использовать как медиатора именно в этой напряжённой паре`);
-  if (analyticHealthy.length > 0 && (strategCount > 0))
-    resources.push(`<b>Здоровый режим в паре Стратег+Аналитик:</b> ${analyticHealthy.map(r=>r.name||r.email).join(', ')} ` +
-      `— ${DYSFUNCTION_INFO['Аналитик'].healthy}; использовать как медиатора именно в этой напряжённой паре`);
+
+  // Здоровый режим. Раньше два блока одной пары шли с ОДИНАКОВЫМ заголовком и
+  // различались только хвостом, а в промпт уходили плоскими строками — модель
+  // приписывала признак Аналитика большинству, то есть Стратегам. Теперь тип
+  // назван в самом заголовке, а рядом собирается структура для промпта.
+  const healthy_modes = [];
+  [['Критик','Драматург'], ['Стратег','Аналитик']].forEach(([a, b]) => {
+    if (!(types[a]||0) || !(types[b]||0)) return;   // пара есть только если есть оба типа
+    const pair = a + '+' + b;
+    const tense = tensePairs.has(pair);
+    const entry = { pair, tense, by_type: {} };
+    [a, b].forEach(t => {
+      const members = DATA.filter(r => r.type === t && r.level >= 3);
+      if (!members.length) return;
+      entry.by_type[t] = { count: members.length, healthy_sign: DYSFUNCTION_INFO[t].healthy };
+      resources.push(`<b>Здоровый режим: ${t} в паре ${pair}:</b> ${members.map(r=>r.name||r.email).join(', ')} ` +
+        `— ${DYSFUNCTION_INFO[t].healthy}; использовать как медиатора` +
+        (tense ? ' именно в этой напряжённой паре' : ' в этой паре'));
+    });
+    if (Object.keys(entry.by_type).length) healthy_modes.push(entry);
+  });
+
   if (resources.length === 0) resources.push('Анализируется — недостаточно данных');
 
   return { n, types, lvls, avgPN, avgPP, avgF, avgAwareness, avgAuthorship, avgResonance,
-    pct1, dominantType, dominantPct, missingTypes, risks, conflicts, resources };
+    pct1, dominantType, dominantPct, missingTypes, risks, conflicts, resources,
+    evals, scales, healthy_modes,
+    multipliers: { level: narrowed ? 4 : 3, count: multipliers.length } };
 }
 
 // ── ЗОНЫ: ОТРИСОВКА ГРАФИКА (использует те же данные, что и текстовый отчёт) ──
@@ -1386,10 +1514,11 @@ function renderZones() {
         ${[
           ['Доля уровня 1',Math.round(pct1)+'%','<30%', pct1>40?'КРИТИЧНО':pct1>30?'ВНИМАНИЕ':'НОРМА', pct1>40?'badge-1':pct1>30?'badge-2':'badge-3'],
           ['Доминирующий тип',dominantType[0]+' '+Math.round(dominantPct)+'%','<50%', dominantPct>60?'РИСК':dominantPct>50?'ВНИМАНИЕ':'НОРМА', dominantPct>60?'badge-1':dominantPct>50?'badge-2':'badge-3'],
-          ['Командный PN',avgPN.toFixed(1)+'/15','<8', avgPN>10?'КРИТИЧНО':avgPN>8?'ВНИМАНИЕ':'НОРМА', avgPN>10?'badge-1':avgPN>8?'badge-2':'badge-3'],
-          ['Командный F',avgF.toFixed(1)+'/15','>8', avgF<6?'РИСК':avgF<8?'ВНИМАНИЕ':'НОРМА', avgF<6?'badge-1':avgF<8?'badge-2':'badge-3'],
-          ['Авторство (ср.)',avgAuthorship.toFixed(0)+'%','>50%', avgAuthorship<35?'РИСК':avgAuthorship<50?'ВНИМАНИЕ':'НОРМА', avgAuthorship<35?'badge-1':avgAuthorship<50?'badge-2':'badge-3'],
-          ['Резонанс (ср.)',avgResonance.toFixed(0)+'%','>50%', avgResonance<35?'РИСК':avgResonance<50?'ВНИМАНИЕ':'НОРМА', avgResonance<35?'badge-1':avgResonance<50?'badge-2':'badge-3'],
+          // Шкалы и компетенции — из единых SCALES. Пороги больше не дублируются
+          // здесь тернарниками, поэтому таблица не может разойтись со страницей
+          // шкал и с зонами риска; заодно оцениваются все пять компетенций,
+          // а не только Авторство и Резонанс.
+          ...z.evals.map(e => [e.label, e.value, e.norm, e.status, STATUS_BADGE[e.status] || 'badge-2']),
           ['Типы отсутствуют',missingTypes.length||'нет','0', missingTypes.length>1?'РИСК':missingTypes.length>0?'ВНИМАНИЕ':'НОРМА', missingTypes.length>1?'badge-1':missingTypes.length>0?'badge-2':'badge-3'],
         ].map(([ind,val,norm,status,cls]) => `<tr>
           <td>${ind}</td><td><strong>${val}</strong></td><td style="color:var(--ink-faint)">${norm}</td>
@@ -1625,6 +1754,18 @@ async function generateDeepNarrative() {
       avgPN: z.avgPN, avgPP: z.avgPP, avgF: z.avgF,
       avgAwareness: z.avgAwareness, avgAuthorship: z.avgAuthorship, avgResonance: z.avgResonance,
       avgReframing: avg(DATA, 'reframing'), avgEmbodiment: avg(DATA, 'embodiment'),
+      // Русские названия компетенций и шкал: по ключу avgReframing модель
+      // называла компетенцию «Рефрейминг», хотя во всём отчёте она
+      // «Переосмысление».
+      competencies: Object.fromEntries(COMP_SCALE_KEYS.map(k => [SCALES[k].label, Math.round(z.scales[k])])),
+      ztpi: { 'Прошлое-негативное (PN)': +z.scales.pn.toFixed(1), 'Прошлое-позитивное (PP)': +z.scales.pp.toFixed(1),
+              'Настоящее-фаталистическое (NF)': +z.scales.nf.toFixed(1), 'Настоящее-гедонистическое (NH)': +z.scales.nh.toFixed(1),
+              'Будущее (F)': +z.scales.f.toFixed(1) },
+      // Статусы ровно те же, что видит фасилитатор в сводной таблице.
+      scale_status: z.evals.map(e => ({ scale: e.label, value: e.value, norm: e.norm, status: e.status })),
+      // Здоровый режим с разбивкой по типам: какой признак у кого.
+      healthy_modes: z.healthy_modes,
+      multipliers: z.multipliers,
       dominantType: z.dominantType, dominantPct: z.dominantPct, missingTypes: z.missingTypes,
       risks: z.risks.map(stripTags), conflicts: z.conflicts.map(stripTags), resources: z.resources.map(stripTags),
     };
