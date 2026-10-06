@@ -1536,12 +1536,31 @@ function restoreShortNarrative() {
   document.getElementById('narrative-mode-label').textContent = 'Краткое описание';
 }
 
+// Инструмент, открытый как файл с диска, до сервера не достучится: origin
+// 'null' убран из CORS намеренно, а localStorage для file:// часто закрыт —
+// ключ в таком режиме не переживает даже перезагрузку вкладки.
+const TOOL_WEB_URL = 'https://adin-dotcom.github.io/adin-v2-dashboard/ADIN_Team_Dashboard_v21.html';
+
+// Не только file://: локально открытая страница может получить и data:-origin.
+// Проверяем по существу — запрос к серверу возможен только с http(s).
+const openedOffline = () => !/^https?:$/.test(location.protocol);
+
 function openDashboardKeySettings() {
   const current = getDashboardKey() || '';
-  const warning = storageOk() ? '' : '\n\n⚠️ Постоянное хранение недоступно в этом браузере для локально открытого файла — ключ будет действовать только до закрытия вкладки.';
+  const warning = openedOffline()
+    ? '\n\n⚠️ Инструмент открыт как файл с диска: ключ не сохранится, а запрос к серверу заблокирует браузер. Откройте инструмент по адресу\n' + TOOL_WEB_URL
+    : (storageOk() ? '' : '\n\n⚠️ Постоянное хранение в этом браузере недоступно — ключ будет действовать только до закрытия вкладки.');
   const value = prompt('Ключ доступа к глубокому AI-описанию (спросите у администратора):' + warning, current);
   if (value === null) return;
-  setDashboardKey(value.trim() === '' ? null : value.trim());
+
+  const saved = value.trim();
+  setDashboardKey(saved || null);
+  // Подтверждение: без него не видно, попал ли ключ из буфера в поле вообще.
+  // Показываем длину, а не сам ключ — чтобы он не оставался на экране.
+  if (!saved) { alert('Ключ удалён.'); return; }
+  alert(storageOk()
+    ? 'Ключ сохранён в этом браузере — ' + saved.length + ' символов. Вводить заново не придётся.'
+    : 'Ключ принят (' + saved.length + ' символов), но сохранить его не удалось — он будет действовать только до закрытия вкладки.');
 }
 
 // ── ГЛУБОКОЕ (AI) ОПИСАНИЕ ─────────────────────────────────────────────────────
@@ -1557,8 +1576,15 @@ async function generateDeepNarrative() {
   const btn = document.getElementById('ai-narrative-btn');
 
   if (!key) {
+    // Причины разные, и действие тоже разное: ввести ключ или вообще открыть
+    // инструмент по-другому. Прежний текст предлагал нажать ⚙ и в том случае,
+    // когда это заведомо не помогло бы.
+    const why = openedOffline()
+      ? 'Инструмент открыт как файл с диска — в этом режиме ключ не сохраняется, а запрос к серверу блокирует браузер. Откройте инструмент по адресу: ' +
+        `<a href="${TOOL_WEB_URL}" style="color:inherit">${TOOL_WEB_URL}</a>`
+      : 'Не задан ключ доступа — нажмите ⚙ и введите ключ, чтобы использовать AI-описание.';
     statusEl.style.display = 'block';
-    statusEl.innerHTML = '<div class="zone zone-risk"><div class="zone-items">⚠️ Не задан ключ доступа — нажмите ⚙ и введите ключ, чтобы использовать AI-описание.</div></div>';
+    statusEl.innerHTML = `<div class="zone zone-risk"><div class="zone-items">⚠️ ${why}</div></div>`;
     return;
   }
   if (!DATA || DATA.length === 0) return;
