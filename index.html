@@ -2618,6 +2618,15 @@ async function downloadPersonalNarrativePdf(id, btn) {
   finally { btn.disabled = false; btn.textContent = '📄 Скачать PDF'; }
 }
 
+// Список показывает одно, последнее прохождение участника; о прочих — пометка.
+function pnExtraRuns(n) {
+  if (!n) return '';
+  const m10 = n % 10, m100 = n % 100;
+  const w = m10 === 1 && m100 !== 11 ? 'прохождение'
+    : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? 'прохождения' : 'прохождений';
+  return `<br><span style="font-size:11px;color:var(--ink-faint)">ещё ${n} ${w}</span>`;
+}
+
 async function loadPNProfiles() {
   $('pn-profiles-table').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px"><div class="spinner"></div></td></tr>';
 
@@ -2644,7 +2653,7 @@ async function loadPNProfiles() {
   }
 
   $('pn-profiles-table').innerHTML = rows.map(r => `<tr style="cursor:pointer" onclick="showPNProfileDetail(${r.invitation_id})">
-    ${(function(){ const t = pTitle(r, 'Приглашение #' + r.invitation_id); return `<td><strong>${t}</strong><br><span style="font-size:11px;color:var(--ink-faint)">${emailSub(r, t)}</span></td>`; })()}
+    ${(function(){ const t = pTitle(r, 'Приглашение #' + r.invitation_id); return `<td><strong>${t}</strong><br><span style="font-size:11px;color:var(--ink-faint)">${emailSub(r, t)}</span>${pnExtraRuns(r.extra_runs)}</td>`; })()}
     <td>${fmt(r.group_name)}</td>
     <td>${fmt(r.psychotype)}</td>
     <td>${fmt(r.energy_type)}</td>
