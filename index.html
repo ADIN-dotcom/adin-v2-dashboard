@@ -2872,8 +2872,43 @@ const PN_LABELS = {
       { field: 'dream_obstacle', question: 'Чем объясняется разница между компанией мечты и компанией сейчас' },
       { field: 'agency_change', question: 'Какое из изменений могли бы начать в своей зоне ответственности в ближайший месяц' }
     ]
+  },
+  // Гибридная версия анкеты (societe-hybrid-2026-10): подписи — тексты формы.
+  // Смысл вопросов 5, 6, 11 другой, чем у прежних, поэтому и ключи другие.
+  societe_hybrid: {
+    groups: [
+      { question: 'В четырёх словах: какой вы хотели бы видеть компанию', fields: ['dream_word_1','dream_word_2','dream_word_3','dream_word_4'] },
+      { question: 'Компании, близкие к компании мечты, и почему', fields: ['benchmark_1','benchmark_2','benchmark_3'] },
+      { question: 'Качества, которые ценит в коллегах и в отношениях с ними', fields: ['colleague_q_1','colleague_q_2','colleague_q_3','colleague_q_4'] },
+      { question: 'Условия максимальной результативности (по приоритету)', fields: ['condition_1','condition_2','condition_3'] },
+      { question: 'Наиболее эффективная форма управления персоналом', fields: ['mgmt_form_1','mgmt_form_2','mgmt_form_3'] },
+      { question: 'Как руководитель: какие его качества подчинённые должны ценить', fields: ['leader_valued_1','leader_valued_2','leader_valued_3','leader_valued_4'] },
+      { question: 'Важные роли руководителя компании', fields: ['ceo_role_1','ceo_role_2','ceo_role_3'] },
+      { question: 'Ценные личные качества руководителя компании', fields: ['ceo_quality_1','ceo_quality_2','ceo_quality_3'] },
+      { question: 'В 3–4 словах: какая компания сейчас', fields: ['now_word_1','now_word_2','now_word_3','now_word_4'] },
+      { question: 'Решения, которые нужно принять, чтобы компания стала компанией мечты', fields: ['decision_needed_1','decision_needed_2','decision_needed_3'] },
+      { question: 'Что должно измениться в первую очередь', fields: ['change_1','change_2','change_3','change_4','change_5'] },
+      { question: 'Что ожидает от подчинённых или членов команды', fields: ['expect_sub_1','expect_sub_2','expect_sub_3','expect_sub_4'] }
+    ],
+    single: [
+      { field: 'dream_obstacle', question: 'Чем объясняется разница между компанией мечты и компанией сейчас' },
+      { field: 'agency_change', question: 'Какое из изменений мог бы начать в своей зоне ответственности в ближайший месяц, и с чего' }
+    ]
   }
 };
+
+// Версия анкеты SOCIETE — то же правило, что в бэкенде (services/societeForm.js):
+// решают ключи ответов, метка формы — только если ключи молчат.
+const SOC_HYBRID = 'societe-hybrid-2026-10';
+function socFormVersion(raw) {
+  if (typeof raw === 'string') { try { raw = JSON.parse(raw); } catch (e) { return null; } }
+  if (!raw) return null;
+  const keys = Object.keys(raw);
+  const hyb = keys.some(k => /^(mgmt_form|leader_valued|ceo_quality|decision_needed)_/.test(k));
+  const v1 = keys.some(k => /^(mgmt_style|leader_q|decision)_\d+$/.test(k));
+  if (hyb !== v1) return hyb ? SOC_HYBRID : 'societe-online-v1';
+  return raw.form_version === SOC_HYBRID ? SOC_HYBRID : 'societe-online-v1';
+}
 
 function pnAnswersHtml(raw, type) {
   if (!raw) return '';
@@ -2911,7 +2946,7 @@ function pnAnswersHtml(raw, type) {
 // Две карточки с дословными ответами анкет PN; пустая анкета — без карточки.
 function pnAnswersCards(d) {
   var q = pnAnswersHtml(d.raw_questionnaire, 'questionnaire');
-  var so = pnAnswersHtml(d.raw_societe, 'societe');
+  var so = pnAnswersHtml(d.raw_societe, socFormVersion(d.raw_societe) === SOC_HYBRID ? 'societe_hybrid' : 'societe');
   return (q ? '<div class="card pn-answers"><div class="card-title">Заполненная анкета — о себе</div>' + q + '</div>' : '') +
          (so ? '<div class="card pn-answers"><div class="card-title">Заполненная анкета — о компании</div>' + so + '</div>' : '');
 }
@@ -3559,7 +3594,7 @@ async function loadSociete() {
           <th>Участник</th><th>Хочет</th><th>Видит</th><th>Разрыв</th><th>Причина</th><th>Агентность</th><th>Дата</th><th></th>
         </tr></thead>
         <tbody>${d.map(r => `<tr>
-          <td><strong>${socEsc(socName(r))}</strong><br><span style="font-size:11px;color:var(--ink-faint)">${socEsc(r.group_name || r.company || '')}</span></td>
+          <td><strong>${socEsc(socName(r))}</strong><br><span style="font-size:11px;color:var(--ink-faint)">${socEsc(r.group_name || r.company || '')} · ${socFormVersion(r.answers) === SOC_HYBRID ? 'гибридная анкета' : 'прежняя анкета'}</span></td>
           <td style="color:var(--accent);font-weight:500">${r.dream_type || '—'}</td>
           <td style="font-weight:500">${r.reality_type || '—'}</td>
           <td style="color:${SOC_LEVEL_COLOR[r.gap_level]||'inherit'};font-weight:500">${r.gap_level || '—'}</td>
@@ -3612,6 +3647,8 @@ async function showSocieteDetail(id) {
       ${socBlock('Изменения · ' + socEsc(r.change_focus), `<div style="font-size:13px;color:var(--ink-soft);line-height:1.6">${socEsc(a.changes_summary)}</div>`)}
       ${socBlock('Агентность · ' + socChip(r.agency, true), `<div style="font-size:13px;color:var(--ink-soft);line-height:1.6">${socEsc(a.agency_notes)}</div>`)}
       ${(a.positive_signals || []).length ? socBlock('Что уже работает', li(a.positive_signals)) : ''}
+      ${a.decisions_needed_summary ? socBlock('Решения, которые нужно принять', `<div style="font-size:13px;color:var(--ink-soft);line-height:1.6">${socEsc(a.decisions_needed_summary)}</div>`) : ''}
+      ${a.leader_self_image ? socBlock('Как руководитель хочет, чтобы его ценили', `<div style="font-size:13px;color:var(--ink-soft);line-height:1.6">${socEsc(a.leader_self_image)}</div>`) : ''}
       ${(a.key_quotes || []).length ? socBlock('Ключевые цитаты', (a.key_quotes || []).map(q => `<div style="font-style:italic;color:var(--ink-soft);padding-left:12px;border-left:2px solid var(--border);margin-bottom:6px">«${socEsc(q)}»</div>`).join('')) : ''}
       ${(a.red_flags || []).length ? socBlock('Красные флаги', (a.red_flags || []).map(f => `<div style="padding:8px 12px;background:var(--danger-subtle);border-left:2px solid var(--red);border-radius:4px;font-size:13px;margin-bottom:6px"><strong>${socEsc(f.title)}</strong><br>${socEsc(f.description)}</div>`).join('')) : ''}
       ${(a.recommendations || []).length ? socBlock('Рекомендации', li(a.recommendations)) : ''}
