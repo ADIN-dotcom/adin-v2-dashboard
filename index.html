@@ -1136,7 +1136,7 @@ function nav(page) {
   if (el) el.classList.add('active');
   if (page === 'home') loadHome();
   if (page === 'groups') loadGroups();
-  if (page === 'participants') loadParticipants(1);
+  if (page === 'participants') { loadGroupsFilter(); loadParticipants(1); }
   if (page === 'ni-analytics') { loadNIGroupFilter(); loadNIAnalytics(); }
   if (page === 'pn-profiles') loadPNProfiles();
   if (page === 'personal-narrative') loadPersonalNarrativeList();
@@ -1384,8 +1384,14 @@ async function loadParticipants(page) {
   $('p-pagination').innerHTML = pg;
 }
 
+// Списки групп в фильтрах и формах. Вызывается не только при входе, но и при
+// заходе на вкладку «Участники»: если при входе запрос не прошёл (сеть) или
+// группу создали позже, в фильтре оставалась одна строка «Все группы», и
+// выбрать было нечего до перезахода.
 async function loadGroupsFilter() {
-  const d = await api('/v2/groups'); if (!d) return;
+  const d = await api('/v2/groups');
+  // Ошибка или неожиданный ответ — оставляем уже загруженные списки как есть.
+  if (!Array.isArray(d)) return;
   const opts = d.map(g => '<option value="' + g.id + '">' + g.name + '</option>').join('');
   const allGroups = '<option value="">Все группы</option>';
   const noGroup = '<option value="">Без группы</option>';
@@ -1401,7 +1407,9 @@ async function loadGroupsFilter() {
   };
   Object.entries(map).forEach(([id, blank]) => {
     const el = $(id); if (!el) return;
+    const prev = el.value; // список перезаполняется — возвращаем выбор пользователя
     el.innerHTML = blank + opts;
+    if (prev && Array.from(el.options).some(o => o.value === prev)) el.value = prev;
   });
 }
 
