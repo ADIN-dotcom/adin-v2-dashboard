@@ -644,6 +644,7 @@ td>.btn+.btn{margin-left:4px}
           </div>
         </div>
         <div id="ss-coverage"></div>
+        <div id="ss-history"></div>
         <div id="ss-params"></div>
         <div id="ss-subgroups"></div>
         <div id="ss-result"></div>
@@ -3935,6 +3936,7 @@ function ssRenderSaved(list) {
     return `<option value="${s.id}">№${s.id} · ${ssDate(s.updated_at)} · цель ${ssEsc(g ? g.letter : '—')}</option>`;
   }).join('');
   sel.style.display = Array.isArray(list) && list.length ? '' : 'none';
+  ssRenderHistory(list);
 }
 
 // ── 1. Покрытие тестов ──
@@ -4116,10 +4118,10 @@ function ssScenarioHTML(v, subgroups) {
     ? `<div class="ss-slot"><div class="t">${ssEsc(a.time)}</div><div class="ss-blk brk">${ssEsc(a.title)}</div></div>`
     : `<div class="ss-slot"><div class="t">${ssEsc(a.time)}</div><div class="ss-blk" data-st="${ssEsc(a.stage)}">
         <div class="ss-row" style="justify-content:space-between"><b>${ssEsc(a.title)}</b><span>${a.core === false ? '<span class="ss-chip">модуль</span>' : ''}${a.canvas ? `<span class="ss-chip">${ssEsc(a.canvas)}</span>` : ''}<span class="ss-chip">${ssEsc(SS_STAGE[a.stage] || a.stage)}</span></span></div>
-        ${a.activity ? `<div class="bq">${ssEsc(a.activity)}</div>` : ''}${a.format ? `<div class="ss-small ss-muted">${ssEsc(a.format)}</div>` : ''}
+        ${a.edited ? '<div><span class="ss-chip">правка фасилитатора</span></div>' : ''}${a.activity ? `<div class="bq">${ssEsc(a.activity)}</div>` : ''}${a.format ? `<div class="ss-small ss-muted">${ssEsc(a.format)}</div>` : ''}
         ${a.note ? `<div class="ss-small">${ssEsc(a.note)}</div>` : ''}${a.corr ? `<div class="ss-small"><span class="ss-muted">Коррекция по типу:</span> ${ssEsc(a.corr)}</div>` : ''}
         ${a.data ? `<div class="ss-small"><span class="ss-muted">Данные группы:</span> ${ssEsc(a.data)}</div>` : ''}${a.adapt ? `<div class="ss-small"><span class="ss-muted">Адаптация по данным:</span> ${ssEsc(a.adapt)}</div>` : ''}
-        ${a.output ? `<div class="ss-small"><span class="ss-muted">Результат:</span> ${ssEsc(a.output)}</div>` : ''}${a.rationale ? `<div class="why"><b>Почему так:</b> ${ssEsc(a.rationale)}${ssRulesTag(a.rules)}</div>` : ''}</div></div>`).join('')}</div>`).join('');
+        ${a.output ? `<div class="ss-small"><span class="ss-muted">Результат:</span> ${ssEsc(a.output)}</div>` : ''}${a.rationale ? `<div class="why"><b>Почему так:</b> ${ssEsc(a.rationale)}${ssRulesTag(a.rules)}</div>` : ''}${ssEditHTML(a)}</div></div>`).join('')}</div>`).join('');
   const grp = subgroups ? `<div class="card" style="margin-top:16px"><div class="card-title">Подгруппы для упражнений · ${ssEsc(subgroups.mode_label.toLowerCase())} разбивка
       <button class="btn btn-sm btn-ghost" onclick="ssBuild(true)">Другой вариант</button></div>
     <p class="ss-small ss-muted">${ssEsc(subgroups.mode_stage)}. Разброс среднего балла НИ между группами: ${subgroups.spread}. Группы объявляются по кодам: участник находит себя по коду из приглашения.</p>
@@ -4223,11 +4225,11 @@ function ssTextScenarioHTML(v) {
     const head = !stageHead[a.stage] && sc.stages && sc.stages[a.stage] ? (stageHead[a.stage] = true, `<div class="ss-slot"><div class="t"></div><div class="ss-small" style="padding:4px 0"><b>${ssEsc(SS_STAGE[a.stage])}.</b> ${ssEsc(sc.stages[a.stage].rationale)}</div></div>`) : '';
     return head + `<div class="ss-slot"><div class="t">${ssEsc(a.time)}</div><div class="ss-blk" data-st="${ssEsc(a.stage)}">
       <div class="ss-row" style="justify-content:space-between"><b>${ssEsc(a.title)}</b><span>${a.core === false ? '<span class="ss-chip">модуль</span>' : ''}${/^X-/.test(a.code) ? '<span class="ss-chip">новый блок</span>' : ''}${a.minutes_changed ? `<span class="ss-chip">${a.minutes} мин, изменено</span>` : ''}${a.canvas ? `<span class="ss-chip">${ssEsc(a.canvas)}</span>` : ''}<span class="ss-chip">${ssEsc(SS_STAGE[a.stage] || a.stage)}</span></span></div>
-      ${a.question ? `<div class="bq">${ssEsc(a.question)}</div>` : ''}
+      ${a.edited ? '<div><span class="ss-chip">правка фасилитатора</span></div>' : ''}${a.question ? `<div class="bq">${ssEsc(a.question)}</div>` : ''}
       ${a.how ? `<div><span class="ss-muted">Как ведём:</span> ${ssEsc(a.how)}</div>` : ''}
       ${fac && a.facilitator_notes ? `<div style="background:var(--warning-subtle);border-radius:4px;padding:6px 8px"><span class="ss-muted">Фасилитатору:</span> ${ssEsc(a.facilitator_notes)}</div>` : ''}
       ${a.output ? `<div><span class="ss-muted">Результат:</span> ${ssEsc(a.output)}</div>` : ''}
-      ${a.rationale ? `<div class="why"><b>Почему так:</b> ${ssEsc(a.rationale)}${ssRulesTag(a.rules)}</div>` : ''}</div></div>`; }).join('')}</div>`).join('');
+      ${a.rationale ? `<div class="why"><b>Почему так:</b> ${ssEsc(a.rationale)}${ssRulesTag(a.rules)}</div>` : ''}${ssEditHTML(a)}</div></div>`; }).join('')}</div>`).join('');
   return `${sm.title ? `<p><b>${ssEsc(sm.title)}</b></p>` : ''}${sm.summary ? `<p>${ssEsc(sm.summary)}</p>` : ''}
     ${sm.entry_point ? `<div style="margin:12px 0"><div class="ss-small ss-muted">Точка входа</div>${ssEsc(sm.entry_point.text)}<div class="ss-small ss-muted">${ssEsc(sm.entry_point.rationale)}</div></div>` : ''}
     ${sc.total_ok === false ? '<div class="ss-warn">Сумма минут не совпала с форматом: расписание взято из каркаса.</div>' : ''}
@@ -4238,6 +4240,112 @@ function ssTextScenarioHTML(v) {
       <div><div class="card-title">После сессии</div>${ssList(sm.after, q => `<li>${ssEsc(q)}</li>`)}</div>
     </div>`;
 }
+
+// ── Сохранённые сессии, PDF, копия и ручные правки ──
+const SS_GOAL_LETTER = id => { const g = SS.meta && SS.meta.goals.find(x => x.id === id); return g ? g.letter : '—'; };
+const SS_SC_STATUS = { done: 'с обоснованием', needs_review: 'с обоснованием · проверить', running: 'генерация идёт', failed: 'генерация с ошибкой' };
+
+function ssRenderHistory(list) {
+  const box = $('ss-history'); if (!box) return;
+  if (!Array.isArray(list) || !list.length) { box.innerHTML = ''; return; }
+  box.innerHTML = `<div class="card"><div class="card-title">Сохранённые сессии</div><div class="tbl-wrap"><table>
+    <thead><tr><th>№</th><th>Изменена</th><th>Цель</th><th>Формат</th><th>Статус</th><th></th></tr></thead>
+    <tbody>${list.map(s => `<tr>
+      <td class="ss-mono">${s.id}${s.copied_from ? ` <span class="ss-small ss-muted">копия №${s.copied_from}</span>` : ''}</td>
+      <td>${ssDate(s.updated_at)}</td><td>${ssEsc(SS_GOAL_LETTER(s.goal))}</td><td>${ssEsc((SS.meta.formats || {})[s.format_used] || s.format_used || '—')}</td>
+      <td>${ssEsc(SS_SC_STATUS[s.scenario_status] || 'каркас')}${s.edited_blocks ? ` · правок: ${s.edited_blocks}` : ''}</td>
+      <td><div style="display:flex;flex-wrap:wrap;gap:4px;min-width:220px"><button class="btn btn-sm btn-ghost" onclick="ssOpen(${s.id})">Открыть</button>
+        <button class="btn btn-sm btn-ghost" onclick="ssPdf(${s.id},'facilitator')">PDF фасилитатору</button>
+        <button class="btn btn-sm btn-ghost" onclick="ssPdf(${s.id},'client')">PDF заказчику</button>
+        <button class="btn btn-sm btn-ghost" onclick="ssCopy(${s.id})">Копия для правки</button>
+        <button class="btn btn-sm btn-ghost" disabled title="${s.has_newer_data ? 'У группы есть анализ новее этой сессии; сравнение появится в следующей версии' : 'Нет нового анализа группы после даты сессии'}">Сравнить с исходными данными</button></div></td></tr>`).join('')}</tbody></table></div></div>`;
+}
+
+async function ssOpen(id) { $('ss-saved').value = String(id); await ssLoadSaved(); $('ss-result').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+
+async function ssPdf(id, audience, confirmed) {
+  toast('Готовим PDF…');
+  try {
+    const url = API + '/strategy-session/' + id + '/pdf?audience=' + audience + (confirmed ? '&confirm_review=1' : '');
+    const r = await fetch(url, { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+    if (r.status === 409) {
+      const e = await r.json().catch(() => ({}));
+      if (confirm('В сценарии есть части с пометкой «проверить» (' + (e.needs_review || []).join(', ') + '). Всё равно выпустить PDF для заказчика?')) return ssPdf(id, audience, true);
+      return;
+    }
+    if (!r.ok) { const e = await r.json().catch(() => ({})); toast('PDF не готов: ' + (e.error || r.status), true); return; }
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = filenameFromResponse(r, 'Сценарий_сессии_' + id + '.pdf'); a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (e) { toast('Ошибка соединения', true); }
+}
+
+async function ssCopy(id) {
+  const r = await api('/strategy-session/' + id + '/copy', { method: 'POST' });
+  if (!r || r.error) { toast('Копия не создана: ' + ((r && r.error) || 'ошибка'), true); return; }
+  toast('Создана копия №' + r.session_id);
+  const list = await api('/strategy-session/group/' + SS.groupId + '/sessions');
+  ssRenderSaved(list);
+  await ssOpen(r.session_id);
+}
+
+// Правка блока: вопрос, комментарий фасилитатору, минуты. Минуты меняются
+// только внутри этапа: разницу забирает или отдаёт другой блок того же этапа.
+const ssMin = time => { const [s, e] = String(time).split('–').map(t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; }); return e - s; };
+function ssCurrentAgenda() { const s = SS.session; return (SS.mode === 'text' && s.scenario && s.scenario.agenda) ? s.scenario.agenda : s.skeleton.agenda; }
+
+function ssEditHTML(a) {
+  if (SS.view === 'client' || !SS.session) return '';
+  if (SS.editing !== a.code) return `<button class="btn btn-sm btn-ghost" style="justify-self:start" onclick="SS.editing='${ssEsc(a.code)}';ssRenderResult()">✎ Править</button>`;
+  const ag = ssCurrentAgenda().filter(x => !x.brk);
+  const peers = ag.filter(x => x.stage === a.stage && x.code !== a.code);
+  const q = a.question != null ? a.question : a.activity;
+  return `<div style="display:grid;gap:8px;border:1px dashed var(--border);border-radius:6px;padding:10px">
+    <label class="ss-small ss-muted">Вопрос группе<textarea id="ss-ed-q" class="ss-sel" style="width:100%;min-height:60px">${ssEsc(q)}</textarea></label>
+    <label class="ss-small ss-muted">Комментарий фасилитатору<textarea id="ss-ed-n" class="ss-sel" style="width:100%;min-height:60px">${ssEsc(a.facilitator_notes || '')}</textarea></label>
+    <div class="ss-row"><label class="ss-small ss-muted">Минуты <input id="ss-ed-m" type="number" step="5" min="10" class="ss-sel" style="width:80px" value="${ssMin(a.time)}"></label>
+      <label class="ss-small ss-muted">разницу взять из блока <select id="ss-ed-peer" class="ss-sel">${peers.map(p => `<option value="${ssEsc(p.code)}">${ssEsc(p.code)} · ${ssMin(p.time)} мин</option>`).join('')}</select></label></div>
+    <div class="ss-row"><button class="btn btn-sm btn-primary-action" onclick="ssSaveEdit('${ssEsc(a.code)}')">Сохранить правку</button>
+      <button class="btn btn-sm btn-ghost" onclick="SS.editing=null;ssRenderResult()">Отмена</button>
+      ${(SS.session.edits && SS.session.edits.blocks && SS.session.edits.blocks[a.code]) ? `<button class="btn btn-sm btn-ghost-red" onclick="ssSaveEdit('${ssEsc(a.code)}',true)">Убрать правку</button>` : ''}</div></div>`;
+}
+
+async function ssSaveEdit(code, reset) {
+  const s = SS.session;
+  const edits = { blocks: { ...((s.edits && s.edits.blocks) || {}) } };
+  const ag = ssCurrentAgenda().filter(x => !x.brk);
+  const a = ag.find(x => x.code === code);
+  if (reset) {
+    // Минуты этапа уравновешены между блоками — сбрасываются все правки минут этапа.
+    delete edits.blocks[code];
+    for (const x of ag.filter(x => x.stage === a.stage)) {
+      const e = edits.blocks[x.code];
+      if (e) { delete e.minutes; if (!Object.keys(e).length) delete edits.blocks[x.code]; }
+    }
+  } else {
+    const m = Number($('ss-ed-m').value), was = ssMin(a.time), diff = m - was;
+    // Сохраняются только изменённые поля: правка не должна «замораживать» текст модели.
+    const e = { ...(edits.blocks[code] || {}) };
+    const q0 = a.question != null ? a.question : a.activity;
+    if ($('ss-ed-q').value !== (q0 || '')) e.question = $('ss-ed-q').value;
+    if ($('ss-ed-n').value !== (a.facilitator_notes || '')) e.facilitator_notes = $('ss-ed-n').value;
+    if (diff) {
+      const peer = $('ss-ed-peer') && $('ss-ed-peer').value;
+      const p = ag.find(x => x.code === peer);
+      if (!p) { toast('Не из какого блока взять минуты', true); return; }
+      e.minutes = m;
+      edits.blocks[peer] = { ...(edits.blocks[peer] || {}), minutes: ssMin(p.time) - diff };
+    }
+    edits.blocks[code] = e;
+  }
+  // Минуты в правках — абсолютные; сумму этапа и время проверяет и пересчитывает сервер.
+  const r = await api('/strategy-session/' + s.session_id + '/edits', { method: 'PATCH', body: edits });
+  if (!r || r.error) { toast('Правка не сохранена: ' + ((r && r.error) || 'ошибка'), true); return; }
+  SS.editing = null;
+  await ssReloadSession(); ssRenderResult(); toast('Правка сохранена');
+}
+
 </script>
 </body>
 </html>
