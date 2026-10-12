@@ -2556,10 +2556,8 @@ async function downloadNIPdf(sessionId, name, level) {
 
 async function exportGroupCSV() {
   // Фильтр этой вкладки заполняется из /admin/groups — это UUID старого
-  // пространства ключей (groups.id), а не v2_groups.id. Поэтому экспорт идёт
-  // через /admin/participants/export?group=<uuid>, который фильтрует по
-  // test_sessions.group_id. Раньше UUID уходил в /v2/groups/:id/export-csv,
-  // ждущий integer, и сервер отвечал 500 → «Ошибка экспорта».
+  // пространства ключей (groups.id). Маршрут экспорта принимает и его, и
+  // integer из /v2/groups: приведением занимается resolveGroupId() на сервере.
   const group = $('ni-group-filter').value;
   const url = API + '/admin/participants/export' + (group ? '?group=' + encodeURIComponent(group) : '');
   const r = await fetch(url, {headers:{'Authorization':'Bearer '+TOKEN}});
@@ -2573,8 +2571,14 @@ async function exportGroupCSV() {
 }
 
 async function exportCSV() {
+  // Та же выгрузка, что и на вкладке TIN-аналитики. Раньше при выбранной
+  // группе отсюда уходил запрос в /v2/groups/:id/export-csv — другой маршрут,
+  // другие колонки и, главное, другой источник: v2_ni_results вместо
+  // test_sessions/results. Он возвращал только тех, у кого приглашение до сих
+  // пор в статусе 'completed', поэтому по перенесённым группам файл приходил
+  // почти пустым и карта команды его не принимала.
   const group = $('f-group').value;
-  const url = group ? (API + '/v2/groups/' + group + '/export-csv') : (API + '/admin/participants/export');
+  const url = API + '/admin/participants/export' + (group ? '?group=' + encodeURIComponent(group) : '');
   const r = await fetch(url, {headers:{'Authorization':'Bearer '+TOKEN}});
   if (!r.ok) { toast('Ошибка экспорта', true); return; }
   const blob = await r.blob();
