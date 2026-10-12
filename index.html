@@ -3719,7 +3719,9 @@ async function loadSocieteLeaderOptions(groupId) {
   if (!d || d.error) return;
   (d.participants || []).forEach(p => {
     const o = document.createElement('option');
-    const name = kfName({ invitations: [{ code: p.code }] });
+    // Имя ищем по всем кодам участника: подпись — код TIN, а в ключ-файле
+    // может быть другая партия кодов того же человека.
+    const name = kfName({ invitations: [p.code, ...(p.name_codes || [])].map(code => ({ code })) });
     o.value = p.participant_id;
     o.textContent = 'Руководитель: ' + p.code + (name ? ' · ' + name : '') + (p.answered_q6 ? '' : ' (нет ответа на вопрос 6)');
     sel.appendChild(o);
