@@ -3882,7 +3882,7 @@ function renderSocieteGroup(r, savedAt) {
 // Сборка сценария по данным четырёх тестов. Всё считает сервер
 // (/strategy-session/*, правила методики без модели); здесь — форма и показ.
 // Имена — только из ключ-файла в этом браузере: на сервер уходят коды и метки.
-const SS = { groupId: '', data: null, meta: null, names: {}, params: null, sub: null, session: null, view: 'facilitator', tab: 'theses' };
+const SS = { groupId: '', data: null, meta: null, names: {}, params: null, sub: null, session: null, view: 'facilitator', tab: 'theses', mode: 'skeleton' };
 const SS_TESTS = [['tin', 'TIN'], ['sn', 'SN'], ['pn', 'PN'], ['soc', 'SOCIETE']];
 const SS_STAGE = { inv: 'Инвентаризация', int: 'Интерпретация', tr: 'Трансформация', ig: 'Интеграция', pre: 'до сессии' };
 const SS_TAGS = [['stazh', 'Стаж', 'Сотрудник с большим стажем'], ['opora', 'Опора', 'Опора по SN'], ['risk', 'Риск', 'Вышел из игры или требует бережности: не больше одного в группе']];
@@ -4049,6 +4049,8 @@ async function ssBuild(nextSeed) {
   SS.session = r; st.textContent = `Черновик №${r.session_id} сохранён ${new Date(r.updated_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
   ssRenderSaved(await api('/strategy-session/group/' + SS.groupId + '/sessions'));
   $('ss-saved').value = r.session_id;
+  // Тексты модели, если они уже есть, — вместе с сессией (и пометка, что каркас пересобран).
+  await ssReloadSession();
   ssRenderResult();
   $('ss-result').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -4063,7 +4065,9 @@ async function ssLoadSaved() {
   Object.assign(SS.params, { goal: raw.goal || '', secondary_goal: raw.secondary_goal || '', format: raw.format || 'auto', size: raw.size ?? SS.params.size,
     leader_present: raw.leader_present !== false, client: raw.client || '', request: raw.request || '', hypothesis: raw.hypothesis || '' });
   if (raw.subgroups) SS.sub = { ...SS.sub, ...raw.subgroups };
+  SS.mode = fac.scenario && fac.scenario.agenda ? 'text' : 'skeleton';
   ssRenderParams(); ssRenderSubgroups(); ssRenderResult();
+  if (fac.scenario && fac.scenario.status === 'running') ssStartPoll();
 }
 
 // ── 4. Результат ──
@@ -4071,11 +4075,13 @@ function ssRenderResult() {
   const s = SS.session; if (!s) return;
   const v = SS.view === 'client' ? s.client : s;
   const tabs = [['theses', 'Тезисы'], ['scenario', 'Сценарий'], ['rules', 'Правила']];
+  const text = SS.mode === 'text' && ssHasText(v);
   $('ss-result').innerHTML = `<div class="card">
     <div class="ss-row" style="justify-content:space-between;margin-bottom:12px"><div class="card-title" style="margin:0">4 · Результат · черновик №${s.session_id}</div>
-      <div class="ss-seg" role="group" aria-label="Версия">${[['facilitator', 'Для фасилитатора'], ['client', 'Для заказчика']].map(([k, n]) => `<button type="button" aria-pressed="${SS.view === k}" onclick="SS.view='${k}';ssRenderResult()">${n}</button>`).join('')}</div></div>
+      <div class="ss-row">${ssModeHTML(v)}<div class="ss-seg" role="group" aria-label="Версия">${[['facilitator', 'Для фасилитатора'], ['client', 'Для заказчика']].map(([k, n]) => `<button type="button" aria-pressed="${SS.view === k}" onclick="SS.view='${k}';ssRenderResult()">${n}</button>`).join('')}</div></div></div>
+    ${ssGenBarHTML()}
     <div class="ss-tabs">${tabs.map(([k, n]) => `<button type="button" aria-pressed="${SS.tab === k}" onclick="SS.tab='${k}';ssRenderResult()">${n}</button>`).join('')}</div>
-    ${SS.tab === 'theses' ? ssThesesHTML(v) : SS.tab === 'rules' ? ssRulesHTML(v) : ssScenarioHTML(v, SS.view === 'client' ? null : s.subgroups)}</div>`;
+    ${SS.tab === 'theses' ? (text ? ssTextThesesHTML(v) : ssThesesHTML(v)) : SS.tab === 'rules' ? ssRulesHTML(v) : text ? ssTextScenarioHTML(v) : ssScenarioHTML(v, SS.view === 'client' ? null : s.subgroups)}</div>`;
 }
 
 function ssThesesHTML(v) {
@@ -4134,6 +4140,102 @@ function ssScenarioHTML(v, subgroups) {
       <div><div class="card-title">Риски в сессии</div>${ssList(s.risks, r => `<li><b>${ssEsc(r.risk)}</b>${ssRulesTag(r.rules)}<div class="ss-small"><span class="ss-muted">Сигнал:</span> ${ssEsc(r.signal)}</div><div class="ss-small"><span class="ss-muted">Ответ:</span> ${ssEsc(r.response)}</div></li>`)}</div>
       <div><div class="card-title">После сессии</div>${ssList(s.after, q => `<li>${ssEsc(q)}</li>`)}</div>
       ${(s.data_gaps || []).length ? `<div><div class="card-title">Пробелы в данных</div>${ssList(s.data_gaps, q => `<li>${ssEsc(q)}</li>`)}</div>` : ''}
+    </div>`;
+}
+
+// ── Сценарий с обоснованием (тексты модели поверх каркаса) ──
+// Генерация идёт на сервере в фоне; здесь — запуск, опрос статуса и показ.
+const SS_PARTS = [['theses', 'Тезисы'], ['inv', 'Инвентаризация'], ['int', 'Интерпретация'], ['tr', 'Трансформация'], ['ig', 'Интеграция'], ['summary', 'Сводка']];
+const SS_PART_STATUS = { pending: 'в очереди', running: 'пишется…', done: 'готово', failed: 'ошибка' };
+let ssPoll = null;
+
+async function ssReloadSession() {
+  const id = SS.session && SS.session.session_id; if (!id) return;
+  const [fac, cli] = await Promise.all([api('/strategy-session/' + id), api('/strategy-session/' + id + '?audience=client')]);
+  if (fac && !fac.error) SS.session = { ...fac, client: cli };
+}
+
+async function ssGenerate(part) {
+  const s = SS.session; if (!s) return;
+  const sc = s.scenario;
+  const what = part ? `часть «${(SS_PARTS.find(p => p[0] === part) || [])[1]}»` : 'сценарий целиком (6 вызовов модели)';
+  const again = part || (sc && sc.status !== 'none');
+  if (again && !confirm(`Сгенерировать ${what} заново? Это платный вызов модели; прежняя версия сохранится в истории.`)) return;
+  if (!again && !confirm('Построить сценарий с обоснованием? Это 6 платных вызовов модели: около 1 $ и 10–15 минут. Можно закрыть вкладку, генерация идёт на сервере.')) return;
+  const url = '/strategy-session/' + s.session_id + (part ? '/regenerate?part=' + part : '/generate');
+  const r = await api(url, { method: 'POST' });
+  if (!r || r.error) { toast('Не запущено: ' + ((r && r.error) || 'ошибка'), true); return; }
+  s.scenario = { ...(s.scenario || {}), ...r };
+  SS.mode = 'text';
+  ssStartPoll(); ssRenderResult();
+}
+
+function ssStartPoll() {
+  clearInterval(ssPoll);
+  ssPoll = setInterval(async () => {
+    const s = SS.session; if (!s) return clearInterval(ssPoll);
+    const st = await api('/strategy-session/' + s.session_id + '/status');
+    if (!st || st.error) return;
+    s.scenario = { ...(s.scenario || {}), ...st };
+    if (st.status !== 'running') { clearInterval(ssPoll); await ssReloadSession(); toast(st.status === 'done' ? 'Сценарий с обоснованием готов' : st.status === 'needs_review' ? 'Готово, есть части с пометкой «проверить»' : 'Генерация завершилась с ошибкой', st.status === 'failed'); }
+    ssRenderResult();
+  }, 4000);
+}
+
+// Полоса генерации: кнопка, прогресс по частям, пометки проверки.
+function ssGenBarHTML() {
+  const s = SS.session, sc = s.scenario;
+  if (SS.view === 'client') return '';
+  if (!sc || sc.status === 'none') return `<div class="ss-warn" style="margin:0 0 12px;background:var(--accent-subtle)"><div class="ss-row" style="justify-content:space-between">
+    <span>Каркас собран по правилам. Модель может дописать обоснование, ход каждого блока и заметки фасилитатору; числа и расписание останутся за кодом.</span>
+    <button class="btn btn-primary-action" onclick="ssGenerate()">✍️ Построить сценарий с обоснованием</button></div></div>`;
+  const parts = sc.parts || {};
+  return `<div class="ss-warn" style="margin:0 0 12px;background:var(--bg-subtle)">
+    <div class="ss-row" style="justify-content:space-between"><b>Сценарий с обоснованием · версия ${sc.version || 1}${sc.status === 'running' ? ` · ${sc.done || 0} из ${sc.of || 6}` : ''}</b>
+      <span>${sc.stale_skeleton ? '<span class="ss-chip risk">каркас пересобран после генерации</span>' : ''}${sc.status !== 'running' ? `<button class="btn btn-sm btn-ghost" onclick="ssGenerate()">Сгенерировать заново</button>` : ''}</span></div>
+    <div class="ss-row" style="margin-top:8px">${SS_PARTS.map(([k, n]) => { const p = parts[k] || {}; const cls = p.status === 'failed' ? 'risk' : p.needs_review ? 'risk' : p.status === 'done' ? 'ok' : '';
+      return `<span class="ss-chip ${cls}" title="${ssEsc((p.issues || []).join('\n'))}">${n}: ${p.needs_review ? 'проверить' : SS_PART_STATUS[p.status] || '—'}${(p.seconds || []).length ? ' · ' + p.seconds.join('+') + ' с' : ''}</span>${sc.status !== 'running' && (p.status === 'failed' || p.needs_review) ? `<button class="btn btn-sm btn-ghost" onclick="ssGenerate('${k}')">переделать</button>` : ''}`; }).join('')}</div>
+    ${SS_PARTS.filter(([k]) => (parts[k] || {}).issues && parts[k].issues.length && (parts[k].needs_review || parts[k].status === 'failed')).map(([k, n]) => `<div class="ss-small" style="margin-top:6px"><b>${n}:</b> ${ssEsc(parts[k].issues.join('; '))}</div>`).join('')}
+  </div>`;
+}
+
+const ssHasText = v => v && v.scenario && v.scenario.agenda;
+
+function ssModeHTML(v) {
+  if (!ssHasText(SS.session) && !ssHasText(v)) return '';
+  return `<div class="ss-seg" role="group" aria-label="Вид сценария">${[['skeleton', 'Каркас'], ['text', 'С обоснованием']].map(([k, n]) => `<button type="button" aria-pressed="${SS.mode === k}" onclick="SS.mode='${k}';ssRenderResult()">${n}</button>`).join('')}</div>`;
+}
+
+function ssTextThesesHTML(v) {
+  const th = v.scenario.theses || [];
+  return `<p class="ss-small ss-muted">Формулировки модели; доказательства и числа — из сборки.</p>
+    ${th.map((t, i) => `<div class="ss-thesis ${t.kind}"><b>${i + 1}. ${ssEsc(t.title)}${t.against_goal ? ' <span class="ss-chip risk">против цели</span>' : ''}</b>
+      <ul>${t.evidence.map(e => `<li>${ssEsc(e)}</li>`).join('')}</ul><div>${ssEsc(t.implication)}</div>
+      <div class="ss-small ss-muted">${t.blocks.length ? 'Учтено в блоках ' + ssEsc(t.blocks.join(', ')) + ' · ' : ''}правило ${ssEsc(t.rules.join(', '))}</div></div>`).join('')}`;
+}
+
+function ssTextScenarioHTML(v) {
+  const sc = v.scenario, sm = sc.summary || {}, fac = SS.view !== 'client';
+  const days = [...new Set(sc.agenda.map(a => a.day || 1))];
+  const stageHead = {};
+  const agenda = days.map(d => `${days.length > 1 ? `<div class="ss-day">День ${d}</div>` : ''}<div class="ss-agenda">${sc.agenda.filter(a => (a.day || 1) === d).map(a => {
+    if (a.brk) return `<div class="ss-slot"><div class="t">${ssEsc(a.time)}</div><div class="ss-blk brk">${ssEsc(a.title)}</div></div>`;
+    const head = !stageHead[a.stage] && sc.stages && sc.stages[a.stage] ? (stageHead[a.stage] = true, `<div class="ss-slot"><div class="t"></div><div class="ss-small" style="padding:4px 0"><b>${ssEsc(SS_STAGE[a.stage])}.</b> ${ssEsc(sc.stages[a.stage].rationale)}</div></div>`) : '';
+    return head + `<div class="ss-slot"><div class="t">${ssEsc(a.time)}</div><div class="ss-blk" data-st="${ssEsc(a.stage)}">
+      <div class="ss-row" style="justify-content:space-between"><b>${ssEsc(a.title)}</b><span>${a.core === false ? '<span class="ss-chip">модуль</span>' : ''}${/^X-/.test(a.code) ? '<span class="ss-chip">новый блок</span>' : ''}${a.minutes_changed ? `<span class="ss-chip">${a.minutes} мин, изменено</span>` : ''}${a.canvas ? `<span class="ss-chip">${ssEsc(a.canvas)}</span>` : ''}<span class="ss-chip">${ssEsc(SS_STAGE[a.stage] || a.stage)}</span></span></div>
+      ${a.question ? `<div class="bq">${ssEsc(a.question)}</div>` : ''}
+      ${a.how ? `<div><span class="ss-muted">Как ведём:</span> ${ssEsc(a.how)}</div>` : ''}
+      ${fac && a.facilitator_notes ? `<div style="background:var(--warning-subtle);border-radius:4px;padding:6px 8px"><span class="ss-muted">Фасилитатору:</span> ${ssEsc(a.facilitator_notes)}</div>` : ''}
+      ${a.output ? `<div><span class="ss-muted">Результат:</span> ${ssEsc(a.output)}</div>` : ''}
+      ${a.rationale ? `<div class="why"><b>Почему так:</b> ${ssEsc(a.rationale)}${ssRulesTag(a.rules)}</div>` : ''}</div></div>`; }).join('')}</div>`).join('');
+  return `${sm.title ? `<p><b>${ssEsc(sm.title)}</b></p>` : ''}${sm.summary ? `<p>${ssEsc(sm.summary)}</p>` : ''}
+    ${sm.entry_point ? `<div style="margin:12px 0"><div class="ss-small ss-muted">Точка входа</div>${ssEsc(sm.entry_point.text)}<div class="ss-small ss-muted">${ssEsc(sm.entry_point.rationale)}</div></div>` : ''}
+    ${sc.total_ok === false ? '<div class="ss-warn">Сумма минут не совпала с форматом: расписание взято из каркаса.</div>' : ''}
+    <div class="card-title" style="margin-top:20px">Программа</div>${agenda}
+    <div class="ss-grid2" style="margin-top:16px">
+      ${fac && (sm.leader_questions || []).length ? `<div><div class="card-title">Вопросы руководителю на предвстрече</div>${ssList(sm.leader_questions, q => `<li>${ssEsc(q)}</li>`)}</div>` : ''}
+      <div><div class="card-title">Риски в сессии</div>${ssList(sm.risks, r => `<li><b>${ssEsc(r.risk)}</b>${ssRulesTag(r.rules)}<div class="ss-small"><span class="ss-muted">Сигнал:</span> ${ssEsc(r.signal)}</div><div class="ss-small"><span class="ss-muted">Ответ:</span> ${ssEsc(r.response)}</div></li>`)}</div>
+      <div><div class="card-title">После сессии</div>${ssList(sm.after, q => `<li>${ssEsc(q)}</li>`)}</div>
     </div>`;
 }
 </script>
