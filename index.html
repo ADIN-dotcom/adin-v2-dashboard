@@ -306,6 +306,60 @@ td>.btn+.btn{margin-left:4px}
   #ns-group-report{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   @page{margin:20mm;size:A4}
 }
+
+/* СТРАТЕГИЧЕСКАЯ СЕССИЯ — цвета этапов и блоки сценария (из прототипа конструктора) */
+:root{--st-inv:#3B5796;--st-int:#74559F;--st-tr:#A97A1E;--st-ig:#2B7553}
+:root[data-theme="dark"]{--st-inv:#7F9BE0;--st-int:#B297DA;--st-tr:#D8AE57;--st-ig:#6CC59B}
+.ss-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+#ss-result{font-size:13px}#ss-result td.ss-mono{white-space:nowrap}
+.ss-grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px}
+.ss-muted{color:var(--ink-3)}.ss-small{font-size:12px}.ss-mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.ss-cov{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:12px}
+.ss-cov .ss-test{border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;display:grid;gap:4px}
+.ss-cov .ss-test.off{border-style:dashed;color:var(--ink-3)}
+.ss-warn{background:var(--warning-subtle);color:var(--ink);border-radius:var(--radius);padding:10px 14px;font-size:13px;margin-top:12px}
+.ss-goals{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:10px}
+.ss-goal{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;text-align:left;border:1px solid var(--border);background:var(--bg);border-radius:var(--radius);padding:12px 14px;cursor:pointer;color:var(--ink);font:inherit}
+.ss-goal .lt{grid-row:span 3;font-size:22px;font-weight:600;color:var(--warning);width:1.4em}
+.ss-goal .q{font-size:12px;color:var(--ink-3)}.ss-goal .lead{font-size:11px;color:var(--ink-4)}
+.ss-goal[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-subtle)}
+.ss-goal.sec{border-style:dashed;border-color:var(--warning)}
+.ss-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px;margin-top:16px}
+.ss-form label{display:grid;gap:4px;font-size:12px;color:var(--ink-3)}
+.ss-form input,.ss-form select,.ss-form textarea,.ss-sel{padding:8px 10px;border:1px solid var(--border);border-radius:6px;font:inherit;font-size:13px;background:var(--bg);color:var(--ink)}
+.ss-form textarea{min-height:64px;resize:vertical}
+.ss-wide{grid-column:1/-1}
+.ss-tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:16px;flex-wrap:wrap}
+.ss-tabs button{border:none;background:none;padding:8px 14px;font:inherit;font-size:13px;color:var(--ink-3);cursor:pointer;border-bottom:2px solid transparent}
+.ss-tabs button[aria-pressed="true"]{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+.ss-seg{display:inline-flex;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.ss-seg button{border:none;background:none;padding:6px 12px;font:inherit;font-size:12px;color:var(--ink-3);cursor:pointer}
+.ss-seg button[aria-pressed="true"]{background:var(--ink);color:var(--on-ink)}
+.ss-thesis{border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:var(--radius);padding:12px 16px;display:grid;gap:6px;margin-bottom:10px}
+.ss-thesis.risk{border-left-color:var(--danger)}.ss-thesis.resource{border-left-color:var(--success)}
+.ss-thesis ul{margin:0;padding-left:18px;font-size:13px;color:var(--ink-2)}
+.ss-rule{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:var(--radius);padding:10px 14px;margin-bottom:8px;font-size:13px}
+.ss-rule.risk{border-left-color:var(--danger)}.ss-rule.resource{border-left-color:var(--success)}
+.ss-rule .rid{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--ink-3);grid-row:span 3;min-width:3.6em}
+.ss-rule .ev{color:var(--ink-3)}
+.ss-split{display:flex;height:28px;border-radius:6px;overflow:hidden;border:1px solid var(--border);margin-bottom:12px}
+.ss-split div{display:grid;place-items:center;color:#fff;font-size:12px;font-weight:500;min-width:0;overflow:hidden;white-space:nowrap}
+:root[data-theme="dark"] .ss-split div{color:#0f1115}
+.ss-day{font-size:15px;font-weight:600;margin:16px 0 6px}
+.ss-agenda{display:grid;gap:8px}
+.ss-slot{display:grid;grid-template-columns:100px 1fr;gap:12px;align-items:start}
+.ss-slot .t{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--ink-3);padding-top:12px;font-variant-numeric:tabular-nums}
+.ss-blk{background:var(--bg);border:1px solid var(--border);border-left:5px solid var(--st-inv);border-radius:var(--radius);padding:10px 14px;display:grid;gap:6px;min-width:0;font-size:13px}
+.ss-blk[data-st="int"]{border-left-color:var(--st-int)}.ss-blk[data-st="tr"]{border-left-color:var(--st-tr)}.ss-blk[data-st="ig"]{border-left-color:var(--st-ig)}
+.ss-blk.brk{background:transparent;border:1px dashed var(--border);color:var(--ink-3);padding:6px 14px}
+.ss-blk .bq{font-weight:500}
+.ss-blk .why{font-size:12px;color:var(--ink-3);border-top:1px solid var(--border);padding-top:6px}
+.ss-chip{display:inline-flex;padding:1px 8px;border-radius:100px;font-size:11px;border:1px solid var(--border);color:var(--ink-3);margin-left:4px;white-space:nowrap}
+.ss-chip.risk{background:var(--danger-subtle);color:var(--danger);border-color:transparent}
+.ss-chip.ok{background:var(--success-subtle);color:var(--success);border-color:transparent}
+.ss-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-3);margin-bottom:8px}
+.ss-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+@media (max-width:640px){.ss-slot{grid-template-columns:1fr;gap:2px}.ss-slot .t{padding-top:0}}
 </style>
 </head>
 <body>
@@ -342,6 +396,8 @@ td>.btn+.btn{margin-left:4px}
       <div class="sb-link pn" onclick="nav('pn-profiles')" data-page="pn-profiles"><span class="sb-ico">🧠</span> Personne · PN</div>
       <div class="sb-link" onclick="nav('societe')" data-page="societe"><span class="sb-ico">🏛️</span> Société · PN</div>
       <div class="sb-link" onclick="nav('personal-narrative')" data-page="personal-narrative"><span class="sb-ico">🪞</span> Личный нарратив</div>
+      <div class="sb-section">Сессии</div>
+      <div class="sb-link" onclick="nav('strategy')" data-page="strategy"><span class="sb-ico">🧭</span> Стратегическая сессия</div>
       <div class="sb-section">Система</div>
       <div class="sb-link" onclick="nav('settings')" data-page="settings"><span class="sb-ico">⚙️</span> Настройки</div>
     </nav>
@@ -577,6 +633,20 @@ td>.btn+.btn{margin-left:4px}
         </div>
         <div id="soc-group-report" style="display:none;margin-bottom:20px"></div>
         <div id="soc-table"><div class="spinner"></div></div>
+      </div>
+
+      <div id="page-strategy" class="page">
+        <div class="page-header">
+          <div><div class="page-title">Стратегическая сессия</div><div class="page-sub">Сценарий по данным четырёх тестов: правила методики, без модели</div></div>
+          <div class="ss-row">
+            <select id="ss-group" class="ss-sel" onchange="ssSelectGroup()"><option value="">Выберите группу</option></select>
+            <select id="ss-saved" class="ss-sel" onchange="ssLoadSaved()" style="display:none"><option value="">Новая сессия</option></select>
+          </div>
+        </div>
+        <div id="ss-coverage"></div>
+        <div id="ss-params"></div>
+        <div id="ss-subgroups"></div>
+        <div id="ss-result"></div>
       </div>
 
       <div id="page-settings" class="page">
@@ -1143,6 +1213,7 @@ function nav(page) {
   if (page === 'personal-narrative') loadPersonalNarrativeList();
   if (page === 'narrative-status') loadNarrativeStatus();
   if (page === 'societe') loadSociete();
+  if (page === 'strategy') loadStrategy();
 }
 
 // ── HOME ──────────────────────────────────────────────────────
@@ -3806,6 +3877,265 @@ function renderSocieteGroup(r, savedAt) {
   wrap.style.display = 'block';
 }
 
+
+// ── СТРАТЕГИЧЕСКАЯ СЕССИЯ ────────────────────────────────────────────────────
+// Сборка сценария по данным четырёх тестов. Всё считает сервер
+// (/strategy-session/*, правила методики без модели); здесь — форма и показ.
+// Имена — только из ключ-файла в этом браузере: на сервер уходят коды и метки.
+const SS = { groupId: '', data: null, meta: null, names: {}, params: null, sub: null, session: null, view: 'facilitator', tab: 'theses' };
+const SS_TESTS = [['tin', 'TIN'], ['sn', 'SN'], ['pn', 'PN'], ['soc', 'SOCIETE']];
+const SS_STAGE = { inv: 'Инвентаризация', int: 'Интерпретация', tr: 'Трансформация', ig: 'Интеграция', pre: 'до сессии' };
+const SS_TAGS = [['stazh', 'Стаж', 'Сотрудник с большим стажем'], ['opora', 'Опора', 'Опора по SN'], ['risk', 'Риск', 'Вышел из игры или требует бережности: не больше одного в группе']];
+const ssEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const ssDate = d => (d ? new Date(d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
+
+// Имя по коду TIN: ищем в ключ-файле любой код того же человека.
+function ssName(code) {
+  if (!window.KEYFILE || !code) return '';
+  for (const c of [code, ...(SS.names[code] || [])]) { const n = window.KEYFILE[String(c).toUpperCase()]; if (n) return n; }
+  return '';
+}
+
+async function loadStrategy() {
+  const sel = $('ss-group');
+  if (sel.options.length === 1) {
+    const groups = await api('/v2/groups');
+    if (groups) groups.forEach(g => { const o = document.createElement('option'); o.value = g.id; o.textContent = g.name; sel.appendChild(o); });
+  }
+  if (!SS.meta) SS.meta = await api('/strategy-session/meta');
+  if (!sel.value) $('ss-coverage').innerHTML = '<div class="card ss-muted">Выберите группу: покажем, какие тесты пройдены, и соберём сценарий.</div>';
+}
+
+async function ssSelectGroup() {
+  SS.groupId = $('ss-group').value;
+  SS.session = null; SS.data = null;
+  ['ss-params', 'ss-subgroups', 'ss-result'].forEach(id => { $(id).innerHTML = ''; });
+  $('ss-saved').style.display = 'none';
+  if (!SS.groupId) return loadStrategy();
+  $('ss-coverage').innerHTML = '<div class="spinner"></div>';
+  const [data, names, saved] = await Promise.all([
+    api('/strategy-session/group/' + SS.groupId + '/data'),
+    api('/strategy-session/group/' + SS.groupId + '/name-codes'),
+    api('/strategy-session/group/' + SS.groupId + '/sessions'),
+  ]);
+  if (!data || data.error) { $('ss-coverage').innerHTML = `<div class="card">Не удалось загрузить данные: ${ssEsc(data && data.error)}</div>`; return; }
+  SS.data = data; SS.names = names && !names.error ? names : {};
+  const size = (data.tin && data.tin.group_size) || (data.sn && data.sn.group_size) || (data.pn && data.pn.group_size) || '';
+  SS.meta = await api('/strategy-session/meta?size=' + encodeURIComponent(size));
+  SS.params = { goal: '', secondary_goal: '', format: 'auto', size, leader_present: true, client: data.group.name, request: '', hypothesis: '' };
+  SS.sub = { k: SS.meta.sub_default || 3, mode: 'compete', use_sex: true, tags: {}, seed: 1 };
+  ssRenderSaved(saved);
+  ssRenderCoverage(); ssRenderParams(); ssRenderSubgroups();
+}
+
+function ssRenderSaved(list) {
+  const sel = $('ss-saved');
+  sel.innerHTML = '<option value="">Новая сессия</option>' + (Array.isArray(list) ? list : []).map(s => {
+    const g = SS.meta && SS.meta.goals.find(x => x.id === s.goal);
+    return `<option value="${s.id}">№${s.id} · ${ssDate(s.updated_at)} · цель ${ssEsc(g ? g.letter : '—')}</option>`;
+  }).join('');
+  sel.style.display = Array.isArray(list) && list.length ? '' : 'none';
+}
+
+// ── 1. Покрытие тестов ──
+const SS_ANALYZE = { sn: '/narrative-status/group/%/analyze', pn: '/pn-group/group/%/analyze' };
+function ssRenderCoverage() {
+  const d = SS.data, cov = d.coverage || {};
+  const stale = new Set((d.warnings || []).filter(w => w.code === 'stale_analysis').map(w => w.test));
+  const cards = SS_TESTS.map(([k, name]) => {
+    const s = d.sources[k], miss = d.missing_reasons[k];
+    let action = '';
+    if ((miss || stale.has(k)) && SS_ANALYZE[k]) action = `<button class="btn btn-sm btn-ghost" onclick="ssAnalyze('${k}')" id="ss-an-${k}">Запустить групповой анализ</button>`;
+    else if ((miss || stale.has(k)) && k === 'soc') action = `<button class="btn btn-sm btn-ghost" onclick="nav('societe')">Анализ во вкладке Société</button><span class="ss-small ss-muted">там выбирают руководителя</span>`;
+    return `<div class="ss-test ${s ? '' : 'off'}"><b>${name}</b>
+      ${s ? `<span class="ss-small">${s.group_size} участн.${s.computed ? ' · считается по тестам' : ` · анализ ${ssDate(s.generated_at)}`}</span>` : `<span class="ss-small">${ssEsc(miss || 'нет данных')}</span>`}
+      ${stale.has(k) ? '<span class="ss-chip risk">анализ устарел</span>' : ''}${action}</div>`;
+  }).join('');
+  $('ss-coverage').innerHTML = `<div class="card"><div class="card-title">1 · Данные группы <span class="ss-small ss-muted">в группе ${cov.group_members || 0}, прошли все четыре теста ${cov.in_all_four || 0}</span></div>
+    <div class="ss-cov">${cards}</div>
+    ${(d.warnings || []).length ? `<div class="ss-warn">${d.warnings.map(w => ssEsc(w.message)).join('<br>')}</div>` : ''}</div>`;
+}
+
+async function ssAnalyze(test) {
+  const btn = $('ss-an-' + test);
+  if (btn) { btn.disabled = true; btn.textContent = 'Идёт анализ…'; }
+  const r = await api(SS_ANALYZE[test].replace('%', SS.groupId), { method: 'POST' });
+  if (!r || r.error) { toast('Анализ не выполнен: ' + ((r && r.error) || 'ошибка'), true); if (btn) { btn.disabled = false; btn.textContent = 'Запустить групповой анализ'; } return; }
+  toast('Групповой анализ готов');
+  ssSelectGroup();
+}
+
+// ── 2. Параметры ──
+function ssRenderParams() {
+  const P = SS.params, M = SS.meta;
+  const fmt = Object.entries(M.formats).map(([k, v]) => `<option value="${k}" ${P.format === k ? 'selected' : ''}>${ssEsc(v)}</option>`).join('');
+  $('ss-params').innerHTML = `<div class="card"><div class="card-title" style="margin-bottom:4px">2 · Цель и формат</div>
+    <p class="ss-small ss-muted" style="margin:0 0 12px">Щелчок — ведущая цель, щелчок по другой — дополнительная, двойной щелчок — сделать ведущей.</p>
+    <div class="ss-goals" id="ss-goals">${M.goals.map(g => `<button type="button" class="ss-goal ${P.secondary_goal === g.id ? 'sec' : ''}" data-goal="${g.id}" aria-pressed="${P.goal === g.id}" aria-label="Цель ${g.letter}: ${ssEsc(g.name)}${P.secondary_goal === g.id ? ' (дополнительная)' : ''}">
+      <span class="lt">${g.letter}</span><b>${ssEsc(g.name)}</b><span class="q">${ssEsc(g.question)}</span>
+      <span class="lead">ведущие: ${g.lead.map(k => SS_TESTS.find(t => t[0] === k)[1]).join(' + ')}${P.secondary_goal === g.id ? ' · дополнительная цель' : ''}</span></button>`).join('')}</div>
+    <div class="ss-form">
+      <label>Формат<select id="ss-format"><option value="auto" ${P.format === 'auto' ? 'selected' : ''}>Авто: по данным</option>${fmt}</select></label>
+      <label>Участников<input id="ss-size" type="number" min="2" max="60" value="${ssEsc(P.size)}"></label>
+      <label>Руководитель участвует<select id="ss-leader"><option value="yes" ${P.leader_present ? 'selected' : ''}>да</option><option value="no" ${P.leader_present ? '' : 'selected'}>нет</option></select></label>
+      <label>Заказчик / команда<input id="ss-client" value="${ssEsc(P.client)}"></label>
+      <label class="ss-wide">Запрос заказчика<textarea id="ss-request">${ssEsc(P.request)}</textarea></label>
+      <label class="ss-wide">Гипотеза заказчика<textarea id="ss-hypo">${ssEsc(P.hypothesis)}</textarea></label>
+    </div>
+    <div class="ss-row" style="margin-top:16px"><button class="btn btn-primary-action" id="ss-build" onclick="ssBuild()">🧭 Собрать сценарий</button><span id="ss-build-status" class="ss-small ss-muted"></span></div></div>`;
+  const goals = $('ss-goals');
+  goals.onclick = e => { const b = e.target.closest('.ss-goal'); if (!b) return; const id = b.dataset.goal;
+    if (!P.goal || P.goal === id) { P.goal = id; if (P.secondary_goal === id) P.secondary_goal = ''; }
+    else if (P.secondary_goal === id) P.secondary_goal = '';
+    else P.secondary_goal = id;
+    ssRenderParams(); };
+  goals.ondblclick = e => { const b = e.target.closest('.ss-goal'); if (!b) return; P.goal = b.dataset.goal; if (P.secondary_goal === P.goal) P.secondary_goal = ''; ssRenderParams(); };
+  $('ss-format').onchange = e => { P.format = e.target.value; };
+  $('ss-size').onchange = async e => { P.size = e.target.value; SS.meta = await api('/strategy-session/meta?size=' + encodeURIComponent(P.size)); if (SS.meta.sub_default) SS.sub.k = SS.meta.sub_default; ssRenderSubgroups(); };
+  $('ss-leader').onchange = e => { P.leader_present = e.target.value === 'yes'; };
+  $('ss-client').oninput = e => { P.client = e.target.value; };
+  $('ss-request').oninput = e => { P.request = e.target.value; };
+  $('ss-hypo').oninput = e => { P.hypothesis = e.target.value; };
+}
+
+// ── 3. Подгруппы ──
+function ssRenderSubgroups() {
+  const people = (SS.data.tin && SS.data.tin.participants) || [];
+  if (!people.length) { $('ss-subgroups').innerHTML = '<div class="card ss-muted">Подгруппы подбираются по TIN: в группе нет пройденных TIN.</div>'; return; }
+  const S = SS.sub, M = SS.meta, range = M.sub_range || [3];
+  const ks = [...new Set([...range, S.k])].sort((a, b) => a - b);
+  const mode = M.modes[S.mode];
+  const tagsOf = c => S.tags[c] || [];
+  const letters = M.letters.slice(0, S.k);
+  $('ss-subgroups').innerHTML = `<div class="card"><div class="card-title">3 · Подгруппы <span class="ss-small ss-muted">рекомендовано ${range.join(' или ')} для ${ssEsc(SS.params.size)} чел.</span></div>
+    <div class="ss-form" style="margin-top:0">
+      <label>Число подгрупп<select id="ss-k">${ks.map(k => `<option ${k === S.k ? 'selected' : ''}>${k}</option>`).join('')}${[2, 3, 4, 5, 6].filter(k => !ks.includes(k)).map(k => `<option>${k}</option>`).join('')}</select></label>
+      <label>Режим<select id="ss-mode">${Object.entries(M.modes).map(([k, m]) => `<option value="${k}" ${k === S.mode ? 'selected' : ''}>${ssEsc(m.name)}</option>`).join('')}</select></label>
+      <label style="align-self:end;display:flex;gap:6px;align-items:center"><input type="checkbox" id="ss-sex" ${S.use_sex ? 'checked' : ''}> баланс по полу</label>
+    </div>
+    <p class="ss-small ss-muted" style="margin:10px 0">${ssEsc(mode.description)} Этап: ${ssEsc(mode.stage)}.</p>
+    <div class="tbl-wrap"><table><thead><tr><th>Код</th><th>Имя</th><th>Пол</th><th>Тип</th><th>Ур.</th><th>Балл</th><th>Осозн.</th><th>Автор.</th><th>Резон.</th>${SS_TAGS.map(t => `<th title="${ssEsc(t[2])}">${t[1]}</th>`).join('')}<th>Закрепить</th></tr></thead>
+    <tbody>${people.map(p => { const t = tagsOf(p.code); const lock = (t.find(x => x.startsWith('lock:')) || '').slice(5);
+      return `<tr><td class="ss-mono">${ssEsc(p.code)}</td><td>${ssEsc(ssName(p.code)) || '<span class="ss-muted">—</span>'}</td><td>${p.sex === 'f' ? 'Ж' : p.sex === 'm' ? 'М' : '—'}</td>
+        <td>${ssEsc(p.type ? p.type.label : '—')}</td><td>${p.level ?? '—'}</td><td>${p.score ?? '—'}</td>
+        <td>${p.competencies.awareness ?? '—'}</td><td>${p.competencies.authorship ?? '—'}</td><td>${p.competencies.resonance ?? '—'}</td>
+        ${SS_TAGS.map(([k]) => `<td><input type="checkbox" data-sstag="${k}" data-code="${ssEsc(p.code)}" ${t.includes(k) ? 'checked' : ''} aria-label="${k} ${ssEsc(p.code)}"></td>`).join('')}
+        <td><select data-sslock="${ssEsc(p.code)}" aria-label="Закрепить ${ssEsc(p.code)}"><option value="">—</option>${letters.map(l => `<option ${lock === l ? 'selected' : ''}>${l}</option>`).join('')}</select></td></tr>`; }).join('')}</tbody></table></div>
+    <p class="ss-small ss-muted">Имена — из ключ-файла этого браузера; на сервер уходят только коды и отметки.</p></div>`;
+  $('ss-k').onchange = e => { S.k = +e.target.value; ssRenderSubgroups(); };
+  $('ss-mode').onchange = e => { S.mode = e.target.value; ssRenderSubgroups(); };
+  $('ss-sex').onchange = e => { S.use_sex = e.target.checked; };
+  $('ss-subgroups').querySelectorAll('[data-sstag]').forEach(el => { el.onchange = () => {
+    const c = el.dataset.code, k = el.dataset.sstag, t = new Set(tagsOf(c));
+    if (el.checked) t.add(k); else t.delete(k);
+    S.tags[c] = [...t]; }; });
+  $('ss-subgroups').querySelectorAll('[data-sslock]').forEach(el => { el.onchange = () => {
+    const c = el.dataset.sslock, t = tagsOf(c).filter(x => !x.startsWith('lock:'));
+    if (el.value) t.push('lock:' + el.value);
+    S.tags[c] = t; }; });
+}
+
+// ── Сборка и сохранённые сессии ──
+async function ssBuild(nextSeed) {
+  if (!SS.params.goal) { toast('Выберите ведущую цель сессии', true); return; }
+  if (nextSeed) SS.sub.seed++;
+  const btn = $('ss-build'), st = $('ss-build-status');
+  btn.disabled = true; st.textContent = 'Собираю…';
+  const body = { params: { ...SS.params, subgroups: SS.sub } };
+  if (SS.session) body.session_id = SS.session.session_id;
+  const r = await api('/strategy-session/group/' + SS.groupId + '/build', { method: 'POST', body });
+  btn.disabled = false;
+  if (!r || r.error) { st.textContent = ''; toast('Не собрано: ' + ((r && r.error) || 'ошибка'), true); return; }
+  SS.session = r; st.textContent = `Черновик №${r.session_id} сохранён ${new Date(r.updated_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
+  ssRenderSaved(await api('/strategy-session/group/' + SS.groupId + '/sessions'));
+  $('ss-saved').value = r.session_id;
+  ssRenderResult();
+  $('ss-result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function ssLoadSaved() {
+  const id = $('ss-saved').value;
+  if (!id) { SS.session = null; $('ss-result').innerHTML = ''; return; }
+  const [fac, cli] = await Promise.all([api('/strategy-session/' + id), api('/strategy-session/' + id + '?audience=client')]);
+  if (!fac || fac.error) { toast('Сессия не загружена', true); return; }
+  SS.session = { ...fac, client: cli };
+  const raw = fac.params_raw || {};
+  Object.assign(SS.params, { goal: raw.goal || '', secondary_goal: raw.secondary_goal || '', format: raw.format || 'auto', size: raw.size ?? SS.params.size,
+    leader_present: raw.leader_present !== false, client: raw.client || '', request: raw.request || '', hypothesis: raw.hypothesis || '' });
+  if (raw.subgroups) SS.sub = { ...SS.sub, ...raw.subgroups };
+  ssRenderParams(); ssRenderSubgroups(); ssRenderResult();
+}
+
+// ── 4. Результат ──
+function ssRenderResult() {
+  const s = SS.session; if (!s) return;
+  const v = SS.view === 'client' ? s.client : s;
+  const tabs = [['theses', 'Тезисы'], ['scenario', 'Сценарий'], ['rules', 'Правила']];
+  $('ss-result').innerHTML = `<div class="card">
+    <div class="ss-row" style="justify-content:space-between;margin-bottom:12px"><div class="card-title" style="margin:0">4 · Результат · черновик №${s.session_id}</div>
+      <div class="ss-seg" role="group" aria-label="Версия">${[['facilitator', 'Для фасилитатора'], ['client', 'Для заказчика']].map(([k, n]) => `<button type="button" aria-pressed="${SS.view === k}" onclick="SS.view='${k}';ssRenderResult()">${n}</button>`).join('')}</div></div>
+    <div class="ss-tabs">${tabs.map(([k, n]) => `<button type="button" aria-pressed="${SS.tab === k}" onclick="SS.tab='${k}';ssRenderResult()">${n}</button>`).join('')}</div>
+    ${SS.tab === 'theses' ? ssThesesHTML(v) : SS.tab === 'rules' ? ssRulesHTML(v) : ssScenarioHTML(v, SS.view === 'client' ? null : s.subgroups)}</div>`;
+}
+
+function ssThesesHTML(v) {
+  const g = SS.meta.goals.find(x => x.id === v.params.primary);
+  if (!(v.theses || []).length) return '<p class="ss-muted">Тезисов нет: ни одно правило по данным не сработало.</p>';
+  return `<p class="ss-small ss-muted">Главное, что показали данные для цели ${ssEsc(g ? g.letter + ' «' + g.name + '»' : '')}. Формулировки шаблонные; числа — из базы.</p>
+    ${v.theses.map((t, i) => `<div class="ss-thesis ${t.kind}"><b>${i + 1}. ${ssEsc(t.title)}${t.against_goal ? ' <span class="ss-chip risk">против цели</span>' : ''}</b>
+      <ul>${t.evidence.map(e => `<li>${ssEsc(e)}</li>`).join('')}</ul>
+      <div>${ssEsc(t.implication)}</div>
+      <div class="ss-small ss-muted">${t.blocks.length ? 'Учтено в блоках ' + ssEsc(t.blocks.join(', ')) + ' · ' : ''}правило ${ssEsc(t.rules.join(', '))}</div></div>`).join('')}`;
+}
+
+function ssRulesHTML(v) {
+  const f = v.format || {};
+  return `<p class="ss-small ss-muted">Сработало правил: ${v.rules.length}. Красная полоса — риск, зелёная — ресурс, синяя — решение по формату работы.</p>
+    <div class="ss-warn" style="margin:0 0 12px">Формат по данным: <b>${ssEsc((SS.meta.formats || {})[f.recommended] || f.recommended)}</b>${(f.why || []).length ? ' — ' + ssEsc(f.why.join('; ')) : ''}. В сценарии: <b>${ssEsc(f.label)}</b>.</div>
+    ${v.rules.map(r => `<div class="ss-rule ${r.kind}"><span class="rid">${ssEsc(r.id)}</span><b>${ssEsc(r.title)}</b><span class="ev">${ssEsc(r.evidence)}</span>
+      <span>${ssEsc(r.decision)} ${r.stage ? `<span class="ss-chip">${ssEsc(SS_STAGE[r.stage] || r.stage)}</span>` : ''}</span></div>`).join('')}`;
+}
+
+const ssList = (a, f) => (a && a.length ? `<ul style="margin:0;padding-left:18px;font-size:13px">${a.map(f).join('')}</ul>` : '<p class="ss-small ss-muted">Нет.</p>');
+const ssRulesTag = r => (Array.isArray(r) && r.length ? ` <span class="ss-mono ss-small ss-muted">[${r.map(ssEsc).join(', ')}]</span>` : '');
+
+// Сценарий — раскладка scenHTML прототипа в стилях дашборда.
+function ssScenarioHTML(v, subgroups) {
+  const s = v.skeleton, sp = (v.plan || {}).split || {};
+  const days = [...new Set((s.agenda || []).map(a => a.day || 1))];
+  const st = Object.keys(SS_STAGE).filter(k => k !== 'pre');
+  const split = `<div class="ss-split" role="img" aria-label="${st.map(k => SS_STAGE[k] + ' ' + sp[k] + '%').join(', ')}">${st.map(k => `<div style="width:${sp[k]}%;background:var(--st-${k})">${sp[k]}%</div>`).join('')}</div>
+    <div class="ss-legend">${st.map(k => `<span><i style="background:var(--st-${k})"></i>${SS_STAGE[k]} ${sp[k]}%</span>`).join('')}</div>`;
+  const agenda = days.map(d => `${days.length > 1 ? `<div class="ss-day">День ${d}</div>` : ''}<div class="ss-agenda">${s.agenda.filter(a => (a.day || 1) === d).map(a => a.brk
+    ? `<div class="ss-slot"><div class="t">${ssEsc(a.time)}</div><div class="ss-blk brk">${ssEsc(a.title)}</div></div>`
+    : `<div class="ss-slot"><div class="t">${ssEsc(a.time)}</div><div class="ss-blk" data-st="${ssEsc(a.stage)}">
+        <div class="ss-row" style="justify-content:space-between"><b>${ssEsc(a.title)}</b><span>${a.core === false ? '<span class="ss-chip">модуль</span>' : ''}${a.canvas ? `<span class="ss-chip">${ssEsc(a.canvas)}</span>` : ''}<span class="ss-chip">${ssEsc(SS_STAGE[a.stage] || a.stage)}</span></span></div>
+        ${a.activity ? `<div class="bq">${ssEsc(a.activity)}</div>` : ''}${a.format ? `<div class="ss-small ss-muted">${ssEsc(a.format)}</div>` : ''}
+        ${a.note ? `<div class="ss-small">${ssEsc(a.note)}</div>` : ''}${a.corr ? `<div class="ss-small"><span class="ss-muted">Коррекция по типу:</span> ${ssEsc(a.corr)}</div>` : ''}
+        ${a.data ? `<div class="ss-small"><span class="ss-muted">Данные группы:</span> ${ssEsc(a.data)}</div>` : ''}${a.adapt ? `<div class="ss-small"><span class="ss-muted">Адаптация по данным:</span> ${ssEsc(a.adapt)}</div>` : ''}
+        ${a.output ? `<div class="ss-small"><span class="ss-muted">Результат:</span> ${ssEsc(a.output)}</div>` : ''}${a.rationale ? `<div class="why"><b>Почему так:</b> ${ssEsc(a.rationale)}${ssRulesTag(a.rules)}</div>` : ''}</div></div>`).join('')}</div>`).join('');
+  const grp = subgroups ? `<div class="card" style="margin-top:16px"><div class="card-title">Подгруппы для упражнений · ${ssEsc(subgroups.mode_label.toLowerCase())} разбивка
+      <button class="btn btn-sm btn-ghost" onclick="ssBuild(true)">Другой вариант</button></div>
+    <p class="ss-small ss-muted">${ssEsc(subgroups.mode_stage)}. Разброс среднего балла НИ между группами: ${subgroups.spread}. Группы объявляются по кодам: участник находит себя по коду из приглашения.</p>
+    <div class="ss-grid2">${subgroups.groups.map(o => `<div class="ss-test" style="border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px">
+      <div class="ss-row" style="justify-content:space-between"><b>Группа ${o.label}</b><span class="ss-chip">${o.size} чел.</span></div>
+      <div class="ss-small"><b>Характер:</b> ${ssEsc(o.character)}.</div><div class="ss-small"><b>Встроенное напряжение:</b> ${ssEsc(o.tension)}.</div>
+      ${o.checks.length ? `<div><span class="ss-chip risk">${ssEsc(o.checks.join('; '))}</span></div>` : '<div><span class="ss-chip ok">в порядке</span></div>'}
+      <ul style="margin:6px 0 0;padding-left:18px;font-size:12px">${o.members.map(p => `<li><span class="ss-mono">${ssEsc(p.code)}</span>${ssName(p.code) ? ' · ' + ssEsc(ssName(p.code)) : ''} · ${ssEsc(p.sex || '')} ${ssEsc(p.type)}, ур. ${p.lvl}, ${p.score}${p.roles.length ? ` <span class="ss-muted">· ${ssEsc(p.roles.join(', '))}</span>` : ''}</li>`).join('')}</ul></div>`).join('')}</div></div>` : '';
+  return `<p><b>${ssEsc(s.title)}</b></p><p style="font-size:13px">${ssEsc(s.summary)}</p>
+    <div class="ss-grid2" style="margin:12px 0"><div><div class="ss-small ss-muted">Формат</div><b>${ssEsc(s.format && s.format.value)}</b><div class="ss-small ss-muted">${ssEsc(s.format && s.format.rationale)}</div></div>
+      <div><div class="ss-small ss-muted">Точка входа</div>${ssEsc(s.entry_point && s.entry_point.text)}<div class="ss-small ss-muted">${ssEsc(s.entry_point && s.entry_point.rationale)}</div></div></div>
+    <div class="card-title" style="margin-top:20px">Этапы</div>${split}
+    <div class="tbl-wrap"><table><thead><tr><th>Этап</th><th>Время</th><th>Блоки</th><th>Почему</th></tr></thead><tbody>${(s.stages || []).map(x => `<tr><td>${ssEsc(x.stage)}</td><td class="ss-mono">${x.minutes} мин · ${x.share}%</td><td>${ssEsc(x.focus)}</td><td class="ss-muted">${ssEsc(x.rationale)}</td></tr>`).join('')}</tbody></table></div>
+    <div class="card-title" style="margin-top:20px">Программа</div>${agenda}
+    ${grp}
+    <div class="ss-grid2" style="margin-top:16px">
+      <div><div class="card-title">До сессии</div>${ssList(s.pre_session, p => `<li>${ssEsc(p.action)} <span class="ss-muted ss-small">(${ssEsc(p.who)})</span><div class="ss-muted ss-small">${ssEsc(p.why)}</div></li>`)}</div>
+      <div><div class="card-title">Риски в сессии</div>${ssList(s.risks, r => `<li><b>${ssEsc(r.risk)}</b>${ssRulesTag(r.rules)}<div class="ss-small"><span class="ss-muted">Сигнал:</span> ${ssEsc(r.signal)}</div><div class="ss-small"><span class="ss-muted">Ответ:</span> ${ssEsc(r.response)}</div></li>`)}</div>
+      <div><div class="card-title">После сессии</div>${ssList(s.after, q => `<li>${ssEsc(q)}</li>`)}</div>
+      ${(s.data_gaps || []).length ? `<div><div class="card-title">Пробелы в данных</div>${ssList(s.data_gaps, q => `<li>${ssEsc(q)}</li>`)}</div>` : ''}
+    </div>`;
+}
 </script>
 </body>
 </html>
