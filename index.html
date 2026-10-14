@@ -679,6 +679,19 @@ td>.btn+.btn{margin-left:4px}
         </div>
       </div>
 
+      <div class="modal-bg" id="modal-integral">
+        <div class="modal" style="max-width:760px">
+          <div class="modal-title">
+            <span id="modal-ip-title">Интегральный профиль</span>
+            <button class="modal-close" onclick="closeModal('modal-integral')">×</button>
+          </div>
+          <div id="modal-ip-content"></div>
+          <div class="modal-actions" id="modal-ip-actions">
+            <button class="btn btn-ghost" onclick="closeModal('modal-integral')">Закрыть</button>
+          </div>
+        </div>
+      </div>
+
       <div class="modal-bg" id="modal-narrative-detail">
         <div class="modal" style="max-width:640px">
           <div class="modal-title">
@@ -1654,7 +1667,152 @@ async function openParticipantDetail(id) {
       <div class="card-title">История тестов <span>${(d.invitations||[]).length} приглашений</span></div>
       ${invHtml}
     </div>
+    <div class="card" id="pd-integral" style="margin-top:20px">
+      <div class="card-title">Интегральный профиль</div>
+      <div class="spinner"></div>
+    </div>
     ${niAnswersHtml}`;
+  loadIntegralCard(id);
+}
+
+// ── ИНТЕГРАЛЬНЫЙ ПРОФИЛЬ (routes/integral_profile.js) ───────────────────────
+// Все тесты участника одним профилем. Текст пишет модель (≈2 мин, платный
+// вызов) в двух версиях: для ведущего и для участника. Версию для участника
+// выдаёт только подтверждение ведущего — и только той версии, которую он
+// прочитал (profile_id); новая сборка приходит без подтверждения.
+const IP_STATUS = {
+  running: ['Модель пишет профиль', 'badge-sent'],
+  done: ['Готов', 'badge-green'],
+  needs_review: ['Проверить', 'badge-opened'],
+  failed: ['Сбой', 'badge-accent'],
+};
+const IP_AXIS_STATUS = { gap: ['расхождение', 'badge-opened'], match: ['согласуется', 'badge-green'], unclear: ['мало данных', 'badge-gray'] };
+const IP_TEST_NAMES = { tin: 'TIN™', sn: 'SN', pn: 'Personne · PN', soc: 'Société · PN' };
+let ipPollTimer = null;
+const ipEsc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const ipBase = id => '/integral-profile/participant/' + id;
+
+async function loadIntegralCard(id) {
+  clearTimeout(ipPollTimer);
+  const box = $('pd-integral'); if (!box) return;
+  const data = await api(ipBase(id) + '/data');
+  if (currentParticipantId !== id || !$('pd-integral')) return;
+  if (!data || data.error) { box.innerHTML = '<div class="card-title">Интегральный профиль</div><div style="color:var(--ink-faint);font-size:13px">Недоступно: ' + ipEsc(data && data.error || 'нет связи') + '</div>'; return; }
+  const lang = data.language === 'en' ? 'en' : 'ru';
+  const st = await api(ipBase(id) + '/status?lang=' + lang);
+  if (currentParticipantId !== id || !$('pd-integral')) return;
+  renderIntegralCard(id, data, st || { status: 'none' }, lang);
+  if (st && st.status === 'running') ipPollTimer = setTimeout(() => loadIntegralCard(id), 10000);
+}
+
+function renderIntegralCard(id, data, st, lang) {
+  const tests = (data.timeline || []).map(t => IP_TEST_NAMES[t.test] + ' · ' + fmtDate(t.completed_at)).join(' &nbsp;·&nbsp; ');
+  const missing = (data.eligibility.optional_missing || []).map(k => IP_TEST_NAMES[k]).join(', ');
+  let head = '<div class="card-title">Интегральный профиль'
+    + (IP_STATUS[st.status] ? ' <span class="badge ' + IP_STATUS[st.status][1] + '">' + IP_STATUS[st.status][0] + '</span>' : '') + '</div>'
+    + '<div style="font-size:12px;color:var(--ink-faint);margin-bottom:12px">' + (tests || 'Тестов нет')
+    + (missing ? '<br>Не пройдены (необязательно): ' + ipEsc(missing) : '') + '</div>';
+  let body = '';
+  if (!data.eligibility.ok) {
+    body = '<div style="font-size:13px;color:var(--ink-2)">Для профиля нужны TIN и SN. Не пройдено: <strong>'
+      + data.eligibility.missing.map(k => IP_TEST_NAMES[k]).join(', ') + '</strong>.</div>';
+  } else if (st.status === 'none') {
+    body = '<div style="font-size:13px;color:var(--ink-2);margin-bottom:10px">Профиль ещё не собирался. Модель пишет его около двух минут; это платный вызов.</div>'
+      + '<button class="btn btn-teal btn-sm" onclick="generateIntegral(' + id + ',\'' + lang + '\',false)">Собрать профиль</button>';
+  } else if (st.status === 'running') {
+    body = '<div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink-2)"><div class="spinner" style="margin:0;width:18px;height:18px"></div>Модель пишет профиль, обычно 1,5–3 минуты. Карточка обновится сама.</div>';
+  } else if (st.status === 'failed') {
+    body = '<div style="font-size:13px;color:var(--danger);margin-bottom:10px">Профиль не собрался: ' + ipEsc((st.issues || []).join('; ') || 'причина неизвестна') + '</div>'
+      + '<button class="btn btn-teal btn-sm" onclick="generateIntegral(' + id + ',\'' + lang + '\',true)">Собрать заново</button>';
+  } else {
+    const approved = st.participant_approved_at;
+    body = (st.status === 'needs_review'
+        ? '<div style="font-size:12px;color:var(--warning);margin-bottom:10px">Проверка ответа модели нашла замечания — прочитайте текст внимательно: ' + ipEsc((st.issues || []).join('; ')) + '</div>' : '')
+      + '<div style="font-size:12px;color:var(--ink-faint);margin-bottom:10px">Собран ' + fmtDate(st.finished_at) + '</div>'
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'
+      + '<button class="btn btn-navy btn-sm" onclick="openIntegralText(' + id + ',\'' + lang + '\')">Читать текст</button>'
+      + '<button class="btn btn-ghost btn-sm" onclick="downloadIntegralPdf(' + id + ',\'' + lang + '\',\'facilitator\')">⬇ PDF для ведущего</button>'
+      + '<button class="btn btn-ghost btn-sm" onclick="generateIntegral(' + id + ',\'' + lang + '\',true)" title="Новая версия текста; подтверждение придётся дать заново">↻ Пересобрать</button>'
+      + '</div>'
+      + '<div style="border-top:1px solid var(--border);padding-top:10px;font-size:13px">'
+      + (approved
+        ? '<span class="badge badge-green">Версия для участника подтверждена ' + fmtDate(approved) + '</span>'
+          + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">'
+          + '<button class="btn btn-teal btn-sm" onclick="downloadIntegralPdf(' + id + ',\'' + lang + '\',\'participant\')">⬇ PDF для участника</button>'
+          + '<button class="btn btn-ghost btn-sm" onclick="approveIntegral(' + id + ',\'' + lang + '\',' + st.id + ',false)">Снять подтверждение</button></div>'
+        : '<div style="color:var(--ink-2);margin-bottom:6px">Версия для участника не подтверждена — участнику её не выдать. Прочитайте текст и подтвердите в окне «Читать текст».</div>')
+      + '</div>';
+  }
+  $('pd-integral').innerHTML = head + body;
+}
+
+async function generateIntegral(id, lang, force) {
+  if (force && !confirm('Собрать профиль заново? Это новый платный вызов модели, а подтверждение версии для участника придётся дать снова.')) return;
+  const d = await api(ipBase(id) + '/generate', { method: 'POST', body: { lang, force } });
+  if (!d) return;
+  if (d.error) { toast(d.error, true); return; }
+  toast(d.cached ? 'Данные не менялись — показан сохранённый профиль' : 'Профиль собирается');
+  loadIntegralCard(id);
+}
+
+async function openIntegralText(id, lang) {
+  const v = await api(ipBase(id) + '/profile?lang=' + lang);
+  if (!v) return;
+  if (v.error) { toast(v.error, true); return; }
+  const f = v.facilitator, p = v.participant;
+  const para = s => s ? '<p style="font-size:13px;line-height:1.55;color:var(--ink);margin:0 0 10px">' + ipEsc(s) + '</p>' : '';
+  const label = s => '<div class="profile-item-label" style="margin:14px 0 6px">' + ipEsc(s) + '</div>';
+  const list = (items, ordered) => items && items.length
+    ? '<' + (ordered ? 'ol' : 'ul') + ' style="font-size:13px;line-height:1.5;margin:0 0 10px;padding-left:20px">' + items.map(x => '<li>' + ipEsc(x) + '</li>').join('') + '</' + (ordered ? 'ol' : 'ul') + '>' : '';
+  const axes = (f.axes || []).map(a => '<div style="border-top:1px solid var(--border);padding-top:10px;margin-top:10px">'
+    + '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><strong style="font-size:13px">' + ipEsc(a.title) + '</strong>'
+    + (IP_AXIS_STATUS[a.status] ? '<span class="badge ' + IP_AXIS_STATUS[a.status][1] + '">' + IP_AXIS_STATUS[a.status][0] + '</span>' : '') + '</div>'
+    + para(a.finding) + list(a.evidence) + '</div>').join('');
+  const issues = v.status === 'needs_review' && (v.issues || []).length
+    ? '<div style="font-size:12px;color:var(--warning);margin-bottom:10px">Замечания проверки: ' + ipEsc(v.issues.join('; ')) + '</div>' : '';
+  const repaired = (v.repaired || []).filter(x => /^кавычки сняты/.test(x));
+  const tinTest = (v.timeline || []).find(t => t.test === 'tin');
+  $('modal-ip-title').textContent = 'Интегральный профиль · ' + ((tinTest && tinTest.code) || '#' + id);
+  $('modal-ip-content').innerHTML = issues
+    + '<div class="card-title" style="margin-top:0">Для ведущего</div>'
+    + para(f.summary) + axes
+    + (f.dynamics ? label('Динамика между прохождениями PN') + para(f.dynamics.finding) + para(f.dynamics.meaning) : '')
+    + (f.leverage ? label('С чего начать') + para(f.leverage.focus + '. ' + f.leverage.why) + para('Первый шаг: ' + f.leverage.first_step) : '')
+    + (f.session ? label('Сессия') + para(f.session.opening) + list(f.session.questions, true) + (f.session.resources && f.session.resources.length ? label('Ресурсы') + list(f.session.resources) : '') : '')
+    + ((f.data_notes || []).length ? label('Ограничения данных') + list(f.data_notes) : '')
+    + (repaired.length ? '<div style="font-size:12px;color:var(--ink-faint)">' + repaired.length + ' пересказ(ов) в кавычках: кавычки сняты автоматически.</div>' : '')
+    + '<div class="card-title" style="margin-top:24px;border-top:2px solid var(--border);padding-top:16px">Для участника — так он прочтёт</div>'
+    + para(p.intro)
+    + label('Ваши опоры') + (p.strengths || []).map(x => '<p style="font-size:13px;line-height:1.55;margin:0 0 8px"><strong>' + ipEsc(x.title) + '.</strong> ' + ipEsc(x.text) + '</p>').join('')
+    + label('Над чем подумать') + (p.tensions || []).map(x => '<p style="font-size:13px;line-height:1.55;margin:0 0 4px"><strong>' + ipEsc(x.title) + '.</strong> ' + ipEsc(x.text) + '</p><p style="font-size:13px;font-style:italic;color:var(--accent-text);margin:0 0 10px">' + ipEsc(x.question) + '</p>').join('')
+    + (p.focus ? label('Фокус · ' + p.focus.title) + para(p.focus.text) : '')
+    + label('Вопросы к себе') + list(p.questions) + para(p.closing);
+  const approved = v.participant_approved_at;
+  $('modal-ip-actions').innerHTML = (approved
+      ? '<span class="badge badge-green" style="margin-right:auto">Подтверждено ' + fmtDate(approved) + '</span>'
+      : '<button class="btn btn-teal" onclick="approveIntegral(' + id + ',\'' + lang + '\',' + v.id + ',true)">Я прочитал(а) текст для участника — подтвердить</button>')
+    + '<button class="btn btn-ghost" onclick="closeModal(\'modal-integral\')">Закрыть</button>';
+  openModal('modal-integral');
+}
+
+async function approveIntegral(id, lang, profileId, approve) {
+  const r = await fetch(API + ipBase(id) + '/approve', {
+    method: approve ? 'POST' : 'DELETE',
+    headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lang, profile_id: profileId }),
+  }).catch(() => null);
+  if (!r) { toast('Ошибка соединения', true); return; }
+  if (r.status === 401) { logout(); return; }
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) { toast(d.error || 'Не получилось', true); return; }
+  toast(approve ? 'Версия для участника подтверждена' : 'Подтверждение снято');
+  closeModal('modal-integral');
+  loadIntegralCard(id);
+}
+
+function downloadIntegralPdf(id, lang, audience) {
+  toast('Готовим PDF...');
+  socDownload(ipBase(id) + '/pdf?audience=' + audience + '&lang=' + lang, 'Интегральный_профиль_' + id + '_' + audience + '.pdf');
 }
 
 // Бейджи «тест: этап» в таблице участников.
