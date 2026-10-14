@@ -2940,16 +2940,20 @@ async function generatePnGroup() {
   renderPnGroup(d.result, PN_SAVED_REPORT_AT);
 }
 
-async function downloadPnGroupPdf() {
+async function downloadPnGroupPdf(format) {
   const groupId = $('pn-group-filter').value;
   if (!groupId) { toast('Выберите группу', true); return; }
-  toast('Готовим PDF...');
+  const what = format === 'docx' ? 'Word' : 'PDF';
+  toast('Готовим ' + what + '...');
   try {
-    const r = await fetch(API + '/pn-group/group/' + groupId + '/report-pdf', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
-    if (!r.ok) { const e = await r.json().catch(() => ({})); toast('PDF недоступен: ' + (e.error || r.status), true); return; }
+    const q = format === 'docx' ? '?format=docx' : '';
+    const r = await fetch(API + '/pn-group/group/' + groupId + '/report-pdf' + q, { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); toast(what + ' недоступен: ' + (e.error || r.status), true); return; }
     const blob = await r.blob();
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = filenameFromResponse(r, 'ADIN_pn_group_' + groupId + '.pdf'); a.click();
+    a.href = URL.createObjectURL(blob);
+    a.download = filenameFromResponse(r, 'ADIN_pn_group_' + groupId + '.' + (format === 'docx' ? 'docx' : 'pdf'));
+    a.click();
     URL.revokeObjectURL(a.href);
   } catch (e) { toast('Ошибка соединения', true); }
 }
@@ -2968,7 +2972,7 @@ function renderPnGroup(r, savedAt) {
   wrap.innerHTML = `
     <div class="card">
       <div class="card-title"><span>Групповой свод Personne · PN · ${n} участников</span>
-        <span style="display:flex;gap:8px;align-items:center;font-weight:400;font-size:12px;color:var(--ink-faint)">${savedAt ? 'от ' + fmtDate(savedAt) : ''}<button class="btn btn-ghost btn-sm" onclick="downloadPnGroupPdf()">📄 PDF с графиками</button></span></div>
+        <span style="display:flex;gap:8px;align-items:center;font-weight:400;font-size:12px;color:var(--ink-faint)">${savedAt ? 'от ' + fmtDate(savedAt) : ''}<button class="btn btn-ghost btn-sm" onclick="downloadPnGroupPdf()">📄 PDF с графиками</button><button class="btn btn-ghost btn-sm" onclick="downloadPnGroupPdf('docx')" title="Тот же отчёт файлом .docx — открывается в Word, текст можно править">📝 Word</button></span></div>
       ${r.summary ? `<p style="font-size:14px;line-height:1.65;padding:12px 16px;background:var(--bg-subtle);border-left:3px solid var(--ink);margin:0 0 16px">${socEsc(r.summary)}</p>` : ''}
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px">
         ${tile('Участников', String(n), 'заполнено ' + (q.filled_pct || 0) + '% · пустых ' + (q.empty_answers || 0), 'var(--ink)')}
