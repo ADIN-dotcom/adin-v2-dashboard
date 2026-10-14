@@ -78,7 +78,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
   }
   /* Скрываем всё интерактивное — кнопки, вкладки, загрузку, обычную экранную
      шапку и панель инструментов текстового отчёта (AI/скачать/ключ) */
-  .tabs, .upload-zone, #pdf-btn, #keyfile-btn, .btn-upload, .header, .narrative-toolbar, #narrative-ai-status { display:none !important; }
+  .tabs, .upload-zone, #pdf-btn, #doc-btn, #keyfile-btn, .btn-upload, .header, .narrative-toolbar, #narrative-ai-status { display:none !important; }
 
   .print-header {
     display: flex !important;
@@ -263,6 +263,15 @@ svg.radar{overflow:visible}
       onmouseover="this.style.background='rgba(255,255,255,.25)'"
       onmouseout="this.style.background='rgba(255,255,255,.15)'">
       📄 PDF-отчёт
+    </button>
+    <button id="doc-btn" onclick="exportReportDoc()"
+      style="margin-left:8px;padding:6px 14px;background:rgba(255,255,255,.15);
+      color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:6px;
+      font-size:13px;font-weight:500;cursor:pointer;font-family:inherit"
+      title="Тот же отчёт файлом .doc — открывается в Word, текст можно править"
+      onmouseover="this.style.background='rgba(255,255,255,.25)'"
+      onmouseout="this.style.background='rgba(255,255,255,.15)'">
+      📝 Word
     </button>
   </div>
 </div>
@@ -930,6 +939,122 @@ function injectPrintChrome() {
 
 // Печать всех вкладок как единый PDF-отчёт. Перед вызовом системного диалога
 // печати вставляем шапку/подвал на каждую страницу (см. injectPrintChrome).
+// ═══════════════════════════════════════════════════════════
+// ВЫГРУЗКА В WORD
+// ═══════════════════════════════════════════════════════════
+// Тот же отчёт, что уходит в PDF, но файлом .doc: Word открывает
+// Word-совместимый HTML со стилями, и текст в нём можно править.
+// PDF-печать не затронута — это отдельный путь.
+//
+// Три вещи, которые Word не умеет и которые приходится готовить руками:
+//   1) CSS-переменные — подставляем значениями из :root;
+//   2) ::before с data-print-title — заголовки разделов становятся реальными
+//      элементами, иначе в документе их не будет вовсе;
+//   3) <svg> лепестковой диаграммы — заменяем таблицей тех же чисел
+//      (в картинку её не перевести: обводка задана через var(--cream-d),
+//      а внутри изображения переменные не разрешаются).
+
+function docResolveVars(text) {
+  const root = {};
+  const m = document.documentElement.getAttribute('style');
+  for (const sheet of document.styleSheets) {
+    let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
+    for (const r of rules || []) {
+      if (!r.style || !r.selectorText || !r.selectorText.includes(':root')) continue;
+      for (const prop of r.style) if (prop.startsWith('--')) root[prop] = r.style.getPropertyValue(prop).trim();
+    }
+  }
+  // До пяти проходов: переменная может ссылаться на переменную.
+  let out = text;
+  for (let i = 0; i < 5 && out.includes('var(--'); i++) {
+    out = out.replace(/var\(\s*(--[a-z0-9-]+)\s*(?:,[^()]*)?\)/gi, (whole, name) => root[name] || whole);
+  }
+  return out;
+}
+
+// Лепестковая диаграмма → таблица чисел. Подписи и значения берём из того же
+// массива, что рисует SVG, через data-атрибуты, расставленные при отрисовке.
+function docRadarTable(node) {
+  const pts = [...node.querySelectorAll('[data-radar-label]')];
+  if (!pts.length) return null;
+  const rows = pts.map(el => `<tr><td style="padding:4px 10px;border:1px solid #ede8df">${el.getAttribute('data-radar-label')}</td>`
+    + `<td style="padding:4px 10px;border:1px solid #ede8df;text-align:right">${el.getAttribute('data-radar-value')}</td></tr>`).join('');
+  return `<table style="border-collapse:collapse;font-size:13px;margin:6px 0">
+    <tr><th style="padding:4px 10px;border:1px solid #ede8df;text-align:left">Компетенция</th>
+        <th style="padding:4px 10px;border:1px solid #ede8df">Балл</th></tr>${rows}</table>`;
+}
+
+function exportReportDoc() {
+  if (typeof DATA === 'undefined' || !DATA || !DATA.length) {
+    alert('Сначала загрузите CSV с данными команды.');
+    return;
+  }
+  injectPrintChrome();   // те же шапки и подвалы, что в PDF
+
+  // Берём сам контейнер отчёта, а не всю страницу: #dashboard скрыт правилом
+  // display:none до загрузки CSV и показывается inline-стилем, поэтому в
+  // клоне его видимость задаём явно — не полагаясь на состояние страницы.
+  const src = document.getElementById('dashboard') || document.body;
+  const clone = src.cloneNode(true);
+  clone.style.display = 'block';
+  clone.style.maxWidth = 'none';
+  clone.style.padding = '0';
+
+  // Интерактивное в документе не нужно.
+  clone.querySelectorAll('.tabs, .upload-zone, .header, .narrative-toolbar, #narrative-ai-status, button, input, select, script')
+       .forEach(el => el.remove());
+
+  // Все вкладки видимы и разделены страницами — как при печати.
+  clone.querySelectorAll('.tab-content').forEach(tab => {
+    tab.style.display = 'block';
+    tab.style.pageBreakAfter = 'always';
+    const title = tab.getAttribute('data-print-title');
+    if (title && !tab.querySelector('.doc-section-title')) {
+      const h = document.createElement('div');
+      h.className = 'doc-section-title';
+      h.setAttribute('style', 'font-size:20px;font-weight:700;color:#1E3A5F;margin:0 0 14px;font-family:Segoe UI,Arial,sans-serif');
+      h.textContent = title;
+      tab.insertBefore(h, tab.firstChild);
+    }
+  });
+
+  clone.querySelectorAll('svg').forEach(svg => {
+    const host = svg.closest('#radar-chart') || svg.parentElement;
+    const table = docRadarTable(host) || docRadarTable(svg);
+    const box = document.createElement('div');
+    box.innerHTML = table || '<div style="font-size:12px;color:#8888a8">Диаграмма доступна в PDF-версии отчёта.</div>';
+    // Контейнер диаграммы — flex с центрированием: таблица в нём сжимается
+    // в колонку шириной в один символ. Возвращаем обычный поток.
+    if (host && host.style) { host.style.display = 'block'; host.style.minHeight = '0'; host.style.justifyContent = 'flex-start'; }
+    svg.replaceWith(box);
+  });
+
+  let css = '';
+  for (const sheet of document.styleSheets) {
+    let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
+    for (const r of rules || []) {
+      // Печатные правила в Word не нужны: вкладки уже развёрнуты вручную.
+      if (r.type === CSSRule.MEDIA_RULE) continue;
+      css += r.cssText + '\n';
+    }
+  }
+
+  const team = (document.querySelector('.print-subheader-company') || {}).textContent || 'команда';
+  const html = docResolveVars(
+    '<html xmlns:o="urn:schemas-microsoft-com:office:office" ' +
+    'xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">' +
+    '<head><meta charset="utf-8"><title>Карта команды — ' + team + '</title>' +
+    '<style>@page{size:A4;margin:18mm}body{font-family:Segoe UI,Arial,sans-serif;font-size:13px}' + css + '</style>' +
+    '</head><body>' + clone.innerHTML + '</body></html>');
+
+  const blob = new Blob(['﻿' + html], { type: 'application/msword' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'ADIN_карта_команды_' + new Date().toISOString().slice(0, 10) + '.doc';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
 function printReport() {
   injectPrintChrome();
   window.print();
@@ -1317,7 +1442,12 @@ function renderCompetencies() {
     return { x: cx + R * Math.cos(angle), y: cy + R * Math.sin(angle), lx, ly, lb, val: vals[i] };
   });
 
-  document.getElementById('radar-chart').innerHTML = `
+  // Те же числа скрытой разметкой: выгрузка в Word заменяет SVG таблицей,
+  // а внутри SVG значения живут только как координаты точек.
+  const radarData = axesPts.map(p =>
+    `<span data-radar-label="${p.lb}" data-radar-value="${Math.round(p.val)}" style="display:none"></span>`).join('');
+
+  document.getElementById('radar-chart').innerHTML = radarData + `
     <svg width="260" height="260" class="radar">
       ${[20,40,60,80,100].map(l => `
         <polygon points="${gridPts(l)}"
