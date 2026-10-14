@@ -1917,7 +1917,7 @@ async function downloadNarrativeStatusPdf(sessionId, level) {
     const r = await fetch(API + '/narrative-status/report-pdf/' + sessionId + '?level=' + level, {
       headers: { 'Authorization': 'Bearer ' + TOKEN }
     });
-    if (!r.ok) { const e = await r.json().catch(() => ({})); toast('PDF недоступен: ' + (e.error || r.status), true); return; }
+    if (!r.ok) { const e = await r.json().catch(() => ({})); toast(what + ' недоступен: ' + (e.error || r.status), true); return; }
     const blob = await r.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -1965,12 +1965,16 @@ function printScreenGroupNarrative() {
 
 // audience='facilitator' — полный отчёт; 'group' — версия для самих участников:
 // без алертов, дословных цитат и идентификаторов. Состав определяет сервер.
-async function downloadGroupNarrativePdf(audience) {
+async function downloadGroupNarrativePdf(audience, format) {
   const groupId = document.getElementById('ns-group-filter').value;
   if (!groupId) { toast('Выберите группу', true); return; }
-  toast(audience === 'group' ? 'Готовим PDF для группы...' : 'Готовим PDF...');
+  const what = format === 'docx' ? 'Word' : 'PDF';
+  toast(audience === 'group' ? ('Готовим ' + what + ' для группы...') : ('Готовим ' + what + '...'));
   try {
-    const q = audience === 'group' ? '?audience=group' : '';
+    const params = [];
+    if (audience === 'group') params.push('audience=group');
+    if (format === 'docx') params.push('format=docx');
+    const q = params.length ? '?' + params.join('&') : '';
     const r = await fetch(API + '/narrative-status/group/' + groupId + '/report-pdf' + q, {
       headers: { 'Authorization': 'Bearer ' + TOKEN }
     });
@@ -1978,7 +1982,7 @@ async function downloadGroupNarrativePdf(audience) {
     const blob = await r.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = filenameFromResponse(r, 'ADIN_narrative_status_group.pdf'); a.click();
+    a.download = filenameFromResponse(r, 'ADIN_narrative_status_group.' + (format === 'docx' ? 'docx' : 'pdf')); a.click();
     URL.revokeObjectURL(a.href);
   } catch (e) { toast('Ошибка соединения', true); }
 }
@@ -3515,6 +3519,8 @@ function renderGroupNarrative(r, savedAt) {
         <span style="font-size:13px;color:var(--ink-faint)">${r.group_size} участников${r.unclassified_count ? ' · ' + r.unclassified_count + ' без анализа' : ''}${savedAt ? ' · отчёт от ' + fmtDate(savedAt) : ''}</span>
           <button class="btn" onclick="downloadGroupNarrativePdf()" style="padding:6px 12px;font-size:12.5px" title="Полный отчёт фасилитатору: алерты, цитаты, номера участников и коды TIN.">&#128196; PDF фасилитатору</button>
           <button class="btn" onclick="downloadGroupNarrativePdf('group')" style="padding:6px 12px;font-size:12.5px" title="Версия для самих участников: без алертов, без дословных цитат и без идентификаторов — никто не узнает себя или соседа.">&#128101; PDF для группы</button>
+          <button class="btn" onclick="downloadGroupNarrativePdf(null,'docx')" style="padding:6px 12px;font-size:12.5px" title="Тот же отчёт фасилитатору файлом .docx — открывается в Word, текст можно править.">&#128221; Word</button>
+          <button class="btn" onclick="downloadGroupNarrativePdf('group','docx')" style="padding:6px 12px;font-size:12.5px" title="Версия для участников в Word.">&#128221; Word для группы</button>
           <button class="btn" onclick="printScreenGroupNarrative()" style="padding:6px 12px;font-size:12.5px" title="Этот отчёт как он выглядит на экране — с именами из вашего ключ-файла. Откроется диалог печати, выберите «Сохранить как PDF».">&#128424;&#65039; PDF экрана</button>
         </div>
       </div>
