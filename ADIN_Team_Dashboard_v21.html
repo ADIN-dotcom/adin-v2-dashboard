@@ -1004,6 +1004,17 @@ function exportReportDoc() {
   clone.querySelectorAll('.tabs, .upload-zone, .header, .narrative-toolbar, #narrative-ai-status, button, input, select, script')
        .forEach(el => el.remove());
 
+  // Логотипы вставлены как data:-URI. Импортёр HTML в Word их не понимает:
+  // документ либо отказывается открываться, либо приходит с битыми врезками.
+  // Заменяем текстом — в подвале название организации всё равно есть.
+  clone.querySelectorAll('img[src^="data:"]').forEach(img => {
+    const alt = img.getAttribute('alt') || '';
+    const span = document.createElement('span');
+    span.setAttribute('style', 'font-weight:700;font-size:13px;color:#1E3A5F');
+    span.textContent = alt === 'GTIN' ? 'GTIN' : 'Association de l\u2019Intelligence Narrative';
+    img.replaceWith(span);
+  });
+
   // Все вкладки видимы и разделены страницами — как при печати.
   clone.querySelectorAll('.tab-content').forEach(tab => {
     tab.style.display = 'block';
@@ -1040,10 +1051,20 @@ function exportReportDoc() {
   }
 
   const team = (document.querySelector('.print-subheader-company') || {}).textContent || 'команда';
+  // Шапка по образцу того, что сам Word пишет при сохранении в HTML: без неё
+  // он охотнее считает файл просто веб-страницей с чужим расширением.
   const html = docResolveVars(
+    '<!DOCTYPE html>\n' +
     '<html xmlns:o="urn:schemas-microsoft-com:office:office" ' +
     'xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">' +
-    '<head><meta charset="utf-8"><title>Карта команды — ' + team + '</title>' +
+    '<head><meta charset="utf-8">' +
+    '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">' +
+    '<meta name="ProgId" content="Word.Document">' +
+    '<meta name="Generator" content="Microsoft Word 15">' +
+    '<!--[if gte mso 9]><xml><w:WordDocument>' +
+    '<w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/>' +
+    '</w:WordDocument></xml><![endif]-->' +
+    '<title>Карта команды — ' + team + '</title>' +
     '<style>@page{size:A4;margin:18mm}body{font-family:Segoe UI,Arial,sans-serif;font-size:13px}' + css + '</style>' +
     '</head><body>' + clone.innerHTML + '</body></html>');
 
