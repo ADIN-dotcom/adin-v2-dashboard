@@ -264,7 +264,7 @@ svg.radar{overflow:visible}
       onmouseout="this.style.background='rgba(255,255,255,.15)'">
       📄 PDF-отчёт
     </button>
-    <button id="doc-btn" onclick="exportReportDoc()"
+    <button id="doc-btn" onclick="exportReportRtf()"
       style="margin-left:8px;padding:6px 14px;background:rgba(255,255,255,.15);
       color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:6px;
       font-size:13px;font-weight:500;cursor:pointer;font-family:inherit"
@@ -940,138 +940,204 @@ function injectPrintChrome() {
 // Печать всех вкладок как единый PDF-отчёт. Перед вызовом системного диалога
 // печати вставляем шапку/подвал на каждую страницу (см. injectPrintChrome).
 // ═══════════════════════════════════════════════════════════
-// ВЫГРУЗКА В WORD
+// ВЫГРУЗКА В WORD (RTF)
 // ═══════════════════════════════════════════════════════════
-// Тот же отчёт, что уходит в PDF, но файлом .doc: Word открывает
-// Word-совместимый HTML со стилями, и текст в нём можно править.
-// PDF-печать не затронута — это отдельный путь.
-//
-// Три вещи, которые Word не умеет и которые приходится готовить руками:
-//   1) CSS-переменные — подставляем значениями из :root;
-//   2) ::before с data-print-title — заголовки разделов становятся реальными
-//      элементами, иначе в документе их не будет вовсе;
-//   3) <svg> лепестковой диаграммы — заменяем таблицей тех же чисел
-//      (в картинку её не перевести: обводка задана через var(--cream-d),
-//      а внутри изображения переменные не разрешаются).
+// Word отказался открывать HTML под расширением .doc, поэтому отчёт
+// собирается в RTF — это родной формат Word, он не требует ни ZIP,
+// ни внешних библиотек, ни обращения к серверу. Ключ-файл, как и
+// прежде, остаётся в браузере: документ собирается здесь же.
 
-function docResolveVars(text) {
-  const root = {};
-  const m = document.documentElement.getAttribute('style');
-  for (const sheet of document.styleSheets) {
-    let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
-    for (const r of rules || []) {
-      if (!r.style || !r.selectorText || !r.selectorText.includes(':root')) continue;
-      for (const prop of r.style) if (prop.startsWith('--')) root[prop] = r.style.getPropertyValue(prop).trim();
-    }
-  }
-  // До пяти проходов: переменная может ссылаться на переменную.
-  let out = text;
-  for (let i = 0; i < 5 && out.includes('var(--'); i++) {
-    out = out.replace(/var\(\s*(--[a-z0-9-]+)\s*(?:,[^()]*)?\)/gi, (whole, name) => root[name] || whole);
+const RTF_CM = 567;              // твипов в сантиметре
+const RTF_WIDTH = 17 * RTF_CM;   // полезная ширина A4 при полях по 2 см
+
+function rtfEsc(text) {
+  let out = '';
+  for (const ch of String(text == null ? '' : text)) {
+    const c = ch.codePointAt(0);
+    if (ch === '\\' || ch === '{' || ch === '}') out += '\\' + ch;
+    else if (ch === '\n') out += '\\line ';
+    else if (c < 128) out += ch;
+    // RTF хранит юникод числом со «страховочным» символом для старых читалок
+    else out += '\\u' + (c > 32767 ? c - 65536 : c) + '?';
   }
   return out;
 }
 
-// Лепестковая диаграмма → таблица чисел. Подписи и значения берём из того же
-// массива, что рисует SVG, через data-атрибуты, расставленные при отрисовке.
-function docRadarTable(node) {
-  const pts = [...node.querySelectorAll('[data-radar-label]')];
-  if (!pts.length) return null;
-  const rows = pts.map(el => `<tr><td style="padding:4px 10px;border:1px solid #ede8df">${el.getAttribute('data-radar-label')}</td>`
-    + `<td style="padding:4px 10px;border:1px solid #ede8df;text-align:right">${el.getAttribute('data-radar-value')}</td></tr>`).join('');
-  return `<table style="border-collapse:collapse;font-size:13px;margin:6px 0">
-    <tr><th style="padding:4px 10px;border:1px solid #ede8df;text-align:left">Компетенция</th>
-        <th style="padding:4px 10px;border:1px solid #ede8df">Балл</th></tr>${rows}</table>`;
+// Палитра собирается по ходу: в RTF цвета нумеруются таблицей в начале файла.
+function rtfPalette() {
+  const list = [];
+  const index = new Map();
+  return {
+    add(hex) {
+      const h = String(hex || '').replace('#', '').trim().toUpperCase();
+      if (!/^[0-9A-F]{6}$/.test(h)) return 0;        // 0 — цвет по умолчанию
+      if (!index.has(h)) { list.push(h); index.set(h, list.length); }
+      return index.get(h);
+    },
+    table() {
+      return '{\\colortbl;' + list.map(h =>
+        '\\red' + parseInt(h.slice(0, 2), 16) +
+        '\\green' + parseInt(h.slice(2, 4), 16) +
+        '\\blue' + parseInt(h.slice(4, 6), 16) + ';').join('') + '}';
+    },
+  };
 }
 
-function exportReportDoc() {
+function rtfPara(text, o) {
+  o = o || {};
+  const parts = ['\\pard\\sa' + (o.after == null ? 100 : o.after)];
+  if (o.align === 'center') parts.push('\\qc');
+  parts.push('\\fs' + Math.round((o.size || 10.5) * 2));
+  if (o.bold) parts.push('\\b');
+  if (o.italic) parts.push('\\i');
+  if (o.color) parts.push('\\cf' + o.color);
+  if (o.bullet) parts.push('\\fi-200\\li300');
+  return parts.join('') + ' ' + (o.bullet ? '\\u8226? ' : '') + rtfEsc(text) +
+         (o.bold ? '\\b0' : '') + (o.italic ? '\\i0' : '') + '\\cf0\\par\n';
+}
+
+// Строка таблицы: cells — [{text, w, fill, bold, size, align}]
+function rtfRow(cells) {
+  let def = '\\trowd\\trgaph60\\trleft0';
+  let acc = 0;
+  for (const c of cells) {
+    acc += c.w;
+    if (c.fill) def += '\\clcbpat' + c.fill;
+    def += '\\cellx' + Math.round(acc);
+  }
+  let body = '';
+  for (const c of cells) {
+    body += '\\pard\\intbl\\fs' + Math.round((c.size || 9.5) * 2) +
+            (c.align === 'right' ? '\\qr' : c.align === 'center' ? '\\qc' : '') +
+            (c.bold ? '\\b' : '') + (c.color ? '\\cf' + c.color : '') +
+            ' ' + rtfEsc(c.text || '') + (c.bold ? '\\b0' : '') + '\\cf0\\cell\n';
+  }
+  return def + '\n' + body + '\\row\n';
+}
+
+function exportReportRtf() {
   if (typeof DATA === 'undefined' || !DATA || !DATA.length) {
     alert('Сначала загрузите CSV с данными команды.');
     return;
   }
-  injectPrintChrome();   // те же шапки и подвалы, что в PDF
+  injectPrintChrome();
+  const pal = rtfPalette();
+  const NAVY = pal.add('1E3A5F'), SOFT = pal.add('4A4A6A'), FAINT = pal.add('8888A8');
+  const TRACK = pal.add('EDE8DF');
+  let body = '';
 
-  // Берём сам контейнер отчёта, а не всю страницу: #dashboard скрыт правилом
-  // display:none до загрузки CSV и показывается inline-стилем, поэтому в
-  // клоне его видимость задаём явно — не полагаясь на состояние страницы.
   const src = document.getElementById('dashboard') || document.body;
-  const clone = src.cloneNode(true);
-  clone.style.display = 'block';
-  clone.style.maxWidth = 'none';
-  clone.style.padding = '0';
 
-  // Интерактивное в документе не нужно.
-  clone.querySelectorAll('.tabs, .upload-zone, .header, .narrative-toolbar, #narrative-ai-status, button, input, select, script')
-       .forEach(el => el.remove());
+  // Полоса диаграммы: подпись, закрашенная доля, остаток, значение.
+  const emitBar = row => {
+    const label = (row.querySelector('.bar-label') || {}).textContent || '';
+    const fill = row.querySelector('.bar-fill');
+    const pct = fill ? parseFloat((fill.style.width || '0').replace('%', '')) || 0 : 0;
+    const bg = fill ? (fill.style.background || fill.style.backgroundColor || '') : '';
+    const m = bg.match(/#([0-9a-f]{6})/i) || bg.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/i);
+    let hex = '2D5A8E';
+    if (m && m[1] && m[1].length === 6) hex = m[1];
+    else if (m && m.length === 4) hex = [m[1], m[2], m[3]].map(x => (+x).toString(16).padStart(2, '0')).join('');
+    const value = (fill ? fill.textContent.trim() : '') ||
+                  (row.lastElementChild && row.lastElementChild !== fill ? row.lastElementChild.textContent.trim() : '');
+    const lw = 4.2 * RTF_CM, vw = 2.2 * RTF_CM;
+    const track = RTF_WIDTH - lw - vw;
+    const filled = Math.max(28, track * Math.min(100, Math.max(0, pct)) / 100);
+    body += rtfRow([
+      { text: label, w: lw, color: SOFT },
+      { text: '', w: filled, fill: pal.add(hex) },
+      { text: '', w: Math.max(28, track - filled), fill: TRACK },
+      { text: value, w: vw, align: 'right', color: FAINT },
+    ]);
+  };
 
-  // Логотипы вставлены как data:-URI. Импортёр HTML в Word их не понимает:
-  // документ либо отказывается открываться, либо приходит с битыми врезками.
-  // Заменяем текстом — в подвале название организации всё равно есть.
-  clone.querySelectorAll('img[src^="data:"]').forEach(img => {
-    const alt = img.getAttribute('alt') || '';
-    const span = document.createElement('span');
-    span.setAttribute('style', 'font-weight:700;font-size:13px;color:#1E3A5F');
-    span.textContent = alt === 'GTIN' ? 'GTIN' : 'Association de l\u2019Intelligence Narrative';
-    img.replaceWith(span);
-  });
+  const emitTable = tbl => {
+    const rows = [...tbl.rows];
+    if (!rows.length) return;
+    const cols = Math.max(...rows.map(r => r.cells.length));
+    const w = RTF_WIDTH / cols;
+    rows.forEach((r, i) => {
+      body += rtfRow([...r.cells].map(c => ({
+        text: c.textContent.trim(), w, bold: i === 0 || c.tagName === 'TH',
+        fill: i === 0 ? pal.add('E8E4DC') : 0,
+      })));
+    });
+    body += rtfPara('', { after: 80 });
+  };
 
-  // Все вкладки видимы и разделены страницами — как при печати.
-  clone.querySelectorAll('.tab-content').forEach(tab => {
-    tab.style.display = 'block';
-    tab.style.pageBreakAfter = 'always';
+  const walk = el => {
+    for (const node of el.children) {
+      if (node.classList.contains('bar-row')) { emitBar(node); continue; }
+      if (node.tagName === 'TABLE') { emitTable(node); continue; }
+      if (node.id === 'radar-chart' || node.querySelector(':scope > svg')) {
+        // Внутри SVG подписи и числа — текстовые узлы: попав в абзац, они
+        // слиплись бы в кашу. Берём те же значения из data-атрибутов.
+        const pts = [...node.querySelectorAll('[data-radar-label]')];
+        if (pts.length) {
+          body += rtfRow([{ text: 'Компетенция', w: RTF_WIDTH * 0.6, bold: true, fill: pal.add('E8E4DC') },
+                          { text: 'Балл', w: RTF_WIDTH * 0.4, bold: true, fill: pal.add('E8E4DC') }]);
+          pts.forEach(pt => {
+            body += rtfRow([{ text: pt.getAttribute('data-radar-label') || '', w: RTF_WIDTH * 0.6 },
+                            { text: pt.getAttribute('data-radar-value') || '', w: RTF_WIDTH * 0.4, align: 'right' }]);
+          });
+          body += rtfPara('', { after: 80 });
+        }
+        continue;
+      }
+      if (node.classList.contains('matrix')) {
+        // Матрица держится на абсолютном позиционировании — в документе
+        // от неё остались бы точки без координат. Вместо неё таблица.
+        body += rtfPara('Распределение участников:', { size: 10, color: SOFT });
+        body += rtfRow([{ text: 'Участник', w: RTF_WIDTH * 0.5, bold: true, fill: pal.add('E8E4DC') },
+                        { text: 'Тип', w: RTF_WIDTH * 0.3, bold: true, fill: pal.add('E8E4DC') },
+                        { text: 'Уровень', w: RTF_WIDTH * 0.2, bold: true, fill: pal.add('E8E4DC') }]);
+        DATA.forEach(r => {
+          body += rtfRow([{ text: r.name || r.code || '—', w: RTF_WIDTH * 0.5 },
+                          { text: r.type || '—', w: RTF_WIDTH * 0.3 },
+                          { text: String(r.level || '—'), w: RTF_WIDTH * 0.2 }]);
+        });
+        body += rtfPara('', { after: 80 });
+        continue;
+      }
+      const hasBlockChild = [...node.children].some(c =>
+        ['DIV', 'TABLE', 'UL', 'OL', 'P'].includes(c.tagName));
+      if (!hasBlockChild) {
+        const text = node.textContent.replace(/\s+/g, ' ').trim();
+        if (!text) continue;
+        const cs = getComputedStyle(node);
+        const size = parseFloat(cs.fontSize) || 13;
+        const bold = (parseInt(cs.fontWeight, 10) || 400) >= 600;
+        body += rtfPara(text, {
+          size: Math.min(16, Math.max(9, size * 0.78)),
+          bold, color: bold ? NAVY : SOFT, after: bold ? 60 : 100,
+        });
+        continue;
+      }
+      walk(node);
+    }
+  };
+
+  const tabs = [...src.querySelectorAll('.tab-content')];
+  tabs.forEach((tab, i) => {
+    if (i) body += '\\page\n';
     const title = tab.getAttribute('data-print-title');
-    if (title && !tab.querySelector('.doc-section-title')) {
-      const h = document.createElement('div');
-      h.className = 'doc-section-title';
-      h.setAttribute('style', 'font-size:20px;font-weight:700;color:#1E3A5F;margin:0 0 14px;font-family:Segoe UI,Arial,sans-serif');
-      h.textContent = title;
-      tab.insertBefore(h, tab.firstChild);
-    }
+    if (title) body += rtfPara(title, { size: 16, bold: true, color: NAVY, after: 160 });
+    walk(tab);
   });
 
-  clone.querySelectorAll('svg').forEach(svg => {
-    const host = svg.closest('#radar-chart') || svg.parentElement;
-    const table = docRadarTable(host) || docRadarTable(svg);
-    const box = document.createElement('div');
-    box.innerHTML = table || '<div style="font-size:12px;color:#8888a8">Диаграмма доступна в PDF-версии отчёта.</div>';
-    // Контейнер диаграммы — flex с центрированием: таблица в нём сжимается
-    // в колонку шириной в один символ. Возвращаем обычный поток.
-    if (host && host.style) { host.style.display = 'block'; host.style.minHeight = '0'; host.style.justifyContent = 'flex-start'; }
-    svg.replaceWith(box);
-  });
+  body += rtfPara('© ' + new Date().getFullYear() +
+    ' Association de l\u2019Intelligence Narrative\u00ae. Документ конфиденциален.',
+    { size: 8, color: FAINT });
 
-  let css = '';
-  for (const sheet of document.styleSheets) {
-    let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
-    for (const r of rules || []) {
-      // Печатные правила в Word не нужны: вкладки уже развёрнуты вручную.
-      if (r.type === CSSRule.MEDIA_RULE) continue;
-      css += r.cssText + '\n';
-    }
-  }
+  const rtf = '{\\rtf1\\ansi\\ansicpg1251\\deff0\n' +
+    '{\\fonttbl{\\f0\\fswiss Calibri;}}\n' + pal.table() + '\n' +
+    '\\paperw11906\\paperh16838\\margl1134\\margr1134\\margt1134\\margb1134\n' +
+    '\\f0 ' + body + '}';
 
-  const team = (document.querySelector('.print-subheader-company') || {}).textContent || 'команда';
-  // Шапка по образцу того, что сам Word пишет при сохранении в HTML: без неё
-  // он охотнее считает файл просто веб-страницей с чужим расширением.
-  const html = docResolveVars(
-    '<!DOCTYPE html>\n' +
-    '<html xmlns:o="urn:schemas-microsoft-com:office:office" ' +
-    'xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">' +
-    '<head><meta charset="utf-8">' +
-    '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">' +
-    '<meta name="ProgId" content="Word.Document">' +
-    '<meta name="Generator" content="Microsoft Word 15">' +
-    '<!--[if gte mso 9]><xml><w:WordDocument>' +
-    '<w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/>' +
-    '</w:WordDocument></xml><![endif]-->' +
-    '<title>Карта команды — ' + team + '</title>' +
-    '<style>@page{size:A4;margin:18mm}body{font-family:Segoe UI,Arial,sans-serif;font-size:13px}' + css + '</style>' +
-    '</head><body>' + clone.innerHTML + '</body></html>');
-
-  const blob = new Blob(['﻿' + html], { type: 'application/msword' });
+  const blob = new Blob([rtf], { type: 'application/rtf' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'ADIN_карта_команды_' + new Date().toISOString().slice(0, 10) + '.doc';
+  a.download = 'ADIN_карта_команды_' + new Date().toISOString().slice(0, 10) + '.rtf';
   a.click();
   URL.revokeObjectURL(a.href);
 }
