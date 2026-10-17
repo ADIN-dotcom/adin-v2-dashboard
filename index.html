@@ -1982,6 +1982,7 @@ function mergeIntoMasterKeyfile(newEntries) {
   }
   saveMasterKeyfile(existing);
   window.KEYFILE = existing;
+  if (typeof ssRenderHistory === 'function' && SS.savedList) ssRenderHistory(SS.savedList);
   return { added, total: Object.keys(existing).length };
 }
 
@@ -4062,10 +4063,12 @@ const SS_TAGS = [['stazh', 'Стаж', 'Сотрудник с большим с�
 const ssEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const ssDate = d => (d ? new Date(d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
 
-// Имя по коду TIN: ищем в ключ-файле любой код того же человека.
+// Имя по коду участника: ищем в ключ-файле любой код того же человека
+// (код может быть не TIN — тогда человек находится по списку его кодов).
 function ssName(code) {
   if (!window.KEYFILE || !code) return '';
-  for (const c of [code, ...(SS.names[code] || [])]) { const n = window.KEYFILE[String(c).toUpperCase()]; if (n) return n; }
+  const tin = SS.names[code] ? code : Object.keys(SS.names).find(t => (SS.names[t] || []).includes(code)) || code;
+  for (const c of [code, tin, ...(SS.names[tin] || [])]) { const n = window.KEYFILE[String(c).toUpperCase()]; if (n) return n; }
   return '';
 }
 
@@ -4419,7 +4422,9 @@ const SS_SC_STATUS = { done: 'с обоснованием', needs_review: 'с о
 
 function ssRenderHistory(list) {
   const box = $('ss-history'); if (!box) return;
+  SS.savedList = list;
   if (!Array.isArray(list) || !list.length) { box.innerHTML = ''; return; }
+  const kf = ssHasKeyfile();
   box.innerHTML = `<div class="card"><div class="card-title">Сохранённые сессии</div><div class="tbl-wrap"><table>
     <thead><tr><th>№</th><th>Изменена</th><th>Цель</th><th>Формат</th><th>Статус</th><th></th></tr></thead>
     <tbody>${list.map(s => `<tr>
@@ -4428,6 +4433,7 @@ function ssRenderHistory(list) {
       <td>${ssEsc(SS_SC_STATUS[s.scenario_status] || 'каркас')}${s.edited_blocks ? ` · правок: ${s.edited_blocks}` : ''}</td>
       <td><div style="display:flex;flex-wrap:wrap;gap:4px;min-width:220px"><button class="btn btn-sm btn-ghost" onclick="ssOpen(${s.id})">Открыть</button>
         <button class="btn btn-sm btn-ghost" onclick="ssPdf(${s.id},'facilitator')">PDF фасилитатору</button>
+        <button class="btn btn-sm btn-ghost" onclick="ssPrintNamed(${s.id})" ${kf ? 'title="Сценарий фасилитатора с именами из ключ-файла: собирается в браузере, PDF — через печать"' : 'disabled title="Загрузите ключ-файл"'}>С именами (печать)</button>${kf ? '' : '<span class="ss-small ss-muted" style="align-self:center">Загрузите ключ-файл</span>'}
         <button class="btn btn-sm btn-ghost" onclick="ssPdf(${s.id},'client')">PDF заказчику</button>
         <button class="btn btn-sm btn-ghost" onclick="ssCopy(${s.id})">Копия для правки</button>
         <button class="btn btn-sm btn-ghost" disabled title="${s.has_newer_data ? 'У группы есть анализ новее этой сессии; сравнение появится в следующей версии' : 'Нет нового анализа группы после даты сессии'}">Сравнить с исходными данными</button></div></td></tr>`).join('')}</tbody></table></div></div>`;
@@ -4460,6 +4466,143 @@ async function ssCopy(id) {
   const list = await api('/strategy-session/group/' + SS.groupId + '/sessions');
   ssRenderSaved(list);
   await ssOpen(r.session_id);
+}
+
+// ── Печать сценария фасилитатора с именами ──
+// С сервера приходит вид PDF фасилитатора (/pdf-view, только коды). Имена
+// подставляются здесь из ключ-файла этого браузера; обратно ничего не уходит.
+// Документ открывается в новом окне, PDF сохраняют через «Печать».
+const SS_CODE_RE = /\bADIN-[A-Z0-9]+\b/g;
+const SS_ST_COLOR = { inv: '#3B5796', int: '#74559F', tr: '#A97A1E', ig: '#2B7553' };
+const ssHasKeyfile = () => !!(window.KEYFILE && Object.keys(window.KEYFILE).length);
+
+// Каждый код участника в любом поле вида → «Имя (код)» или «код (нет в ключ-файле)».
+function ssNamed(view) {
+  const missing = new Set();
+  const sub = c => { const n = ssName(c); if (!n) missing.add(c); return n ? `${n} (${c})` : `${c} (нет в ключ-файле)`; };
+  const walk = o => (typeof o === 'string' ? o.replace(SS_CODE_RE, sub)
+    : Array.isArray(o) ? o.map(walk)
+    : o && typeof o === 'object' ? Object.fromEntries(Object.entries(o).map(([k, x]) => [k, walk(x)])) : o);
+  return { view: walk(view), missing: [...missing] };
+}
+
+function ssPrintHTML(v) {
+  const e = ssEsc, cv = v.cover || {}, g = cv.goal;
+  const STN = { inv: 'Инвентаризация', int: 'Интерпретация', tr: 'Трансформация', ig: 'Интеграция' };
+  const date = cv.date ? new Date(cv.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  const field = (l, s, cls = '') => (s ? `<div class="f"><div class="lbl">${e(l)}</div><div class="${cls}">${e(s)}</div></div>` : '');
+  const review = issues => (issues && issues.length ? `<div class="review"><b>ПРОВЕРИТЬ.</b> Проверка ответа модели нашла расхождения: ${e(issues.join('; '))}</div>` : '');
+  const h = (n, t, sub = '') => `<h2><span class="n">${e(n)}</span>${e(t)}${sub ? `<small>${e(sub)}</small>` : ''}</h2>`;
+  const bullets = (a, cls = '') => (a && a.length ? `<ul class="${cls}">${a.map(x => `<li>${e(x)}</li>`).join('')}</ul>` : '');
+  const rules = r => (r && r.length ? `<div class="rules">Правила: ${e(r.join(', '))}</div>` : '');
+  const counts = ['tin', 'sn', 'pn', 'soc'].filter(k => cv.counts && cv.counts[k] != null).map(k => SS_TESTS.find(t => t[0] === k)[1] + ' ' + cv.counts[k]).join(' · ');
+
+  const cover = `<section class="cover"><div class="kind">СЦЕНАРИЙ СЕССИИ · ДЛЯ ФАСИЛИТАТОРА · С ИМЕНАМИ</div>
+    <h1>${e(cv.client || cv.group)}</h1>${cv.client && cv.group && cv.client !== cv.group ? `<div class="grp">${e(cv.group)}</div>` : ''}<hr>
+    ${g ? `${field('Цель', g.letter + ' · ' + g.name, 'big')}<p class="muted">${e(g.question)}</p><p>${e(g.result)}</p>` : ''}
+    ${cv.secondary ? field('Дополнительная цель', cv.secondary.letter + ' · ' + cv.secondary.name) : ''}
+    ${field('Формат', cv.format, 'b')}${field('Дата', date)}${field('Участников по тестам', counts)}
+    <p class="muted small">Черновик №${e(cv.session_id)} · ${v.generated ? 'Каркас по правилам методики и тексты с обоснованием' : 'Каркас по правилам методики (тексты модели не строились)'}</p>
+    ${field('Запрос заказчика', cv.request)}${field('Гипотеза заказчика', cv.hypothesis)}</section>`;
+
+  const theses = `<section class="pb">${h('1', 'Главное, что показали данные для цели ' + ((g && g.letter) || ''))}${review(v.theses_review)}
+    ${(v.theses || []).map((t, i) => `<div class="bar keep" style="--c:${t.kind === 'risk' ? 'var(--danger)' : t.kind === 'resource' ? 'var(--success)' : 'var(--accent)'}">
+      <b class="tt">${i + 1}. ${e(t.title)}</b>${t.against_goal ? '<div class="against">против цели</div>' : ''}
+      ${bullets(t.evidence, 'ev')}<p>${e(t.implication)}</p>${rules(t.rules)}</div>`).join('')}
+    ${h('2', 'Формат и точка входа')}
+    ${field('Формат', v.format && v.format.value, 'b')}<p class="muted small">${e(v.format && v.format.rationale)}</p>
+    ${v.format && v.format.longer ? `<p class="warn">Данные указывают на более длинный формат: ${e(v.format.recommended)}. Без сопровождения результат сессии, скорее всего, не удержится.</p>` : ''}
+    ${field('Точка входа', v.entry && v.entry.text)}<p class="muted small">${e(v.entry && v.entry.rationale)}</p>
+    ${field('Логика сценария', v.summary && v.summary.text)}</section>`;
+
+  const schedule = `<section class="pb">${h('3', 'Схема дня')}${(v.schedule || []).map(d => `${v.schedule.length > 1 ? `<h3>День ${e(d.day)}</h3>` : ''}
+    <table class="sched"><thead><tr><th>Время</th><th>Код</th><th>Блок</th><th>Этап</th><th class="r">Мин</th></tr></thead><tbody>
+    ${d.rows.map(r => (r.brk ? `<tr class="brk"><td>${e(r.time)}</td><td colspan="4">${e(r.title)}</td></tr>`
+      : `<tr><td>${e(r.time)}</td><td class="b">${e(r.code)}</td><td>${e(r.title)}</td><td><i class="sq" style="background:${SS_ST_COLOR[r.stage] || '#111'}"></i>${e(STN[r.stage] || r.stage)}</td><td class="r">${e(r.minutes)}</td></tr>`)).join('')}
+    </tbody></table>`).join('')}</section>`;
+
+  const FIELDS = [['question', 'Вопрос группе', 'q'], ['how', 'Как обсуждаем', ''], ['facilitator_notes', 'Комментарий фасилитатору', 'note'], ['group_data', 'Данные группы', 'small'],
+    ['corr', 'Коррекция по типу', 'small'], ['adapt', 'Адаптация по правилам', 'small'], ['output', 'Артефакт', ''], ['rationale', 'Почему так', 'small muted']];
+  const stages = (v.stages || []).map((st, i) => `<section class="pb">${h('4.' + (i + 1), `Этап ${i + 1} · ${st.name}`, `${st.minutes} мин · ${st.share}%`)}${review(st.review)}
+    <p>${e(st.rationale)}</p>
+    ${st.blocks.map(b => `<div class="bar blk" style="--c:${SS_ST_COLOR[b.stage] || '#111'}"><b class="tt">${e(b.time)} · ${e(b.title)} · ${e(b.minutes)} мин${b.core === false ? ' · модуль' : ''}</b>
+      <div class="meta">${e([b.canvas, b.edited ? 'правка фасилитатора' : ''].filter(Boolean).join(' · '))}</div>
+      ${FIELDS.map(([k, l, cls]) => { const val = k === 'how' ? b.how || b.format : b[k]; return field(l, val, cls); }).join('')}${rules(b.rules)}</div>`).join('')}</section>`).join('');
+
+  const sg = v.subgroups;
+  const subgroups = sg ? `<section class="pb">${h('5', 'Подгруппы')}<p class="muted">${e(sg.mode)}. ${e(sg.purpose)}</p>
+    ${sg.groups.map(o => `<div class="keep sg"><h3>${e(o.label)} · ${e(o.size)} чел.</h3><ul class="people">${o.codes.map(c => `<li>${e(c)}</li>`).join('')}</ul>
+      ${field('Характер', o.character)}${field('Встроенное напряжение', o.tension)}${o.checks && o.checks.length ? `<p class="danger small">${e(o.checks.join('; '))}</p>` : ''}</div>`).join('')}</section>` : '';
+
+  const before = `<section class="pb">${h('6', 'До сессии')}${review(v.summary_review)}
+    <ul>${(v.pre_session || []).map(p => `<li class="keep">${e(p.action)}<div class="muted small">${e(p.why)}</div></li>`).join('')}</ul>
+    <h4>Риски в сессии</h4>${(v.risks || []).map(r => `<div class="keep risk"><b>${e(r.risk)}</b>
+      ${r.signal ? `<div class="small">Сигнал: ${e(r.signal)}</div>` : ''}${r.response ? `<div class="small">Ответ: ${e(r.response)}</div>` : ''}${rules(r.rules)}</div>`).join('')}
+    ${(v.leader_questions || []).length ? `<h4>Вопросы руководителю на предвстрече</h4>${bullets(v.leader_questions)}` : ''}</section>`;
+
+  const COLS = ['Решение и зачем', 'Владелец', '«Сделано» и срок', 'Первый шаг', 'Риск и ранний сигнал', 'План Б'];
+  const map = `<section class="pb">${h('7', 'Карта реализации', 'Заполняется на сессии (ITG-1 – ITG-3).')}
+    <table class="map"><thead><tr>${COLS.map(c => `<th>${e(c)}</th>`).join('')}</tr></thead><tbody>${('<tr>' + COLS.map(() => '<td></td>').join('') + '</tr>').repeat(6)}</tbody></table>
+    <h4>После сессии: контрольные встречи 30 / 60 / 90 дней</h4>${bullets(v.after)}
+    ${(v.data_gaps || []).length ? `<h4>Пробелы в данных</h4>${bullets(v.data_gaps, 'muted small')}` : ''}</section>`;
+
+  // Колонтитул: в Chrome 131+ — поле страницы @page; в остальных браузерах —
+  // фиксированный блок, который печатается на каждой странице.
+  const cm = /Chrome\/(\d+)/.exec(navigator.userAgent);
+  const marginBox = !!(cm && +cm[1] >= 131);
+  const CONF = 'Конфиденциально. Только для фасилитатора. Содержит имена участников';
+  return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>${e('Сценарий сессии №' + cv.session_id + ' · ' + (cv.group || '') + ' · фасилитатор · с именами')}</title>
+<style>
+:root{--ink:#111827;--ink-2:#2f3542;--ink-3:#4b5563;--ink-4:#6b7280;--border:#dfe3e8;--bg-subtle:#f8f9fb;--accent:#2563eb;--success:#16a34a;--warning:#d97706;--warning-subtle:#fffbeb;--danger:#dc2626}
+*{box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:#fff;font-size:10.5pt;line-height:1.45;margin:0 auto;max-width:190mm;padding:12mm 0 24mm;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+h1{font-size:24pt;margin:10mm 0 2mm;line-height:1.15}h2{font-size:14pt;margin:0 0 5mm;padding-bottom:2mm;border-bottom:2px solid var(--ink)}
+h2 .n{display:inline-block;min-width:9mm;color:var(--ink-4)}h2 small{display:block;font-size:9pt;font-weight:400;color:var(--ink-3);margin-top:1mm}
+h3{font-size:11pt;margin:4mm 0 2mm}h4{font-size:10.5pt;margin:6mm 0 2mm;padding:1.5mm 3mm;background:var(--ink);color:#fff}
+p{margin:0 0 2.5mm}ul{margin:0 0 3mm;padding-left:5mm}li{margin-bottom:1mm}hr{border:0;border-top:1px solid var(--border);margin:4mm 0 8mm}
+.kind{font-size:7.5pt;color:var(--ink-4);letter-spacing:.04em}.grp{font-size:11pt;color:var(--ink-3)}
+.f{margin:0 0 3mm}.lbl{font-size:7pt;font-weight:700;color:var(--ink-4);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.5mm}
+.big{font-size:13pt;font-weight:700}.b{font-weight:700}.small{font-size:8.5pt}.muted{color:var(--ink-3)}.danger{color:var(--danger)}.warn{color:var(--warning)}
+.bar{border-left:3px solid var(--c);padding:1mm 0 1mm 4mm;margin:0 0 5mm}.tt{display:block;font-size:10.5pt;margin-bottom:1.5mm}
+.against{font-size:7.5pt;color:var(--danger)}.ev{font-size:8.5pt;color:var(--ink-2)}.rules{font-size:7.5pt;color:var(--ink-4)}.meta{font-size:7.5pt;color:var(--ink-4);margin-bottom:2mm}
+.q{font-size:10pt}.note{background:var(--warning-subtle);padding:1.5mm 2mm;border-radius:2px}
+.review{color:var(--danger);font-size:8.5pt;border-left:3px solid var(--danger);padding-left:3mm;margin:0 0 4mm}
+table{width:100%;border-collapse:collapse;font-size:8.5pt}th{font-size:7pt;text-align:left;text-transform:uppercase;color:var(--ink-4);border-bottom:1px solid var(--ink-4);padding:1mm}
+td{padding:1.2mm 1mm;border-bottom:.3px solid var(--border);vertical-align:top}.r{text-align:right}.sched tr.brk td{background:var(--bg-subtle);font-style:italic;color:var(--ink-3)}
+.sq{display:inline-block;width:1.6mm;height:3mm;margin-right:1.5mm;vertical-align:-.4mm}
+.map td{height:17mm;border:.5px solid var(--border)}.map th{border:.5px solid var(--border);vertical-align:bottom}
+.nw{white-space:nowrap}.people{columns:2;font-weight:600;font-size:9pt}.sg{margin-bottom:6mm}.risk{margin:0 0 3mm}
+.conf{font-size:7.5pt;color:var(--danger);text-align:center;border-top:.5px solid var(--danger);padding-top:1mm}
+.toolbar{position:sticky;top:0;background:#fff;padding:3mm 0;margin-bottom:4mm;border-bottom:1px solid var(--border);display:flex;gap:4mm;align-items:center;font-size:9pt}
+.toolbar button{font:inherit;padding:2mm 4mm;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer}
+@page{size:A4;margin:16mm 15mm 18mm${marginBox ? `;@bottom-center{content:"${CONF}";font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:7.5pt;color:#dc2626}` : ''}}
+@media print{
+  body{max-width:none;padding:0}.toolbar{display:none}
+  .pb{break-before:page}.keep,.bar,tr,.f{break-inside:avoid}h2,h3,h4,.lbl{break-after:avoid}
+  .conf{${marginBox ? 'display:none' : 'position:fixed;left:0;right:0;bottom:0;background:#fff'}}
+  .conf-top{display:none}
+}
+</style></head><body>
+<div class="toolbar"><button onclick="print()">Печать / сохранить как PDF</button><span class="muted">В диалоге печати выберите «Сохранить как PDF». Колонтитулы браузера лучше выключить.</span></div>
+<div class="conf conf-top" style="margin-bottom:4mm">${CONF}</div>
+${[cover, theses, schedule, stages, subgroups, before, map].join('').replace(/\((ADIN-[A-Z0-9]+)\)/g, '<span class="nw">($1)</span>')}
+<div class="conf">${CONF}</div>
+</body></html>`;
+}
+
+async function ssPrintNamed(id) {
+  if (!ssHasKeyfile()) { toast('Загрузите ключ-файл', true); return; }
+  // Окно открывается сразу по щелчку: после await браузер счёл бы его всплывающим.
+  const w = window.open('', '_blank');
+  if (!w) { toast('Браузер не дал открыть окно печати: разрешите всплывающие окна', true); return; }
+  w.document.write('<p style="font-family:sans-serif;padding:20px">Готовим сценарий…</p>');
+  const [v, names] = await Promise.all([api('/strategy-session/' + id + '/pdf-view'), api('/strategy-session/group/' + SS.groupId + '/name-codes')]);
+  if (!v || v.error) { w.close(); toast('Сценарий не загружен: ' + ((v && v.error) || 'ошибка'), true); return; }
+  if (names && !names.error) SS.names = names;
+  const { view, missing } = ssNamed(v);
+  w.document.open(); w.document.write(ssPrintHTML(view)); w.document.close();
+  if (missing.length) toast('Нет в ключ-файле: ' + missing.length + ' код(ов), оставлены коды', true);
+  w.focus(); setTimeout(() => w.print(), 400);
 }
 
 // Правка блока: вопрос, комментарий фасилитатору, минуты. Минуты меняются
