@@ -471,6 +471,8 @@ td>.btn+.btn{margin-left:4px}
               <option value="personal_narrative">Личный нарратив</option>
               <option value="profils_questionnaire">Personne · PN</option>
               <option value="profils_societe">Société · PN</option>
+              <option value="goal_questions">Три вопроса о цели</option>
+        <option value="goal_questions">Три вопроса о цели</option>
             </select>
           </div>
           <div>
@@ -843,6 +845,7 @@ td>.btn+.btn{margin-left:4px}
           <option value="personal_narrative">Личный нарратив</option>
         <option value="profils_questionnaire">Personne · PN</option>
         <option value="profils_societe">Société · PN</option>
+        <option value="goal_questions">Три вопроса о цели</option>
       </select>
     </div>
     <div class="field"><label>Язык теста</label>
@@ -877,6 +880,7 @@ td>.btn+.btn{margin-left:4px}
         <option value="personal_narrative">Личный нарратив</option>
         <option value="profils_questionnaire">Personne · PN</option>
         <option value="profils_societe">Société · PN</option>
+        <option value="goal_questions">Три вопроса о цели</option>
       </select>
     </div>
     <div class="field"><label>Язык теста</label>
@@ -930,6 +934,7 @@ td>.btn+.btn{margin-left:4px}
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" class="ui-test" value="personal_narrative"> Личный нарратив</label>
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" class="ui-test" value="profils_questionnaire"> Personne · PN</label>
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" class="ui-test" value="profils_societe"> Société · PN</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" class="ui-test" value="goal_questions"> Три вопроса о цели</label>
       </div>
     </div>
     <div class="field"><label>Группа (необязательно)</label>
@@ -980,6 +985,7 @@ td>.btn+.btn{margin-left:4px}
         <option value="personal_narrative">Личный нарратив</option>
         <option value="profils_questionnaire">Personne · PN</option>
         <option value="profils_societe">Société · PN</option>
+        <option value="goal_questions">Три вопроса о цели</option>
       </select>
     </div>
     <div class="field"><label>Язык теста</label>
@@ -997,6 +1003,88 @@ td>.btn+.btn{margin-left:4px}
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-group-codes')">Отмена</button>
       <button class="btn btn-navy" id="gc-btn" onclick="issueGroupCodes()">Выпустить коды</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-objective">
+  <div class="modal" style="max-width:720px">
+    <div class="modal-title">
+      <span>Цель группы <b id="obj-group-name"></b></span>
+      <button class="modal-close" onclick="closeModal('modal-objective')">×</button>
+    </div>
+
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px">
+      Паспорт цели — второй вход анализа: тесты меряют способность команды, цель приходит отсюда.
+      Заполняет постановщик цели, восемь пунктов. Участники отвечают на три вопроса о ней —
+      в конце Нарративного статуса или отдельной формой.
+    </p>
+
+    <div class="field"><label>Должности в группе — по одной в строке</label>
+      <textarea id="obj-roles" rows="4" placeholder="Коммерческий директор&#10;Директор по ИТ&#10;Руководитель филиальной сети"></textarea>
+      <div style="font-size:12px;color:var(--ink-faint);margin-top:4px">
+        Из этого перечня участник выбирает владельца во втором вопросе, и из него же выбираете владельца вы.
+        Имена в базу не попадают — связка «должность ↔ человек» остаётся в вашем ключ-файле.
+      </div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="objSaveRoles()">Сохранить перечень</button>
+    </div>
+
+    <div style="height:1px;background:var(--border);margin:18px 0"></div>
+
+    <div class="field"><label>1 · Цель одной фразой</label>
+      <textarea id="obj-statement" rows="2" placeholder="Что должно произойти и к какому сроку"></textarea>
+    </div>
+    <div style="display:flex;gap:12px">
+      <div class="field" style="flex:1"><label>2 · Срок</label>
+        <input type="month" id="obj-deadline">
+      </div>
+      <div class="field" style="flex:1"><label>4 · Владелец</label>
+        <select id="obj-owner"></select>
+        <div style="font-size:12px;color:var(--ink-faint);margin-top:4px">Пусто — тоже ответ, и важный.</div>
+      </div>
+    </div>
+    <div class="field"><label>3 · Подразделения — по одному в строке</label>
+      <textarea id="obj-units" rows="2" placeholder="Коммерческий контур&#10;Производство"></textarea>
+    </div>
+    <div class="field"><label>5 · Что должно стать другим</label>
+      <select id="obj-depth">
+        <option value="knowledge">Достаточно, чтобы люди узнали и поняли</option>
+        <option value="process">Нужно поменять регламенты и порядок работы</option>
+        <option value="behaviour" selected>Нужно, чтобы изменилось поведение</option>
+      </select>
+    </div>
+    <div class="field"><label>6 · Кто принимает решения по ходу</label>
+      <select id="obj-decides">
+        <option value="leader">В основном руководитель</option>
+        <option value="heads" selected>Руководители подразделений</option>
+        <option value="field">Сотрудники на местах</option>
+      </select>
+    </div>
+    <div class="field"><label>7 · Цена недостижения</label>
+      <select id="obj-price">
+        <option value="survive">Переживём, потеряем время</option>
+        <option value="positions" selected>Потеряем позиции или деньги</option>
+        <option value="irreversible">Последствия необратимы</option>
+      </select>
+    </div>
+    <div class="field"><label>8 · Ставится ли впервые</label>
+      <select id="obj-again">
+        <option value="first" selected>Да, впервые</option>
+        <option value="partial">Ставили раньше, сделано частично</option>
+        <option value="failed">Ставили раньше, не сделано</option>
+      </select>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:4px 0 12px;cursor:pointer">
+      <input type="checkbox" id="obj-ask-in-sn" checked onchange="objToggleAsk()">
+      Задавать три вопроса в конце Нарративного статуса
+    </label>
+
+    <div id="obj-current" style="font-size:13px;color:var(--ink-faint);margin-bottom:12px"></div>
+    <div id="obj-answers" style="font-size:13px;margin-bottom:12px"></div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-objective')">Закрыть</button>
+      <button class="btn btn-navy" id="obj-save" onclick="objSave()">Сохранить цель</button>
     </div>
   </div>
 </div>
@@ -1031,6 +1119,11 @@ td>.btn+.btn{margin-left:4px}
           <div class="test-type-icon">🔮</div>
           <div class="test-type-name">Нарр. статус</div>
           <div class="test-type-desc">Нарратив будущего</div>
+        </button>
+        <button class="test-type-btn" onclick="selectTestType('goal_questions',this)">
+          <div class="test-type-icon">🎯</div>
+          <div class="test-type-name">Три вопроса о цели</div>
+          <div class="test-type-desc">Исполнимость</div>
         </button>
         <button class="test-type-btn" onclick="selectTestType('personal_narrative',this)">
   <div class="test-type-icon">🪞</div>
@@ -1165,6 +1258,7 @@ const TEST_LABELS = {
   profils_questionnaire: 'Personne · PN',
   profils_societe: 'Société · PN',
   narrative_status: 'Нарр. статус',
+  goal_questions: 'Вопросы о цели',
   personal_narrative: 'Личный нарратив'
 };
 const STATUS_LABELS = { pending:'Ожидает', sent:'Отправлен', opened:'Открыт', completed:'Завершён', expired:'Истёк' };
@@ -1312,6 +1406,7 @@ async function loadGroups() {
       <div class="group-actions">
         <button class="btn btn-navy btn-sm" onclick="openGroupParticipants(${g.id},'${g.name.replace(/'/g,"\\'")}')">Участники →</button>
         <button class="btn btn-ghost btn-sm" title="Выпустить коды всем участникам группы и скачать ключ-файл" onclick="openGroupCodes(${g.id},'${g.name.replace(/'/g,"\\'")}')">🔑 Коды всем</button>
+        <button class="btn btn-ghost btn-sm" title="Паспорт цели и три вопроса о ней" onclick="openObjective(${g.id},'${g.name.replace(/'/g,"\\'")}')">🎯 Цель</button>
         <button class="btn btn-ghost btn-sm" onclick="editGroup(${g.id})">✏️</button>
         <button class="btn btn-ghost btn-sm" onclick="toggleArchiveGroup(${g.id},'${g.name.replace(/'/g,"\\'")}','${g.status}')">${g.status==='active'?'📦':'📂'}</button>
         <button class="btn btn-ghost-red btn-sm" onclick="deleteGroup(${g.id},'${g.name.replace(/'/g,"\\'")}')">🗑</button>
@@ -1825,6 +1920,7 @@ function downloadIntegralPdf(id, lang, audience) {
 const BADGE_TEST_LABELS = {
   ni_test: 'НИ-тест',
   narrative_status: 'Нарр. статус',
+  goal_questions: 'Вопросы о цели',
   personal_narrative: 'Личный нарратив',
   profils_questionnaire: 'PN \u00b7 \u043e \u0441\u0435\u0431\u0435',
   profils_societe: 'PN \u00b7 \u043e \u043a\u043e\u043c\u043f\u0430\u043d\u0438\u0438',
@@ -4659,6 +4755,119 @@ async function ssSaveEdit(code, reset) {
   if (!r || r.error) { toast('Правка не сохранена: ' + ((r && r.error) || 'ошибка'), true); return; }
   SS.editing = null;
   await ssReloadSession(); ssRenderResult(); toast('Правка сохранена');
+}
+
+
+// ── ЦЕЛЬ ГРУППЫ ───────────────────────────────────────────────
+// Паспорт цели (второй вход анализа исполнимости) и перечень должностей,
+// из которого участники выбирают владельца. Имён здесь нет и быть не должно:
+// связка «должность ↔ человек» живёт в ключ-файле фасилитатора.
+let OBJ = { gid: null, roles: [], current: null };
+
+async function openObjective(gid, name) {
+  OBJ = { gid, roles: [], current: null };
+  $('obj-group-name').textContent = name;
+  $('obj-current').textContent = 'Загружаем…';
+  $('obj-answers').innerHTML = '';
+  openModal('modal-objective');
+
+  const d = await api('/objectives/group/' + gid + '/active');
+  OBJ.roles = (d && d.roles) || [];
+  OBJ.current = (d && d.objective) || null;
+  $('obj-roles').value = OBJ.roles.join('\n');
+  objFillOwner();
+
+  const o = OBJ.current;
+  if (o) {
+    $('obj-statement').value = o.statement || '';
+    $('obj-deadline').value = o.deadline ? String(o.deadline).slice(0, 7) : '';
+    $('obj-units').value = (o.units || []).join('\n');
+    $('obj-owner').value = o.owner || '';
+    $('obj-depth').value = o.depth || 'behaviour';
+    $('obj-decides').value = o.decides || 'heads';
+    $('obj-price').value = o.price || 'positions';
+    $('obj-again').value = o.again || 'first';
+    $('obj-ask-in-sn').checked = o.ask_in_sn !== false;
+    $('obj-save').textContent = 'Сохранить как новую версию';
+    $('obj-current').innerHTML = 'Текущая версия <b>' + o.version + '</b>, создана ' + fmtDate(o.created_at) +
+      '. Правка цели не меняет эту версию, а создаёт следующую: иначе дельта повторного замера ложная.';
+    objLoadAnswers(o.id);
+  } else {
+    $('obj-save').textContent = 'Сохранить цель';
+    $('obj-current').textContent = 'Цель пока не задана. Пока её нет, три вопроса участникам не задаются.';
+  }
+}
+
+function objFillOwner() {
+  const sel = $('obj-owner');
+  const cur = OBJ.current && OBJ.current.owner;
+  // Если должность владельца выпала из перечня (его переписали), всё равно
+  // показываем её: иначе поле молча обнулится и при сохранении владелец исчезнет.
+  const list = OBJ.roles.slice();
+  if (cur && !list.some(r => r.toLowerCase() === String(cur).toLowerCase())) list.push(cur);
+  sel.innerHTML = '<option value="">— не назван —</option>' +
+    list.map(r => '<option value="' + r.replace(/"/g, '&quot;') + '">' + r + '</option>').join('');
+  if (cur) sel.value = cur;
+}
+
+async function objSaveRoles() {
+  const d = await api('/objectives/group/' + OBJ.gid + '/roles', {
+    method: 'PUT', body: { roles: $('obj-roles').value },
+  });
+  OBJ.roles = (d && d.roles) || [];
+  $('obj-roles').value = OBJ.roles.join('\n');
+  objFillOwner();
+}
+
+async function objSave() {
+  const btn = $('obj-save');
+  btn.disabled = true;
+  const body = {
+    statement: $('obj-statement').value,
+    deadline: $('obj-deadline').value ? $('obj-deadline').value + '-01' : null,
+    units: $('obj-units').value.split('\n').map(x => x.trim()).filter(Boolean),
+    owner: $('obj-owner').value || null,
+    depth: $('obj-depth').value,
+    decides: $('obj-decides').value,
+    price: $('obj-price').value,
+    again: $('obj-again').value,
+    ask_in_sn: $('obj-ask-in-sn').checked,
+  };
+  // Правка существующей цели — всегда новая версия, а не перезапись.
+  if (OBJ.current) body.root_id = OBJ.current.root_id || OBJ.current.id;
+  const d = await api('/objectives/group/' + OBJ.gid, { method: 'POST', body });
+  btn.disabled = false;
+  if (d && d.error) { alert(d.error); return; }
+  openObjective(OBJ.gid, $('obj-group-name').textContent);
+}
+
+async function objToggleAsk() {
+  if (!OBJ.current) return;
+  await api('/objectives/' + OBJ.current.id + '/ask-in-sn', {
+    method: 'PATCH', body: { ask_in_sn: $('obj-ask-in-sn').checked },
+  });
+}
+
+async function objLoadAnswers(id) {
+  const d = await api('/objectives/' + id + '/answers');
+  if (!d || d.error) return;
+  const o = d.owner || {};
+  const rows = (d.answers || []).map(a =>
+    '<div style="padding:8px 0;border-top:1px solid var(--border)">' +
+    '<div>' + (a.task_text ? a.task_text : '<i style="color:var(--ink-faint)">задача не названа</i>') + '</div>' +
+    '<div style="font-size:12px;color:var(--ink-faint);margin-top:2px">владелец: ' +
+      (a.owner_choice === 'role' ? (a.owner_role || '—')
+        : a.owner_choice === 'outside' ? 'кто-то вне списка'
+        : a.owner_choice === 'unknown' ? 'не знает' : '—') +
+      (a.own_part ? ' · от себя: ' + a.own_part : '') + '</div></div>').join('');
+  $('obj-answers').innerHTML =
+    '<div style="font-weight:600;margin-bottom:6px">Ответов: ' + (d.answered || 0) + '</div>' +
+    (d.answered
+      ? '<div style="color:var(--ink-soft)">Назвали владельца: ' + (o.named_someone || 0) +
+        (o.declared ? ' · совпало с вашим («' + o.declared + '»): <b>' + (o.same_as_declared || 0) + '</b>' : '') +
+        (o.most_named ? ' · чаще всего называют: <b>' + o.most_named.role + '</b> (' + o.most_named.count + ')' : '') +
+        ' · не знают: ' + (o.unknown || 0) + '</div>' + rows
+      : '<div style="color:var(--ink-faint)">Пока никто не отвечал.</div>');
 }
 
 </script>
