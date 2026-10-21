@@ -612,6 +612,35 @@ function evalScale(key, value) {
 const SCALE_ORDER = ['pn','pp','nf','nh','f','awareness','authorship','resonance','reframing','embodiment'];
 const COMP_SCALE_KEYS = ['awareness','authorship','resonance','reframing','embodiment'];
 
+// ── ОТСУТСТВУЮЩИЕ ТИПЫ: СЛЕПАЯ ЗОНА ИЛИ ОБЫЧНАЯ СТАТИСТИКА ──────────────────
+// Правило «типа нет → системно выключен» срабатывало независимо от размера
+// группы. Но доминирующий тип распределён неравномерно: по данным инструмента
+// Критик доминирует у 4.5% участников, поэтому в группе из 14 человек его
+// отсутствие — самый вероятный исход (0.955^14 ≈ 52%), а не диагноз. Чтобы
+// «ни одного Критика» стало статистически редким, нужно около 66 человек.
+//
+// Частоты измерены 02.10.2026 на 133 профилях (111 intl + 22 RU). Для
+// Аналитика и Драматурга доля доминирующих тогда не фиксировалась — пока
+// значения нет, вывод о значимости не делается вовсе, вместо догадки.
+const TYPE_BASE_RATE = {
+  'Стратег':   0.505,
+  'Критик':    0.045,
+  'Аналитик':  null,
+  'Драматург': null,
+};
+// Отсутствие считаем значимым, если случайно оно получилось бы реже, чем в
+// одной группе из пяти.
+const ABSENCE_NOTABLE_BELOW = 0.20;
+
+// notable: true — отсутствие значимо, false — ожидаемо при таком размере
+// группы, null — базовая частота типа не измерена, судить не о чем.
+function absenceVerdict(type, n) {
+  const p = TYPE_BASE_RATE[type];
+  if (p == null || !n) return { type, notable: null, pct: null };
+  const prob = Math.pow(1 - p, n);
+  return { type, notable: prob < ABSENCE_NOTABLE_BELOW, pct: Math.round(prob * 100) };
+}
+
 // В списках зон заголовок (до первого двоеточия) выделяем жирным — так же,
 // как выглядят структурные правила.
 const boldLead = t => String(t).replace(/^([^:]{1,70}):/, '<b>$1:</b>');
@@ -1614,7 +1643,15 @@ function computeZones() {
   const risks = [];
   if (pct1 > 40) risks.push(`<b>Культурный риск (критический):</b> ${Math.round(pct1)}% команды на уровне 1 — автоматические реакции определяют культуру`);
   if (dominantPct > 60) risks.push(`<b>Нарративная монокультура:</b> ${dominantType[0]} составляет ${Math.round(dominantPct)}% — системная слепота к другим способам интерпретации`);
-  if (missingTypes.length > 0) risks.push(`<b>Слепые зоны:</b> типы ${missingTypes.join(', ')} отсутствуют — эти способы интерпретации системно выключены`);
+  // Слепой зоной называем только то отсутствие, которое не объясняется
+  // размером группы и базовой частотой типа.
+  const absences = missingTypes.map(t => absenceVerdict(t, n));
+  const notableAbsent = absences.filter(a => a.notable === true).map(a => a.type);
+  const unknownAbsent = absences.filter(a => a.notable === null).map(a => a.type);
+  if (notableAbsent.length)
+    risks.push(`<b>Слепые зоны:</b> типы ${notableAbsent.join(', ')} отсутствуют — в группе такого размера это уже не объясняется редкостью типа, эти способы интерпретации системно выключены`);
+  if (unknownAbsent.length)
+    risks.push(`<b>Типы отсутствуют:</b> ${unknownAbsent.join(', ')} — базовая частота этих типов не измерена, поэтому значимость отсутствия оценить нельзя`);
   evals.filter(e => e.status === 'РИСК' || e.status === 'КРИТИЧНО').forEach(e => risks.push(boldLead(e.text)));
   if (avgPN > 9 && avgF < 7) risks.push(`<b>Временна́я ловушка:</b> высокий PN + низкое F — команда застряла в прошлом без образа будущего`);
   if (risks.length === 0) risks.push('✅ Явных зон риска не выявлено');
@@ -1707,7 +1744,7 @@ function computeZones() {
 
   return { n, types, lvls, avgPN, avgPP, avgF, avgAwareness, avgAuthorship, avgResonance,
     pct1, dominantType, dominantPct, missingTypes, risks, conflicts, resources,
-    evals, scales, healthy_modes,
+    evals, scales, healthy_modes, absences,
     multipliers: { level: narrowed ? 4 : 3, count: multipliers.length } };
 }
 
@@ -1736,7 +1773,19 @@ function renderZones() {
           // шкал и с зонами риска; заодно оцениваются все пять компетенций,
           // а не только Авторство и Резонанс.
           ...z.evals.map(e => [e.label, e.value, e.norm, e.status, STATUS_BADGE[e.status] || 'badge-2']),
-          ['Типы отсутствуют',missingTypes.length||'нет','0', missingTypes.length>1?'РИСК':missingTypes.length>0?'ВНИМАНИЕ':'НОРМА', missingTypes.length>1?'badge-1':missingTypes.length>0?'badge-2':'badge-3'],
+          // Статус строки теперь зависит не от числа пропусков, а от того,
+          // сколько из них действительно значимы при этом размере группы.
+          (() => {
+            const a = z.absences || [];
+            const notable = a.filter(x => x.notable === true).length;
+            const text = a.length
+              ? a.map(x => x.type + (x.notable === false ? ` (ожидаемо, ${x.pct}%)`
+                                   : x.notable === null ? ' (частота не измерена)' : '')).join(', ')
+              : 'нет';
+            const status = notable > 1 ? 'РИСК' : notable === 1 ? 'ВНИМАНИЕ'
+                         : a.some(x => x.notable === null) ? 'не оценивается' : 'НОРМА';
+            return ['Типы отсутствуют', text, '0', status, STATUS_BADGE[status] || 'badge-3'];
+          })(),
         ].map(([ind,val,norm,status,cls]) => `<tr>
           <td>${ind}</td><td><strong>${val}</strong></td><td style="color:var(--ink-faint)">${norm}</td>
           <td><span class="badge ${cls}">${status}</span></td>
@@ -1773,8 +1822,13 @@ function renderNarrative() {
   // 2. Матрица типов
   const typeCounts = ['Аналитик','Стратег','Критик','Драматург'].map(t => `${t} — ${z.types[t]||0} чел.`).join(', ');
   let p2 = `Распределение по архетипам: ${typeCounts}`;
-  if (z.missingTypes.length > 0) {
-    p2 += ` В команде системно отсутствует тип ${z.missingTypes.join(' и ')} — это слепая зона: ситуации, которые требуют именно такого взгляда, будут регулярно упускаться из виду, а не человек «плохо работает».`;
+  const absNotable = (z.absences || []).filter(a => a.notable === true).map(a => a.type);
+  const absExpected = (z.absences || []).filter(a => a.notable === false);
+  if (absNotable.length) {
+    p2 += ` В команде системно отсутствует тип ${absNotable.join(' и ')} — это слепая зона: ситуации, которые требуют именно такого взгляда, будут регулярно упускаться из виду, а не человек «плохо работает».`;
+  }
+  if (absExpected.length) {
+    p2 += ` Типа ${absExpected.map(a => a.type).join(' и ')} в группе нет, но при частоте этого типа в инструменте и размере группы в ${z.n} чел. такой расклад ожидаем (${absExpected.map(a => a.pct + '%').join(', ')}) — делать из этого вывод о слепой зоне нельзя.`;
   }
   if (z.dominantPct > 60) {
     p2 += ` Тип ${z.dominantType[0]} представлен непропорционально широко (${Math.round(z.dominantPct)}%), что создаёт риск однобоких решений — команда рискует не заметить собственную системную ошибку изнутри.`;
@@ -1984,6 +2038,14 @@ async function generateDeepNarrative() {
       healthy_modes: z.healthy_modes,
       multipliers: z.multipliers,
       dominantType: z.dominantType, dominantPct: z.dominantPct, missingTypes: z.missingTypes,
+      // Отсутствующий тип — не всегда слепая зона: при редком типе и небольшой
+      // группе это обычная статистика. Передаём вердикт, чтобы модель не
+      // ставила диагноз там, где его нет.
+      missing_types_verdict: (z.absences || []).map(a => ({
+        type: a.type,
+        verdict: a.notable === true ? 'значимо' : a.notable === false ? 'ожидаемо' : 'частота не измерена',
+        chance_of_absence_pct: a.pct,
+      })),
       risks: z.risks.map(stripTags), conflicts: z.conflicts.map(stripTags), resources: z.resources.map(stripTags),
     };
 
