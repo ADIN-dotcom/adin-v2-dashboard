@@ -4852,13 +4852,34 @@ async function objLoadAnswers(id) {
   const d = await api('/objectives/' + id + '/answers');
   if (!d || d.error) return;
   const o = d.owner || {};
-  const rows = (d.answers || []).map(a =>
+  const list = d.answers || [];
+  const HZL = { lt6: 'до 6 мес', '6_12': '6–12 мес', '1_2y': '1–2 года', gt2y: 'больше 2 лет', unknown: 'не знают' };
+  const hzName = (v) => HZL[v] || '—';
+  // Горизонт считаем здесь же: это счёт по категориям, а не показатель,
+  // и порога для него не нужно — распределение говорит само.
+  const hzCount = {};
+  list.forEach(a => { if (a.horizon) hzCount[a.horizon] = (hzCount[a.horizon] || 0) + 1; });
+  const hzParts = Object.keys(HZL).filter(k => hzCount[k])
+    .map(k => hzName(k) + ': <b>' + hzCount[k] + '</b>');
+  // Доля назвавших второго ответственного — мера размывания ответственности.
+  const shared = list.filter(a => a.owner_role_2).length;
+  // Подразделения: счёт по контурам — он же проверка, что разметка заполнена.
+  // Без неё расхождение считается по всей команде, а не между контурами.
+  const unitName = (u) => (u === 'other' ? 'другое' : u);
+  const unitCount = {};
+  list.forEach(a => { if (a.unit) unitCount[a.unit] = (unitCount[a.unit] || 0) + 1; });
+  const unitParts = Object.keys(unitCount).sort()
+    .map(k => unitName(k) + ': <b>' + unitCount[k] + '</b>');
+  const rows = list.map(a =>
     '<div style="padding:8px 0;border-top:1px solid var(--border)">' +
     '<div>' + (a.task_text ? a.task_text : '<i style="color:var(--ink-faint)">задача не названа</i>') + '</div>' +
     '<div style="font-size:12px;color:var(--ink-faint);margin-top:2px">владелец: ' +
       (a.owner_choice === 'role' ? (a.owner_role || '—')
         : a.owner_choice === 'outside' ? 'кто-то вне списка'
         : a.owner_choice === 'unknown' ? 'не знает' : '—') +
+      (a.owner_role_2 ? ' + ' + a.owner_role_2 : '') +
+      ' · срок: ' + hzName(a.horizon) +
+      (a.unit ? ' · ' + unitName(a.unit) : '') +
       (a.own_part ? ' · от себя: ' + a.own_part : '') + '</div></div>').join('');
   $('obj-answers').innerHTML =
     '<div style="font-weight:600;margin-bottom:6px">Ответов: ' + (d.answered || 0) + '</div>' +
@@ -4866,7 +4887,12 @@ async function objLoadAnswers(id) {
       ? '<div style="color:var(--ink-soft)">Назвали владельца: ' + (o.named_someone || 0) +
         (o.declared ? ' · совпало с вашим («' + o.declared + '»): <b>' + (o.same_as_declared || 0) + '</b>' : '') +
         (o.most_named ? ' · чаще всего называют: <b>' + o.most_named.role + '</b> (' + o.most_named.count + ')' : '') +
-        ' · не знают: ' + (o.unknown || 0) + '</div>' + rows
+        ' · не знают: ' + (o.unknown || 0) +
+        ' · назвали второго: <b>' + shared + '</b></div>' +
+        (hzParts.length ? '<div style="color:var(--ink-soft);margin-top:2px">Горизонт — ' +
+          hzParts.join(' · ') + '</div>' : '') +
+        (unitParts.length ? '<div style="color:var(--ink-soft);margin-top:2px">Подразделения — ' +
+          unitParts.join(' · ') + '</div>' : '') + rows
       : '<div style="color:var(--ink-faint)">Пока никто не отвечал.</div>');
 }
 
