@@ -472,7 +472,6 @@ td>.btn+.btn{margin-left:4px}
               <option value="profils_questionnaire">Personne · PN</option>
               <option value="profils_societe">Société · PN</option>
               <option value="goal_questions">Три вопроса о цели</option>
-        <option value="goal_questions">Три вопроса о цели</option>
             </select>
           </div>
           <div>
@@ -882,6 +881,11 @@ td>.btn+.btn{margin-left:4px}
         <option value="profils_societe">Société · PN</option>
         <option value="goal_questions">Три вопроса о цели</option>
       </select>
+    </div>
+    <!-- Группа нужна вопросам о цели (без неё код не открывается) и SN —
+         по ней он решает, задавать ли вопросы о цели. -->
+    <div class="field" id="sgc-group-field"><label>Группа</label>
+      <select id="sgc-group"></select>
     </div>
     <div class="field"><label>Язык теста</label>
       <select id="sgc-lang">
@@ -1639,9 +1643,15 @@ function renderNIAnswers(data) {
 }
 
 let gcParticipantId = null;
+let gcParticipantGroups = [];
 
 function openGenerateCodeModal(participantId) {
   gcParticipantId = participantId;
+  // Одна группа — подставляем её; несколько — фасилитатор выбирает сам.
+  const groups = gcParticipantGroups;
+  $('sgc-group').innerHTML = (groups.length === 1 ? '' : '<option value="">— без группы —</option>') +
+    groups.map(g => '<option value="' + g.id + '">' + ipEsc(g.name) + '</option>').join('');
+  $('sgc-group-field').style.display = groups.length ? '' : 'none';
   $('sgc-test-type').value = 'ni_test';
   $('sgc-lang').value = 'ru';
   $('sgc-label').value = '';
@@ -1654,13 +1664,19 @@ async function submitGenerateCode() {
   const testType = $('sgc-test-type').value;
   const language = $('sgc-lang').value;
   const keyLabel = $('sgc-label').value;
+  const groupId = $('sgc-group').value || null;
+  if (testType === 'goal_questions' && !groupId) {
+    toast(gcParticipantGroups.length ? 'Выберите группу — вопросы о цели задаются по её паспорту'
+                                      : 'Участник не состоит в группе — вопросы о цели задаются по паспорту группы', true);
+    return;
+  }
 
   const btn = $('sgc-btn'); btn.disabled = true; btn.textContent = 'Выпускаем...';
   let r;
   try {
     r = await api('/v2/participants/' + participantId + '/generate-code', {
       method: 'POST',
-      body: { test_type: testType, language: language }
+      body: { test_type: testType, group_id: groupId, language: language }
     });
   } finally {
     btn.disabled = false; btn.textContent = 'Выпустить код';
@@ -1715,6 +1731,7 @@ async function openParticipantDetail(id) {
     if (niData && !niData.error) niAnswersHtml = renderNIAnswers(niData);
   }
   $('pd-title').textContent = fmt(d.name) === '—' ? (kfName(d) || fmt(d.email) || 'Участник') : d.name;
+  gcParticipantGroups = Array.isArray(d.groups) ? d.groups : [];
   const gcBtn = document.getElementById('pd-gc-btn');
   if (gcBtn) gcBtn.remove();
   const gcBtnHtml = '<button id="pd-gc-btn" class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="openGenerateCodeModal(' + id + ')">🔑 Выпустить код</button>';
