@@ -472,7 +472,7 @@ td>.btn+.btn{margin-left:4px}
               <option value="personal_narrative">Личный нарратив</option>
               <option value="profils_questionnaire">Personne · PN</option>
               <option value="profils_societe">Société · PN</option>
-              <option value="goal_questions">Три вопроса о цели</option>
+              <option value="goal_questions">Вопросы о целях компании</option>
             </select>
           </div>
           <div>
@@ -847,7 +847,7 @@ td>.btn+.btn{margin-left:4px}
           <option value="personal_narrative">Личный нарратив</option>
         <option value="profils_questionnaire">Personne · PN</option>
         <option value="profils_societe">Société · PN</option>
-        <option value="goal_questions">Три вопроса о цели</option>
+        <option value="goal_questions">Вопросы о целях компании</option>
       </select>
     </div>
     <div class="field"><label>Язык теста</label>
@@ -882,7 +882,7 @@ td>.btn+.btn{margin-left:4px}
         <option value="personal_narrative">Личный нарратив</option>
         <option value="profils_questionnaire">Personne · PN</option>
         <option value="profils_societe">Société · PN</option>
-        <option value="goal_questions">Три вопроса о цели</option>
+        <option value="goal_questions">Вопросы о целях компании</option>
       </select>
     </div>
     <!-- Группа нужна вопросам о цели (без неё код не открывается) и SN —
@@ -941,7 +941,7 @@ td>.btn+.btn{margin-left:4px}
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" class="ui-test" value="personal_narrative"> Личный нарратив</label>
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" class="ui-test" value="profils_questionnaire"> Personne · PN</label>
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" class="ui-test" value="profils_societe"> Société · PN</label>
-        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" class="ui-test" value="goal_questions"> Три вопроса о цели</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" class="ui-test" value="goal_questions"> Вопросы о целях компании</label>
       </div>
     </div>
     <div class="field"><label>Группа (необязательно)</label>
@@ -992,7 +992,7 @@ td>.btn+.btn{margin-left:4px}
         <option value="personal_narrative">Личный нарратив</option>
         <option value="profils_questionnaire">Personne · PN</option>
         <option value="profils_societe">Société · PN</option>
-        <option value="goal_questions">Три вопроса о цели</option>
+        <option value="goal_questions">Вопросы о целях компании</option>
       </select>
     </div>
     <div class="field"><label>Язык теста</label>
@@ -1094,7 +1094,7 @@ td>.btn+.btn{margin-left:4px}
 
     <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:4px 0 12px;cursor:pointer">
       <input type="checkbox" id="obj-ask-in-sn" checked onchange="objToggleAsk()">
-      Задавать три вопроса в конце Нарративного статуса
+      Задавать вопросы о целях в конце Нарративного статуса
     </label>
 
     <div id="obj-current" style="font-size:13px;color:var(--ink-faint);margin-bottom:12px"></div>
@@ -1140,7 +1140,7 @@ td>.btn+.btn{margin-left:4px}
         </button>
         <button class="test-type-btn" onclick="selectTestType('goal_questions',this)">
           <div class="test-type-icon">🎯</div>
-          <div class="test-type-name">Три вопроса о цели</div>
+          <div class="test-type-name">Вопросы о целях компании</div>
           <div class="test-type-desc">Исполнимость</div>
         </button>
         <button class="test-type-btn" onclick="selectTestType('personal_narrative',this)">
@@ -1276,7 +1276,7 @@ const TEST_LABELS = {
   profils_questionnaire: 'Personne · PN',
   profils_societe: 'Société · PN',
   narrative_status: 'Нарр. статус',
-  goal_questions: 'Вопросы о цели',
+  goal_questions: 'Вопросы о целях',
   personal_narrative: 'Личный нарратив'
 };
 const STATUS_LABELS = { pending:'Ожидает', sent:'Отправлен', opened:'Открыт', completed:'Завершён', expired:'Истёк' };
@@ -1461,7 +1461,7 @@ async function loadGroups() {
       <div class="group-actions">
         <button class="btn btn-navy btn-sm" onclick="openGroupParticipants(${g.id},'${g.name.replace(/'/g,"\\'")}')">Участники →</button>
         <button class="btn btn-ghost btn-sm" title="Выпустить коды всем участникам группы и скачать ключ-файл" onclick="openGroupCodes(${g.id},'${g.name.replace(/'/g,"\\'")}')">🔑 Коды всем</button>
-        <button class="btn btn-ghost btn-sm" title="Паспорт цели и три вопроса о ней" onclick="openObjective(${g.id},'${g.name.replace(/'/g,"\\'")}')">🎯 Цель</button>
+        <button class="btn btn-ghost btn-sm" title="Паспорт цели и вопросы участникам о целях" onclick="openObjective(${g.id},'${g.name.replace(/'/g,"\\'")}')">🎯 Цель</button>
         ${!depth&&g.parent_id==null&&g.status==='active'?`<button class="btn btn-ghost btn-sm" title="Создать отдел внутри этой группы" onclick="openGroupModal(${g.id})">+ Отдел</button>`:''}
         <button class="btn btn-ghost btn-sm" onclick="editGroup(${g.id})">✏️</button>
         <button class="btn btn-ghost btn-sm" onclick="toggleArchiveGroup(${g.id},'${g.name.replace(/'/g,"\\'")}','${g.status}')">${g.status==='active'?'📦':'📂'}</button>
@@ -1747,8 +1747,8 @@ async function submitGenerateCode() {
   const keyLabel = $('sgc-label').value;
   const groupId = $('sgc-group').value || null;
   if (testType === 'goal_questions' && !groupId) {
-    toast(gcParticipantGroups.length ? 'Выберите группу — вопросы о цели задаются по её паспорту'
-                                      : 'Участник не состоит в группе — вопросы о цели задаются по паспорту группы', true);
+    toast(gcParticipantGroups.length ? 'Выберите группу — вопросы о целях задаются по её паспорту'
+                                      : 'Участник не состоит в группе — вопросы о целях задаются по паспорту группы', true);
     return;
   }
 
@@ -2018,7 +2018,7 @@ function downloadIntegralPdf(id, lang, audience) {
 const BADGE_TEST_LABELS = {
   ni_test: 'НИ-тест',
   narrative_status: 'Нарр. статус',
-  goal_questions: 'Вопросы о цели',
+  goal_questions: 'Вопросы о целях',
   personal_narrative: 'Личный нарратив',
   profils_questionnaire: 'PN \u00b7 \u043e \u0441\u0435\u0431\u0435',
   profils_societe: 'PN \u00b7 \u043e \u043a\u043e\u043c\u043f\u0430\u043d\u0438\u0438',
@@ -4909,7 +4909,7 @@ async function openObjective(gid, name) {
     objLoadAnswers(o.id);
   } else {
     $('obj-save').textContent = 'Сохранить цель';
-    $('obj-current').textContent = 'Цель пока не задана. Пока её нет, три вопроса участникам не задаются.';
+    $('obj-current').textContent = 'Цель пока не задана. Пока её нет, вопросы о целях участникам не задаются.';
   }
 }
 
