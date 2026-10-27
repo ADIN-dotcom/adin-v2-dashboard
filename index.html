@@ -188,6 +188,7 @@ td>.btn+.btn{margin-left:4px}
 .group-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
 .group-name{font-weight:500;font-size:14px;color:var(--ink)}
 .group-meta{font-size:12px;color:var(--ink-4);margin-top:3px}
+.group-card.dept{margin-left:28px;border-left:3px solid var(--navy)}
 .group-stats{display:flex;gap:24px;flex-shrink:0}
 .gstat{text-align:center}
 .gstat-num{font-size:20px;font-weight:300;color:var(--ink)}
@@ -430,7 +431,7 @@ td>.btn+.btn{margin-left:4px}
       <div id="page-groups" class="page">
         <div class="page-header">
           <div><div class="page-title">Группы</div><div class="page-sub">Программы и мероприятия</div></div>
-          <button class="btn btn-navy" onclick="openModal('modal-group')">+ Новая группа</button>
+          <button class="btn btn-navy" onclick="openGroupModal()">+ Новая группа</button>
         </div>
         <div id="groups-list"><div class="spinner"></div></div>
       </div>
@@ -719,6 +720,8 @@ td>.btn+.btn{margin-left:4px}
     </div>
     <input type="hidden" id="g-id">
     <div class="field"><label>Название *</label><input type="text" id="g-name" placeholder="Программа октябрь 2026"></div>
+    <div class="field"><label>Входит в компанию</label><select id="g-parent"></select>
+      <div id="g-parent-hint" style="font-size:12px;color:var(--ink-faint);margin-top:4px"></div></div>
     <div class="field"><label>Описание</label><input type="text" id="g-desc"></div>
     <div class="form-row">
       <div class="field"><label>Фасилитатор</label><input type="text" id="g-facilitator" placeholder="А. Аветисов"></div>
@@ -1383,20 +1386,57 @@ async function loadHome() {
 }
 
 // ── GROUPS ────────────────────────────────────────────────────
+// Отделы: два уровня, компания → отдел (parent_id, решение 25.10.2026).
+// Отчёт по компании берёт людей компании и всех её отделов, отчёт по отделу —
+// только отдела и не меньше MIN_DEPARTMENT анкет (сервер проверяет сам).
+const MIN_DEPARTMENT = 4;
+let GROUPS = [];
+
+// Компания, за ней её отделы по алфавиту. Отдел без видимой компании
+// (например, компания в архиве, а отдел нет) стоит как обычная группа.
+function groupTree(groups) {
+  const ids = new Set(groups.map(g => g.id));
+  const kids = {};
+  groups.forEach(g => { if (g.parent_id != null && ids.has(g.parent_id)) (kids[g.parent_id] = kids[g.parent_id] || []).push(g); });
+  const out = [];
+  groups.filter(g => g.parent_id == null || !ids.has(g.parent_id)).forEach(g => {
+    out.push({ g, depth: 0 });
+    (kids[g.id] || []).sort((a, b) => a.name.localeCompare(b.name)).forEach(c => out.push({ g: c, depth: 1 }));
+  });
+  return out;
+}
+
+// Пункты списков групп. Выбор компании — отчёт по всей компании, выбор отдела — только по отделу.
+function groupOptionsHtml(groups) {
+  return groupTree(groups).map(({ g, depth }) => {
+    const label = depth ? '\u00a0\u00a0\u00a0└ ' + g.name
+      : g.name + (g.department_count ? ' — вся компания (' + g.department_count + ' отд.)' : '');
+    return '<option value="' + g.id + '">' + label + '</option>';
+  }).join('');
+}
+
+// Дописать группы в список отчёта (первый пункт списка — «Все группы» или подсказка).
+function appendGroupOptions(sel, groups) {
+  if (Array.isArray(groups)) sel.insertAdjacentHTML('beforeend', groupOptionsHtml(groups));
+}
+
 async function loadGroups() {
   $('groups-list').innerHTML = '<div class="spinner"></div>';
   const d = await api('/v2/groups'); if (!d) return;
+  GROUPS = Array.isArray(d) ? d : [];
   if (!d.length) {
     $('groups-list').innerHTML = '<div class="empty-state"><div class="empty-state-icon">📁</div><div class="empty-state-text">Групп пока нет. Создайте первую.</div></div>';
     return;
   }
   const active = d.filter(g => g.status === 'active');
   const archived = d.filter(g => g.status === 'archived');
-  const renderGroup = g => `
-    <div class="group-card" style="${g.status==='archived'?'opacity:.6':''}">
+  const renderGroup = ({ g, depth }) => `
+    <div class="group-card${depth?' dept':''}" style="${g.status==='archived'?'opacity:.6':''}">
       <div style="flex:1;min-width:0">
-        <div class="group-name">${g.name}${g.status==='archived'?' <span style="font-size:11px;color:var(--ink-faint)">📦 Архив</span>':''}</div>
+        <div class="group-name">${depth?'<span style="font-size:11px;color:var(--ink-faint)">Отдел · </span>':''}${g.name}${g.status==='archived'?' <span style="font-size:11px;color:var(--ink-faint)">📦 Архив</span>':''}</div>
         <div class="group-meta">${g.facilitator_name||''}${g.program_date?' · '+fmtDate(g.program_date):''}${g.description?' · '+g.description:''}</div>
+        ${g.department_count?`<div class="group-meta">${g.department_count} отд. · вместе с отделами ${g.scope_participants||0} чел.</div>`:''}
+        ${depth&&(g.total_participants||0)<MIN_DEPARTMENT?`<div class="group-meta" style="color:var(--gold)">Меньше ${MIN_DEPARTMENT} человек: отдельного отчёта по отделу не будет, люди войдут в отчёт компании</div>`:''}
         <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
           <div class="progress"><div class="progress-fill" style="width:${g.total_participants>0?Math.round((g.completed||0)/g.total_participants*100):0}%;background:var(--green)"></div></div>
           <span style="font-size:12px;color:var(--ink-faint)">${g.completed||0}/${g.total_participants||0} завершили</span>
@@ -1411,18 +1451,44 @@ async function loadGroups() {
         <button class="btn btn-navy btn-sm" onclick="openGroupParticipants(${g.id},'${g.name.replace(/'/g,"\\'")}')">Участники →</button>
         <button class="btn btn-ghost btn-sm" title="Выпустить коды всем участникам группы и скачать ключ-файл" onclick="openGroupCodes(${g.id},'${g.name.replace(/'/g,"\\'")}')">🔑 Коды всем</button>
         <button class="btn btn-ghost btn-sm" title="Паспорт цели и три вопроса о ней" onclick="openObjective(${g.id},'${g.name.replace(/'/g,"\\'")}')">🎯 Цель</button>
+        ${!depth&&g.parent_id==null&&g.status==='active'?`<button class="btn btn-ghost btn-sm" title="Создать отдел внутри этой группы" onclick="openGroupModal(${g.id})">+ Отдел</button>`:''}
         <button class="btn btn-ghost btn-sm" onclick="editGroup(${g.id})">✏️</button>
         <button class="btn btn-ghost btn-sm" onclick="toggleArchiveGroup(${g.id},'${g.name.replace(/'/g,"\\'")}','${g.status}')">${g.status==='active'?'📦':'📂'}</button>
         <button class="btn btn-ghost-red btn-sm" onclick="deleteGroup(${g.id},'${g.name.replace(/'/g,"\\'")}')">🗑</button>
       </div>
     </div>`;
-  let html = active.map(renderGroup).join('');
-  if (archived.length) html += `<div style="margin:20px 0 10px;font-size:11px;color:var(--ink-faint);letter-spacing:.08em;text-transform:uppercase">Архив</div>` + archived.map(renderGroup).join('');
+  let html = groupTree(active).map(renderGroup).join('');
+  if (archived.length) html += `<div style="margin:20px 0 10px;font-size:11px;color:var(--ink-faint);letter-spacing:.08em;text-transform:uppercase">Архив</div>` + groupTree(archived).map(renderGroup).join('');
   $('groups-list').innerHTML = html;
+}
+
+// Список «Входит в компанию»: только группы верхнего уровня, кроме самой
+// группы. Группу с отделами сделать отделом нельзя — поле закрыто и не уходит.
+function fillGroupParent(self, parentId) {
+  const sel = $('g-parent');
+  const tops = GROUPS.filter(x => x.parent_id == null && (!self || x.id !== self.id) && (x.status === 'active' || x.id === parentId));
+  sel.innerHTML = '<option value="">— нет: самостоятельная группа или компания —</option>' +
+    tops.map(x => '<option value="' + x.id + '">' + x.name + '</option>').join('');
+  sel.value = parentId ? String(parentId) : '';
+  sel.disabled = !!(self && self.department_count > 0);
+  $('g-parent-hint').textContent = sel.disabled
+    ? 'У группы есть отделы — сама она отделом стать не может.'
+    : 'Отчёт по отделу строится только по его людям (от ' + MIN_DEPARTMENT + ' анкет), отчёт по компании — по всем её отделам вместе.';
+}
+
+// Новая группа или, с parentId, новый отдел этой компании.
+function openGroupModal(parentId) {
+  $('g-id').value = ''; ['g-name','g-desc','g-facilitator','g-facilitator-email','g-date'].forEach(f => $(f).value = '');
+  const parent = parentId ? GROUPS.find(x => x.id === parentId) : null;
+  if (parent) { $('g-facilitator').value = parent.facilitator_name || ''; $('g-facilitator-email').value = parent.facilitator_email || ''; }
+  $('modal-group-title').textContent = parent ? 'Новый отдел · ' + parent.name : 'Новая группа';
+  fillGroupParent(null, parent ? parent.id : null);
+  openModal('modal-group');
 }
 
 async function saveGroup() {
   const id = $('g-id').value;
+  const parentSel = $('g-parent');
   const body = {
     name: $('g-name').value, description: $('g-desc').value||null,
     facilitator_name: $('g-facilitator').value||null,
@@ -1430,11 +1496,12 @@ async function saveGroup() {
     program_date: $('g-date').value||null,
     status: 'active'
   };
+  if (!parentSel.disabled) body.parent_id = parentSel.value ? Number(parentSel.value) : null;
   if (!body.name) { toast('Введите название', true); return; }
   const d = id ? await api('/v2/groups/'+id, {method:'PUT', body}) : await api('/v2/groups', {method:'POST', body});
   if (d && (d.id || d.name)) {
     closeModal('modal-group'); loadGroups(); loadGroupsFilter();
-    toast(id ? 'Группа обновлена' : 'Группа создана');
+    toast(id ? 'Группа обновлена' : body.parent_id ? 'Отдел создан' : 'Группа создана');
     $('g-id').value=''; ['g-name','g-desc','g-facilitator','g-facilitator-email','g-date'].forEach(f => $(f).value='');
     $('modal-group-title').textContent = 'Новая группа';
   } else toast('Ошибка: '+(d?.error||''), true);
@@ -1443,6 +1510,8 @@ async function saveGroup() {
 function editGroup(id) {
   // Find group data from DOM or reload
   api('/v2/groups').then(groups => {
+    if (!Array.isArray(groups)) return;
+    GROUPS = groups;
     const g = groups.find(x => x.id === id); if (!g) return;
     $('g-id').value = g.id;
     $('g-name').value = g.name || '';
@@ -1450,7 +1519,8 @@ function editGroup(id) {
     $('g-facilitator').value = g.facilitator_name || '';
     $('g-facilitator-email').value = g.facilitator_email || '';
     $('g-date').value = g.program_date ? g.program_date.split('T')[0] : '';
-    $('modal-group-title').textContent = 'Редактировать группу';
+    $('modal-group-title').textContent = g.parent_id != null ? 'Редактировать отдел' : 'Редактировать группу';
+    fillGroupParent(g, g.parent_id);
     openModal('modal-group');
   });
 }
@@ -1466,7 +1536,7 @@ async function toggleArchiveGroup(id, name, status) {
 async function deleteGroup(id, name) {
   if (!confirm('Удалить группу «'+name+'»?')) return;
   const d = await api('/v2/groups/'+id, {method:'DELETE'});
-  if (d?.success) { loadGroups(); loadGroupsFilter(); toast('Группа удалена'); } else toast('Ошибка', true);
+  if (d?.success) { loadGroups(); loadGroupsFilter(); toast('Группа удалена'); } else toast('Ошибка: '+(d?.error||''), true);
 }
 
 function openGroupParticipants(id, name) {
@@ -1577,7 +1647,7 @@ async function loadGroupsFilter() {
   const d = await api('/v2/groups');
   // Ошибка или неожиданный ответ — оставляем уже загруженные списки как есть.
   if (!Array.isArray(d)) return;
-  const opts = d.map(g => '<option value="' + g.id + '">' + g.name + '</option>').join('');
+  const opts = groupOptionsHtml(d);
   const allGroups = '<option value="">Все группы</option>';
   const noGroup = '<option value="">Без группы</option>';
   const map = {
@@ -2611,6 +2681,10 @@ function uiFinish(summary, problems) {
 // (в sendV2Invitation нет веток для этих типов).
 let GC_GROUP_ID = null;
 let GC_PARTICIPANTS = [];
+// У компании с отделами: участник → его отдел. Результат теста попадает в
+// группу приглашения, поэтому код пишем на отдел — иначе человек выпал бы
+// из отчёта своего отдела (в отчёт компании он попадает в любом случае).
+let GC_MEMBER_GROUP = {};
 
 async function openGroupCodes(gid, name) {
   GC_GROUP_ID = gid;
@@ -2622,6 +2696,11 @@ async function openGroupCodes(gid, name) {
 
   const d = await api('/v2/groups/' + gid + '/participants');
   GC_PARTICIPANTS = Array.isArray(d) ? d : [];
+  GC_MEMBER_GROUP = {};
+  for (const k of GROUPS.filter(x => x.parent_id === gid)) {
+    const m = await api('/v2/groups/' + k.id + '/participants');
+    if (Array.isArray(m)) m.forEach(p => { GC_MEMBER_GROUP[p.id] = k.id; });
+  }
   updateGroupCodesPreview();
 }
 
@@ -2645,8 +2724,10 @@ function updateGroupCodesPreview() {
   const { target, skipped } = gcSelection();
   const total = GC_PARTICIPANTS.length;
   if (!total) { $('gc-preview').textContent = 'В группе нет участников.'; return; }
+  const inDepts = target.filter(p => GC_MEMBER_GROUP[p.id]).length;
   $('gc-preview').innerHTML = 'В группе <b>' + total + '</b> — выпустим коды <b>' + target.length + '</b>'
-    + (skipped.length ? ', пропустим ' + skipped.length + ' (приглашение уже есть)' : '');
+    + (skipped.length ? ', пропустим ' + skipped.length + ' (приглашение уже есть)' : '')
+    + (inDepts ? '<br>Из них ' + inDepts + ' — в отделах: их коды запишем на отдел, в отчёт компании они войдут всё равно.' : '');
 }
 
 async function issueGroupCodes() {
@@ -2667,7 +2748,7 @@ async function issueGroupCodes() {
     btn.textContent = 'Выпускаем ' + (i + 1) + ' из ' + target.length + '…';
     const r = await api('/v2/participants/' + p.id + '/generate-code', {
       method: 'POST',
-      body: { test_type: type, group_id: GC_GROUP_ID, language: lang }
+      body: { test_type: type, group_id: GC_MEMBER_GROUP[p.id] || GC_GROUP_ID, language: lang }
     });
     if (!r || !r.success) { failed++; continue; }
     // Имя берём из ключ-файла, если оно там есть, — на сервере его нет.
@@ -2716,13 +2797,21 @@ async function sendInvitation() {
 }
 
 // ── NI ANALYTICS ─────────────────────────────────────────────
+// Список — те же группы с отделами, что и в остальных отчётах (integer из
+// /v2/groups: сервер переводит компанию в старые groups.id всех её отделов).
+// Старые группы без v2-двойника по имени (только TIN) — следом, по UUID.
 async function loadNIGroupFilter() {
-  const d = await api('/admin/groups');
-  if (!d) return;
   const sel = $('ni-group-filter');
   if (!sel) return;
-  sel.innerHTML = '<option value="">Все группы</option>' +
-    d.map(g => '<option value="' + g.id + '">' + g.name + '</option>').join('');
+  const [v2, legacy] = await Promise.all([api('/v2/groups'), api('/admin/groups')]);
+  if (!Array.isArray(v2) && !Array.isArray(legacy)) return;
+  const prev = sel.value;
+  if (Array.isArray(v2)) GROUPS = v2;
+  const names = new Set(GROUPS.map(g => g.name));
+  const orphans = (Array.isArray(legacy) ? legacy : []).filter(g => !names.has(g.name));
+  sel.innerHTML = '<option value="">Все группы</option>' + groupOptionsHtml(GROUPS) +
+    (orphans.length ? '<optgroup label="Только TIN">' + orphans.map(g => '<option value="' + g.id + '">' + g.name + '</option>').join('') + '</optgroup>' : '');
+  if (prev && Array.from(sel.options).some(o => o.value === prev)) sel.value = prev;
 }
 
 async function loadNIAnalytics() {
@@ -2830,39 +2919,41 @@ async function downloadNIPdf(sessionId, name, level) {
   toast('PDF скачан');
 }
 
-async function exportGroupCSV() {
-  // Фильтр этой вкладки заполняется из /admin/groups — это UUID старого
-  // пространства ключей (groups.id). Маршрут экспорта принимает и его, и
-  // integer из /v2/groups: приведением занимается resolveGroupId() на сервере.
-  const group = $('ni-group-filter').value;
+// Выгрузка TIN для карты команды. Одна и та же с вкладки TIN-аналитики и со
+// списка участников. Раньше со списка участников уходил запрос в
+// /v2/groups/:id/export-csv — другой источник (v2_ni_results), он отдавал
+// только приглашения в статусе 'completed', и по перенесённым группам файл
+// приходил почти пустым. Группа — UUID старой схемы или integer из /v2/groups,
+// приводит сервер (resolveGroupIds).
+//
+// Порог отдела: карту команды показывают группе, и по отделу меньше
+// MIN_DEPARTMENT человек профиль угадывается. Такой файл не отдаём — эти люди
+// есть в выгрузке по компании.
+async function downloadTinCsv(group) {
   const url = API + '/admin/participants/export' + (group ? '?group=' + encodeURIComponent(group) : '');
   const r = await fetch(url, {headers:{'Authorization':'Bearer '+TOKEN}});
   if (!r.ok) { toast('Ошибка экспорта', true); return; }
-  const blob = await r.blob();
+  const text = await r.text();
+  const dept = GROUPS.find(g => String(g.id) === String(group) && g.parent_id != null);
+  if (dept) {
+    const rows = text.split(/\r?\n/).filter(l => l.trim()).length - 1;
+    if (rows < MIN_DEPARTMENT) {
+      toast('В отделе «' + dept.name + '» ' + Math.max(rows, 0) + ' TIN, для карты команды нужно минимум ' + MIN_DEPARTMENT + '. Выгрузите компанию целиком.', true);
+      return;
+    }
+  }
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
+  a.href = URL.createObjectURL(new Blob([text], { type: r.headers.get('Content-Type') || 'text/csv' }));
   a.download = 'ni_results.csv'; a.click();
   URL.revokeObjectURL(a.href);
   toast('CSV скачан');
 }
 
+function exportGroupCSV() { return downloadTinCsv($('ni-group-filter').value); }
+
 async function exportCSV() {
-  // Та же выгрузка, что и на вкладке TIN-аналитики. Раньше при выбранной
-  // группе отсюда уходил запрос в /v2/groups/:id/export-csv — другой маршрут,
-  // другие колонки и, главное, другой источник: v2_ni_results вместо
-  // test_sessions/results. Он возвращал только тех, у кого приглашение до сих
-  // пор в статусе 'completed', поэтому по перенесённым группам файл приходил
-  // почти пустым и карта команды его не принимала.
-  const group = $('f-group').value;
-  const url = API + '/admin/participants/export' + (group ? '?group=' + encodeURIComponent(group) : '');
-  const r = await fetch(url, {headers:{'Authorization':'Bearer '+TOKEN}});
-  if (!r.ok) { toast('Ошибка экспорта', true); return; }
-  const blob = await r.blob();
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'ni_results.csv'; a.click();
-  URL.revokeObjectURL(a.href);
-  toast('CSV скачан');
+  if (!GROUPS.length) { const d = await api('/v2/groups'); if (Array.isArray(d)) GROUPS = d; }
+  return downloadTinCsv($('f-group').value);
 }
 
 // ── PN PROFILES ───────────────────────────────────────────────
@@ -2871,14 +2962,7 @@ async function loadPersonalNarrativeList() {
 
   const sel = document.getElementById('pnr-group-filter');
   if (sel.options.length === 1) {
-    const groups = await api('/v2/groups');
-    if (groups) {
-      groups.forEach(g => {
-        const o = document.createElement('option');
-        o.value = g.id; o.textContent = g.name;
-        sel.appendChild(o);
-      });
-    }
+    appendGroupOptions(sel, await api('/v2/groups'));
   }
 
   const groupId = sel.value;
@@ -2985,14 +3069,7 @@ async function loadPNProfiles() {
 
   const sel = document.getElementById('pn-group-filter');
   if (sel.options.length === 1) {
-    const groups = await api('/v2/groups');
-    if (groups) {
-      groups.forEach(g => {
-        const o = document.createElement('option');
-        o.value = g.id; o.textContent = g.name;
-        sel.appendChild(o);
-      });
-    }
+    appendGroupOptions(sel, await api('/v2/groups'));
   }
 
   const groupId = sel.value;
@@ -3411,14 +3488,7 @@ async function loadNarrativeStatus() {
   // Заполняем фильтр групп если пустой
   const sel = document.getElementById('ns-group-filter');
   if (sel.options.length === 1) {
-    const groups = await api('/v2/groups');
-    if (groups) {
-      groups.forEach(g => {
-        const o = document.createElement('option');
-        o.value = g.id; o.textContent = g.name;
-        sel.appendChild(o);
-      });
-    }
+    appendGroupOptions(sel, await api('/v2/groups'));
   }
 
   // Сохранённый групповой отчёт показываем сразу — без нового вызова ИИ.
@@ -3935,8 +4005,7 @@ async function loadSociete() {
   const wrap = $('soc-table');
   wrap.innerHTML = '<div class="spinner"></div>';
   if (sel.options.length === 1) {
-    const groups = await api('/v2/groups');
-    if (groups) groups.forEach(g => { const o = document.createElement('option'); o.value = g.id; o.textContent = g.name; sel.appendChild(o); });
+    appendGroupOptions(sel, await api('/v2/groups'));
   }
   await loadSocieteGroupReport(groupId);
 
@@ -4188,8 +4257,7 @@ function ssName(code) {
 async function loadStrategy() {
   const sel = $('ss-group');
   if (sel.options.length === 1) {
-    const groups = await api('/v2/groups');
-    if (groups) groups.forEach(g => { const o = document.createElement('option'); o.value = g.id; o.textContent = g.name; sel.appendChild(o); });
+    appendGroupOptions(sel, await api('/v2/groups'));
   }
   if (!SS.meta) SS.meta = await api('/strategy-session/meta');
   if (!sel.value) $('ss-coverage').innerHTML = '<div class="card ss-muted">Выберите группу: покажем, какие тесты пройдены, и соберём сценарий.</div>';
