@@ -1023,7 +1023,9 @@ td>.btn+.btn{margin-left:4px}
 
     <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px">
       Паспорт цели — второй вход анализа: тесты меряют способность команды, цель приходит отсюда.
-      Заполняет постановщик цели, восемь пунктов. Участники отвечают на три вопроса о ней —
+      Заполняет постановщик цели: до трёх целей по важности. Для главной — восемь пунктов,
+      для второй и третьей — формулировка, срок и владелец. Участники сначала сами называют
+      три задачи компании, потом видят эти цели и отвечают на вопросы о них —
       в конце Нарративного статуса или отдельной формой.
     </p>
 
@@ -1038,6 +1040,7 @@ td>.btn+.btn{margin-left:4px}
 
     <div style="height:1px;background:var(--border);margin:18px 0"></div>
 
+    <div style="font-weight:600;margin-bottom:10px">Цель №1 — главная</div>
     <div class="field"><label>1 · Цель одной фразой</label>
       <textarea id="obj-statement" rows="2" placeholder="Что должно произойти и к какому сроку"></textarea>
     </div>
@@ -1081,6 +1084,14 @@ td>.btn+.btn{margin-left:4px}
         <option value="failed">Ставили раньше, не сделано</option>
       </select>
     </div>
+    <div style="height:1px;background:var(--border);margin:18px 0"></div>
+    <div style="font-weight:600;margin-bottom:4px">Цели №2 и №3 — по желанию</div>
+    <div style="font-size:12px;color:var(--ink-faint);margin-bottom:10px">
+      Участник видит только формулировки, без сроков: срок подсказал бы ответ о горизонте.
+      Пустая цель не сохраняется; у заполненной нужен срок.
+    </div>
+    <div id="obj-extra"></div>
+
     <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:4px 0 12px;cursor:pointer">
       <input type="checkbox" id="obj-ask-in-sn" checked onchange="objToggleAsk()">
       Задавать три вопроса в конце Нарративного статуса
@@ -4848,6 +4859,18 @@ async function ssSaveEdit(code, reset) {
 // из которого участники выбирают владельца. Имён здесь нет и быть не должно:
 // связка «должность ↔ человек» живёт в ключ-файле фасилитатора.
 let OBJ = { gid: null, roles: [], current: null };
+// Цели №2 и №3 паспорта: формулировка, срок, владелец (extra_goals на сервере).
+const OBJ_EXTRA = [2, 3];
+
+function objExtraHtml() {
+  return OBJ_EXTRA.map(k => `
+    <div class="field"><label>Цель №${k} одной фразой</label>
+      <textarea id="obj-g${k}-statement" rows="2"></textarea></div>
+    <div style="display:flex;gap:12px;margin-bottom:6px">
+      <div class="field" style="flex:1"><label>Срок</label><input type="month" id="obj-g${k}-deadline"></div>
+      <div class="field" style="flex:1"><label>Владелец</label><select id="obj-g${k}-owner"></select></div>
+    </div>`).join('');
+}
 
 async function openObjective(gid, name) {
   OBJ = { gid, roles: [], current: null };
@@ -4860,6 +4883,13 @@ async function openObjective(gid, name) {
   OBJ.roles = (d && d.roles) || [];
   OBJ.current = (d && d.objective) || null;
   $('obj-roles').value = OBJ.roles.join('\n');
+  $('obj-extra').innerHTML = objExtraHtml();
+  const extra = (OBJ.current && Array.isArray(OBJ.current.extra_goals)) ? OBJ.current.extra_goals : [];
+  OBJ_EXTRA.forEach((k, i) => {
+    const g = extra[i] || {};
+    $('obj-g' + k + '-statement').value = g.statement || '';
+    $('obj-g' + k + '-deadline').value = g.deadline ? String(g.deadline).slice(0, 7) : '';
+  });
   objFillOwner();
 
   const o = OBJ.current;
@@ -4884,8 +4914,16 @@ async function openObjective(gid, name) {
 }
 
 function objFillOwner() {
-  const sel = $('obj-owner');
-  const cur = OBJ.current && OBJ.current.owner;
+  const extra = (OBJ.current && Array.isArray(OBJ.current.extra_goals)) ? OBJ.current.extra_goals : [];
+  objFillOwnerSelect($('obj-owner'), OBJ.current && OBJ.current.owner);
+  OBJ_EXTRA.forEach((k, i) => {
+    const sel = $('obj-g' + k + '-owner');
+    // Перечень переписали, а владелец уже выбран на экране — сохраняем выбор.
+    if (sel) objFillOwnerSelect(sel, sel.value || (extra[i] && extra[i].owner));
+  });
+}
+
+function objFillOwnerSelect(sel, cur) {
   // Если должность владельца выпала из перечня (его переписали), всё равно
   // показываем её: иначе поле молча обнулится и при сохранении владелец исчезнет.
   const list = OBJ.roles.slice();
@@ -4917,6 +4955,12 @@ async function objSave() {
     price: $('obj-price').value,
     again: $('obj-again').value,
     ask_in_sn: $('obj-ask-in-sn').checked,
+    // Пустые цели сервер пропускает, заполненные нумерует подряд.
+    extra_goals: OBJ_EXTRA.map(k => ({
+      statement: $('obj-g' + k + '-statement').value.trim(),
+      deadline: $('obj-g' + k + '-deadline').value ? $('obj-g' + k + '-deadline').value + '-01' : null,
+      owner: $('obj-g' + k + '-owner').value || null,
+    })),
   };
   // Правка существующей цели — всегда новая версия, а не перезапись.
   if (OBJ.current) body.root_id = OBJ.current.root_id || OBJ.current.id;
@@ -4936,16 +4980,17 @@ async function objToggleAsk() {
 async function objLoadAnswers(id) {
   const d = await api('/objectives/' + id + '/answers');
   if (!d || d.error) return;
-  const o = d.owner || {};
   const list = d.answers || [];
+  // Цели паспорта со сводкой по владельцу. Старый сервер отдаёт только owner — это цель №1.
+  const goals = Array.isArray(d.goals) && d.goals.length ? d.goals
+    : [{ rank: 1, statement: d.objective && d.objective.statement, owner: d.owner || {} }];
   const HZL = { lt6: 'до 6 мес', '6_12': '6–12 мес', '1_2y': '1–2 года', gt2y: 'больше 2 лет', unknown: 'не знают' };
   const hzName = (v) => HZL[v] || '—';
-  // Горизонт считаем здесь же: это счёт по категориям, а не показатель,
-  // и порога для него не нужно — распределение говорит само.
-  const hzCount = {};
-  list.forEach(a => { if (a.horizon) hzCount[a.horizon] = (hzCount[a.horizon] || 0) + 1; });
+  // Горизонт — счёт по категориям, без порога: распределение говорит само.
+  const hzCount = (d.horizon && d.horizon.counts) || {};
   const hzParts = Object.keys(HZL).filter(k => hzCount[k])
     .map(k => hzName(k) + ': <b>' + hzCount[k] + '</b>');
+  const hzDeclared = d.horizon && d.horizon.declared;
   // Доля назвавших второго ответственного — мера размывания ответственности.
   const shared = list.filter(a => a.owner_role_2).length;
   // Подразделения: счёт по контурам — он же проверка, что разметка заполнена.
@@ -4955,29 +5000,52 @@ async function objLoadAnswers(id) {
   list.forEach(a => { if (a.unit) unitCount[a.unit] = (unitCount[a.unit] || 0) + 1; });
   const unitParts = Object.keys(unitCount).sort()
     .map(k => unitName(k) + ': <b>' + unitCount[k] + '</b>');
-  const rows = list.map(a =>
-    '<div style="padding:8px 0;border-top:1px solid var(--border)">' +
-    '<div>' + (a.task_text ? a.task_text : '<i style="color:var(--ink-faint)">задача не названа</i>') + '</div>' +
-    '<div style="font-size:12px;color:var(--ink-faint);margin-top:2px">владелец: ' +
-      (a.owner_choice === 'role' ? (a.owner_role || '—')
-        : a.owner_choice === 'outside' ? 'кто-то вне списка'
-        : a.owner_choice === 'unknown' ? 'не знает' : '—') +
-      (a.owner_role_2 ? ' + ' + a.owner_role_2 : '') +
-      ' · срок: ' + hzName(a.horizon) +
-      (a.unit ? ' · ' + unitName(a.unit) : '') +
-      (a.own_part ? ' · от себя: ' + a.own_part : '') + '</div></div>').join('');
+  const tn = d.tasks_named || {};
+  const tnParts = [3, 2, 1, 0].filter(k => tn[k]).map(k => k + ': <b>' + tn[k] + '</b>');
+
+  const ownerName = (choice, role) =>
+    choice === 'role' ? (role || '—') : choice === 'outside' ? 'кто-то вне списка'
+      : choice === 'unknown' ? 'не знает' : '—';
+  const goalRows = goals.map(g => {
+    const o = g.owner || {};
+    return '<div style="padding:6px 0;border-top:1px solid var(--border)">' +
+      '<div><b>№' + g.rank + '</b> ' + ssEsc(g.statement || '') + '</div>' +
+      '<div style="color:var(--ink-soft);font-size:12px;margin-top:2px">ответили: ' + (o.answered != null ? o.answered : o.named_someone || 0) +
+      ' · назвали владельца: ' + (o.named_someone || 0) +
+      (o.declared ? ' · совпало с вашим («' + ssEsc(o.declared) + '»): <b>' + (o.same_as_declared || 0) + '</b>' : ' · в паспорте владелец не назван') +
+      (o.most_named ? ' · чаще всего: <b>' + ssEsc(o.most_named.role) + '</b> (' + o.most_named.count + ')' : '') +
+      ' · вне списка: ' + (o.outside || 0) + ' · не знают: ' + (o.unknown || 0) +
+      (g.rank === 1 ? ' · назвали второго: <b>' + shared + '</b>' : '') + '</div></div>';
+  }).join('');
+
+  const rows = list.map(a => {
+    const tasks = Array.isArray(a.tasks) && a.tasks.length ? a.tasks : (a.task_text ? [a.task_text] : []);
+    const owners = goals.map(g => {
+      if (g.rank === 1) return '№1: ' + ownerName(a.owner_choice, a.owner_role) + (a.owner_role_2 ? ' + ' + ssEsc(a.owner_role_2) : '');
+      const x = (a.goal_owners || []).find(y => Number(y.rank) === g.rank);
+      return '№' + g.rank + ': ' + (x ? ownerName(x.choice, x.role) : '—');
+    });
+    return '<div style="padding:8px 0;border-top:1px solid var(--border)">' +
+      (tasks.length
+        ? '<ol style="margin:0;padding-left:20px">' + tasks.map(t => '<li>' + ssEsc(t) + '</li>').join('') + '</ol>'
+        : '<i style="color:var(--ink-faint)">задачи не названы</i>') +
+      '<div style="font-size:12px;color:var(--ink-faint);margin-top:2px">владельцы — ' + owners.join(' · ') +
+        ' · срок №1: ' + hzName(a.horizon) +
+        (a.unit ? ' · ' + ssEsc(unitName(a.unit)) : '') +
+        (a.own_part ? ' · от себя: ' + ssEsc(a.own_part) : '') + '</div></div>';
+  }).join('');
+
   $('obj-answers').innerHTML =
     '<div style="font-weight:600;margin-bottom:6px">Ответов: ' + (d.answered || 0) + '</div>' +
     (d.answered
-      ? '<div style="color:var(--ink-soft)">Назвали владельца: ' + (o.named_someone || 0) +
-        (o.declared ? ' · совпало с вашим («' + o.declared + '»): <b>' + (o.same_as_declared || 0) + '</b>' : '') +
-        (o.most_named ? ' · чаще всего называют: <b>' + o.most_named.role + '</b> (' + o.most_named.count + ')' : '') +
-        ' · не знают: ' + (o.unknown || 0) +
-        ' · назвали второго: <b>' + shared + '</b></div>' +
-        (hzParts.length ? '<div style="color:var(--ink-soft);margin-top:2px">Горизонт — ' +
-          hzParts.join(' · ') + '</div>' : '') +
+      ? '<div style="font-weight:600;margin:8px 0 2px">Кто отвечает за цели</div>' + goalRows +
+        (tnParts.length ? '<div style="color:var(--ink-soft);margin-top:8px">Назвали задач — ' + tnParts.join(' · ') + '</div>' : '') +
+        (hzParts.length ? '<div style="color:var(--ink-soft);margin-top:2px">Срок цели №1 — ' + hzParts.join(' · ') +
+          (hzDeclared ? ' · по паспорту: <b>' + hzName(hzDeclared) + '</b>, так же ответили: <b>' + (d.horizon.same_as_declared || 0) + '</b>' : '') +
+          '</div>' : '') +
         (unitParts.length ? '<div style="color:var(--ink-soft);margin-top:2px">Подразделения — ' +
-          unitParts.join(' · ') + '</div>' : '') + rows
+          unitParts.join(' · ') + '</div>' : '') +
+        '<div style="font-weight:600;margin:12px 0 2px">Ответы участников</div>' + rows
       : '<div style="color:var(--ink-faint)">Пока никто не отвечал.</div>');
 }
 
