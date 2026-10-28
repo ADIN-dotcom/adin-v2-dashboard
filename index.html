@@ -1032,7 +1032,7 @@ td>.btn+.btn{margin-left:4px}
     <div class="field"><label>Должности в группе — по одной в строке</label>
       <textarea id="obj-roles" rows="4" placeholder="Коммерческий директор&#10;Директор по ИТ&#10;Руководитель филиальной сети"></textarea>
       <div style="font-size:12px;color:var(--ink-faint);margin-top:4px">
-        Из этого перечня участник выбирает ответственного во втором вопросе, а вы — ответственного и соисполнителей.
+        Из этого перечня участник выбирает ответственного во втором вопросе, а вы — ответственного и тех, кто ещё отвечает за цель.
         Имена в базу не попадают — связка «должность ↔ человек» остаётся в вашем ключ-файле.
       </div>
       <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="objSaveRoles()">Сохранить перечень</button>
@@ -4845,7 +4845,7 @@ function objGoalHtml(k) {
   };
   return `
     <div style="height:1px;background:var(--border);margin:18px 0"></div>
-    <div style="font-weight:600;margin-bottom:10px">Цель № ${k}${k === 1 ? ' (высший приоритет)' : ' — по желанию'}</div>
+    <div style="font-weight:600;margin-bottom:10px">Цель № ${k}${k === 1 ? ' (высший приоритет)' : ''}</div>
     <div class="field"><label>1 · Формулировка цели</label>
       <textarea id="obj-g${k}-statement" rows="2" placeholder="Ожидаемый результат одним предложением"></textarea></div>
     <div class="field"><label>2 · Срок достижения</label><input type="month" id="obj-g${k}-deadline"></div>
@@ -4855,7 +4855,7 @@ function objGoalHtml(k) {
     <div class="field"><label>4 · Ответственный за достижение цели</label>
       <select id="obj-g${k}-owner" onchange="objRenderCo(${k})"></select>
       <div style="font-size:12px;color:var(--ink-faint);margin-top:4px">Пусто — тоже ответ, и важный.</div></div>
-    <div class="field"><label>Соисполнители</label>
+    <div class="field"><label>Кто ещё отвечает</label>
       <div id="obj-g${k}-co" style="display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px"></div></div>
     ${sel('depth')}${sel('price')}${sel('again')}`;
 }
@@ -4904,7 +4904,7 @@ async function openObjective(gid, name) {
   }
 }
 
-// Ответственный и соисполнители. При первом заполнении — из паспорта,
+// Ответственный и кто ещё отвечает. При первом заполнении — из паспорта,
 // при перерисовке после правки перечня — то, что уже выбрано на экране.
 function objFillOwner(fromScreen) {
   const goals = objGoalsOf(OBJ.current);
@@ -4920,7 +4920,7 @@ function objCheckedCo(k) {
   return [...document.querySelectorAll('#obj-g' + k + '-co input:checked')].map(x => x.value);
 }
 
-// Галочки соисполнителей из перечня должностей, кроме ответственного.
+// Галочки «Кто ещё отвечает» из перечня должностей, кроме ответственного.
 function objRenderCo(k, checked) {
   const cur = checked || objCheckedCo(k);
   const owner = ($('obj-g' + k + '-owner').value || '').toLowerCase();
@@ -5030,7 +5030,7 @@ async function objLoadAnswers(id) {
       ' · назвали ответственного: ' + (o.named_someone || 0) +
       (o.declared ? ' · совпало с ответственным по паспорту («' + ssEsc(o.declared) + '»): <b>' + (o.same_as_declared || 0) + '</b>'
         : ' · в паспорте ответственный не определён') +
-      // Попадание в состав: назван ответственный или один из соисполнителей.
+      // Попадание в состав: назван ответственный или один из тех, кто ещё отвечает.
       ((o.co_owners || []).length && o.in_declared_team != null
         ? ' · из состава ответственных: <b>' + o.in_declared_team + '</b>' : '') +
       (o.most_named ? ' · чаще всего: <b>' + ssEsc(o.most_named.role) + '</b> (' + o.most_named.count + ')' : '') +
