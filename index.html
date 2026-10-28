@@ -1023,8 +1023,8 @@ td>.btn+.btn{margin-left:4px}
 
     <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px">
       Паспорт цели — второй вход анализа: тесты меряют способность команды, цель приходит отсюда.
-      Заполняет постановщик цели: до трёх целей по важности. Для главной — восемь пунктов,
-      для второй и третьей — формулировка, срок и владелец. Участники сначала сами называют
+      Заполняет постановщик цели: до трёх целей в порядке приоритета, у каждой одни и те же
+      семь пунктов. Участники сначала сами называют
       три задачи компании, потом видят эти цели и отвечают на вопросы о них —
       в конце Нарративного статуса или отдельной формой.
     </p>
@@ -1032,7 +1032,7 @@ td>.btn+.btn{margin-left:4px}
     <div class="field"><label>Должности в группе — по одной в строке</label>
       <textarea id="obj-roles" rows="4" placeholder="Коммерческий директор&#10;Директор по ИТ&#10;Руководитель филиальной сети"></textarea>
       <div style="font-size:12px;color:var(--ink-faint);margin-top:4px">
-        Из этого перечня участник выбирает владельца во втором вопросе, и из него же выбираете владельца вы.
+        Из этого перечня участник выбирает ответственного во втором вопросе, а вы — ответственного и соисполнителей.
         Имена в базу не попадают — связка «должность ↔ человек» остаётся в вашем ключ-файле.
       </div>
       <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="objSaveRoles()">Сохранить перечень</button>
@@ -1040,57 +1040,11 @@ td>.btn+.btn{margin-left:4px}
 
     <div style="height:1px;background:var(--border);margin:18px 0"></div>
 
-    <div style="font-weight:600;margin-bottom:10px">Цель №1 — главная</div>
-    <div class="field"><label>1 · Цель одной фразой</label>
-      <textarea id="obj-statement" rows="2" placeholder="Что должно произойти и к какому сроку"></textarea>
-    </div>
-    <div style="display:flex;gap:12px">
-      <div class="field" style="flex:1"><label>2 · Срок</label>
-        <input type="month" id="obj-deadline">
-      </div>
-      <div class="field" style="flex:1"><label>4 · Владелец</label>
-        <select id="obj-owner"></select>
-        <div style="font-size:12px;color:var(--ink-faint);margin-top:4px">Пусто — тоже ответ, и важный.</div>
-      </div>
-    </div>
-    <div class="field"><label>3 · Подразделения — по одному в строке</label>
-      <textarea id="obj-units" rows="2" placeholder="Коммерческий контур&#10;Производство"></textarea>
-    </div>
-    <div class="field"><label>5 · Что должно стать другим</label>
-      <select id="obj-depth">
-        <option value="knowledge">Достаточно, чтобы люди узнали и поняли</option>
-        <option value="process">Нужно поменять регламенты и порядок работы</option>
-        <option value="behaviour" selected>Нужно, чтобы изменилось поведение</option>
-      </select>
-    </div>
-    <div class="field"><label>6 · Кто принимает решения по ходу</label>
-      <select id="obj-decides">
-        <option value="leader">В основном руководитель</option>
-        <option value="heads" selected>Руководители подразделений</option>
-        <option value="field">Сотрудники на местах</option>
-      </select>
-    </div>
-    <div class="field"><label>7 · Цена недостижения</label>
-      <select id="obj-price">
-        <option value="survive">Переживём, потеряем время</option>
-        <option value="positions" selected>Потеряем позиции или деньги</option>
-        <option value="irreversible">Последствия необратимы</option>
-      </select>
-    </div>
-    <div class="field"><label>8 · Ставится ли впервые</label>
-      <select id="obj-again">
-        <option value="first" selected>Да, впервые</option>
-        <option value="partial">Ставили раньше, сделано частично</option>
-        <option value="failed">Ставили раньше, не сделано</option>
-      </select>
-    </div>
-    <div style="height:1px;background:var(--border);margin:18px 0"></div>
-    <div style="font-weight:600;margin-bottom:4px">Цели №2 и №3 — по желанию</div>
     <div style="font-size:12px;color:var(--ink-faint);margin-bottom:10px">
       Участник видит только формулировки, без сроков: срок подсказал бы ответ о горизонте.
-      Пустая цель не сохраняется; у заполненной нужен срок.
+      Цели №2 и №3 необязательны; пустая не сохраняется, у заполненной нужен срок.
     </div>
-    <div id="obj-extra"></div>
+    <div id="obj-goals"></div>
 
     <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:4px 0 12px;cursor:pointer">
       <input type="checkbox" id="obj-ask-in-sn" checked onchange="objToggleAsk()">
@@ -4856,20 +4810,61 @@ async function ssSaveEdit(code, reset) {
 
 // ── ЦЕЛЬ ГРУППЫ ───────────────────────────────────────────────
 // Паспорт цели (второй вход анализа исполнимости) и перечень должностей,
-// из которого участники выбирают владельца. Имён здесь нет и быть не должно:
+// из которого участники выбирают ответственного. Имён здесь нет и быть не должно:
 // связка «должность ↔ человек» живёт в ключ-файле фасилитатора.
 let OBJ = { gid: null, roles: [], current: null };
-// Цели №2 и №3 паспорта: формулировка, срок, владелец (extra_goals на сервере).
-const OBJ_EXTRA = [2, 3];
+// Три цели паспорта в порядке приоритета, у каждой семь пунктов. Цель №1 —
+// поля паспорта, №2 и №3 — extra_goals на сервере, с теми же полями.
+// «Кто принимает решения по ходу» больше не спрашивается: решения принимает
+// ответственный или те, кого он назначил.
+const OBJ_GOALS = [1, 2, 3];
+const OBJ_SELECTS = {
+  depth: ['5 · Характер требуемых изменений', [
+    ['knowledge', 'Информирование: сотрудникам достаточно знать и понимать цель'],
+    ['process', 'Организационные изменения: регламенты, порядок работы, структура, системы взаимодействия'],
+    ['behaviour', 'Изменение поведения: сотрудники должны действовать иначе'],
+  ], 'behaviour'],
+  price: ['6 · Последствия недостижения цели', [
+    ['survive', 'Отсрочка результата без существенных потерь'],
+    ['positions', 'Финансовые потери или утрата рыночных позиций'],
+    ['irreversible', 'Критические или необратимые последствия для компании'],
+  ], 'positions'],
+  again: ['7 · История постановки цели', [
+    ['first', 'Цель ставится впервые'],
+    ['partial', 'Ставилась ранее, достигнута частично'],
+    ['failed', 'Ставилась ранее, не достигнута'],
+  ], 'first'],
+};
 
-function objExtraHtml() {
-  return OBJ_EXTRA.map(k => `
-    <div class="field"><label>Цель №${k} одной фразой</label>
-      <textarea id="obj-g${k}-statement" rows="2"></textarea></div>
-    <div style="display:flex;gap:12px;margin-bottom:6px">
-      <div class="field" style="flex:1"><label>Срок</label><input type="month" id="obj-g${k}-deadline"></div>
-      <div class="field" style="flex:1"><label>Владелец</label><select id="obj-g${k}-owner"></select></div>
-    </div>`).join('');
+function objGoalHtml(k) {
+  const sel = (f) => {
+    const [label, opts, def] = OBJ_SELECTS[f];
+    return `<div class="field"><label>${label}</label><select id="obj-g${k}-${f}">` +
+      opts.map(([v, t]) => `<option value="${v}"${v === def ? ' selected' : ''}>${t}</option>`).join('') +
+      '</select></div>';
+  };
+  return `
+    <div style="height:1px;background:var(--border);margin:18px 0"></div>
+    <div style="font-weight:600;margin-bottom:10px">Цель № ${k}${k === 1 ? ' (высший приоритет)' : ' — по желанию'}</div>
+    <div class="field"><label>1 · Формулировка цели</label>
+      <textarea id="obj-g${k}-statement" rows="2" placeholder="Ожидаемый результат одним предложением"></textarea></div>
+    <div class="field"><label>2 · Срок достижения</label><input type="month" id="obj-g${k}-deadline"></div>
+    <div class="field"><label>3 · Подразделения, участвующие в достижении цели — по одному в строке</label>
+      <textarea id="obj-g${k}-units" rows="2" placeholder="Коммерческий контур&#10;Производство"></textarea>
+      <div style="font-size:12px;color:var(--ink-faint);margin-top:4px">Заполняется, если нужен анализ по подразделениям.</div></div>
+    <div class="field"><label>4 · Ответственный за достижение цели</label>
+      <select id="obj-g${k}-owner" onchange="objRenderCo(${k})"></select>
+      <div style="font-size:12px;color:var(--ink-faint);margin-top:4px">Пусто — тоже ответ, и важный.</div></div>
+    <div class="field"><label>Соисполнители</label>
+      <div id="obj-g${k}-co" style="display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px"></div></div>
+    ${sel('depth')}${sel('price')}${sel('again')}`;
+}
+
+// Цели паспорта списком: №1 из полей, №2–3 из extra_goals.
+function objGoalsOf(o) {
+  if (!o) return [];
+  const extra = Array.isArray(o.extra_goals) ? o.extra_goals : [];
+  return [o].concat(extra);
 }
 
 async function openObjective(gid, name) {
@@ -4883,25 +4878,21 @@ async function openObjective(gid, name) {
   OBJ.roles = (d && d.roles) || [];
   OBJ.current = (d && d.objective) || null;
   $('obj-roles').value = OBJ.roles.join('\n');
-  $('obj-extra').innerHTML = objExtraHtml();
-  const extra = (OBJ.current && Array.isArray(OBJ.current.extra_goals)) ? OBJ.current.extra_goals : [];
-  OBJ_EXTRA.forEach((k, i) => {
-    const g = extra[i] || {};
+  $('obj-goals').innerHTML = OBJ_GOALS.map(objGoalHtml).join('');
+  // У целей №2–3, записанных до семи пунктов, пустые пункты 5–7 остаются
+  // на значениях по умолчанию — как у новой цели.
+  const goals = objGoalsOf(OBJ.current);
+  OBJ_GOALS.forEach((k, i) => {
+    const g = goals[i] || {};
     $('obj-g' + k + '-statement').value = g.statement || '';
     $('obj-g' + k + '-deadline').value = g.deadline ? String(g.deadline).slice(0, 7) : '';
+    $('obj-g' + k + '-units').value = (g.units || []).join('\n');
+    Object.keys(OBJ_SELECTS).forEach(f => { if (g[f]) $('obj-g' + k + '-' + f).value = g[f]; });
   });
   objFillOwner();
 
   const o = OBJ.current;
   if (o) {
-    $('obj-statement').value = o.statement || '';
-    $('obj-deadline').value = o.deadline ? String(o.deadline).slice(0, 7) : '';
-    $('obj-units').value = (o.units || []).join('\n');
-    $('obj-owner').value = o.owner || '';
-    $('obj-depth').value = o.depth || 'behaviour';
-    $('obj-decides').value = o.decides || 'heads';
-    $('obj-price').value = o.price || 'positions';
-    $('obj-again').value = o.again || 'first';
     $('obj-ask-in-sn').checked = o.ask_in_sn !== false;
     $('obj-save').textContent = 'Сохранить как новую версию';
     $('obj-current').innerHTML = 'Текущая версия <b>' + o.version + '</b>, создана ' + fmtDate(o.created_at) +
@@ -4913,22 +4904,46 @@ async function openObjective(gid, name) {
   }
 }
 
-function objFillOwner() {
-  const extra = (OBJ.current && Array.isArray(OBJ.current.extra_goals)) ? OBJ.current.extra_goals : [];
-  objFillOwnerSelect($('obj-owner'), OBJ.current && OBJ.current.owner);
-  OBJ_EXTRA.forEach((k, i) => {
+// Ответственный и соисполнители. При первом заполнении — из паспорта,
+// при перерисовке после правки перечня — то, что уже выбрано на экране.
+function objFillOwner(fromScreen) {
+  const goals = objGoalsOf(OBJ.current);
+  OBJ_GOALS.forEach((k, i) => {
+    const g = goals[i] || {};
     const sel = $('obj-g' + k + '-owner');
-    // Перечень переписали, а владелец уже выбран на экране — сохраняем выбор.
-    if (sel) objFillOwnerSelect(sel, sel.value || (extra[i] && extra[i].owner));
+    objFillOwnerSelect(sel, fromScreen ? sel.value : g.owner);
+    objRenderCo(k, fromScreen ? objCheckedCo(k) : (g.co_owners || []));
   });
 }
 
+function objCheckedCo(k) {
+  return [...document.querySelectorAll('#obj-g' + k + '-co input:checked')].map(x => x.value);
+}
+
+// Галочки соисполнителей из перечня должностей, кроме ответственного.
+function objRenderCo(k, checked) {
+  const cur = checked || objCheckedCo(k);
+  const owner = ($('obj-g' + k + '-owner').value || '').toLowerCase();
+  const list = OBJ.roles.slice();
+  // Должность, выпавшая из перечня, остаётся видимой — как у ответственного.
+  cur.forEach(r => { if (!list.some(x => x.toLowerCase() === r.toLowerCase())) list.push(r); });
+  const box = $('obj-g' + k + '-co');
+  const items = list.filter(r => r.toLowerCase() !== owner);
+  box.innerHTML = items.length
+    // .field label и .field input в общем CSS — заглавные буквы и ширина 100%: гасим явно.
+    ? items.map(r => '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;' +
+        'text-transform:none;font-weight:400;letter-spacing:normal;margin-bottom:0;color:var(--ink)">' +
+        '<input type="checkbox" style="width:auto;margin:0" value="' + ssEsc(r) + '"' +
+        (cur.some(x => x.toLowerCase() === r.toLowerCase()) ? ' checked' : '') + '>' + ssEsc(r) + '</label>').join('')
+    : '<span style="color:var(--ink-faint)">Сначала заполните перечень должностей.</span>';
+}
+
 function objFillOwnerSelect(sel, cur) {
-  // Если должность владельца выпала из перечня (его переписали), всё равно
-  // показываем её: иначе поле молча обнулится и при сохранении владелец исчезнет.
+  // Если должность ответственного выпала из перечня (его переписали), всё равно
+  // показываем её: иначе поле молча обнулится и при сохранении он исчезнет.
   const list = OBJ.roles.slice();
   if (cur && !list.some(r => r.toLowerCase() === String(cur).toLowerCase())) list.push(cur);
-  sel.innerHTML = '<option value="">— не назван —</option>' +
+  sel.innerHTML = '<option value="">— не определён —</option>' +
     list.map(r => '<option value="' + r.replace(/"/g, '&quot;') + '">' + r + '</option>').join('');
   if (cur) sel.value = cur;
 }
@@ -4939,28 +4954,28 @@ async function objSaveRoles() {
   });
   OBJ.roles = (d && d.roles) || [];
   $('obj-roles').value = OBJ.roles.join('\n');
-  objFillOwner();
+  objFillOwner(true);
 }
 
 async function objSave() {
   const btn = $('obj-save');
   btn.disabled = true;
-  const body = {
-    statement: $('obj-statement').value,
-    deadline: $('obj-deadline').value ? $('obj-deadline').value + '-01' : null,
-    units: $('obj-units').value.split('\n').map(x => x.trim()).filter(Boolean),
-    owner: $('obj-owner').value || null,
-    depth: $('obj-depth').value,
-    decides: $('obj-decides').value,
-    price: $('obj-price').value,
-    again: $('obj-again').value,
-    ask_in_sn: $('obj-ask-in-sn').checked,
-    // Пустые цели сервер пропускает, заполненные нумерует подряд.
-    extra_goals: OBJ_EXTRA.map(k => ({
+  const goal = (k) => {
+    const g = {
       statement: $('obj-g' + k + '-statement').value.trim(),
       deadline: $('obj-g' + k + '-deadline').value ? $('obj-g' + k + '-deadline').value + '-01' : null,
+      units: $('obj-g' + k + '-units').value.split('\n').map(x => x.trim()).filter(Boolean),
       owner: $('obj-g' + k + '-owner').value || null,
-    })),
+      co_owners: objCheckedCo(k),
+    };
+    Object.keys(OBJ_SELECTS).forEach(f => { g[f] = $('obj-g' + k + '-' + f).value; });
+    return g;
+  };
+  const body = {
+    ...goal(1),
+    ask_in_sn: $('obj-ask-in-sn').checked,
+    // Пустые цели сервер пропускает, заполненные нумерует подряд.
+    extra_goals: OBJ_GOALS.slice(1).map(goal),
   };
   // Правка существующей цели — всегда новая версия, а не перезапись.
   if (OBJ.current) body.root_id = OBJ.current.root_id || OBJ.current.id;
@@ -4981,7 +4996,7 @@ async function objLoadAnswers(id) {
   const d = await api('/objectives/' + id + '/answers');
   if (!d || d.error) return;
   const list = d.answers || [];
-  // Цели паспорта со сводкой по владельцу. Старый сервер отдаёт только owner — это цель №1.
+  // Цели паспорта со сводкой по ответственному. Старый сервер отдаёт только owner — это цель №1.
   const goals = Array.isArray(d.goals) && d.goals.length ? d.goals
     : [{ rank: 1, statement: d.objective && d.objective.statement, owner: d.owner || {} }];
   const HZL = { lt6: 'до 6 мес', '6_12': '6–12 мес', '1_2y': '1–2 года', gt2y: 'больше 2 лет', unknown: 'не знают' };
@@ -4991,8 +5006,6 @@ async function objLoadAnswers(id) {
   const hzParts = Object.keys(HZL).filter(k => hzCount[k])
     .map(k => hzName(k) + ': <b>' + hzCount[k] + '</b>');
   const hzDeclared = d.horizon && d.horizon.declared;
-  // Доля назвавших второго ответственного — мера размывания ответственности.
-  const shared = list.filter(a => a.owner_role_2).length;
   // Подразделения: счёт по контурам — он же проверка, что разметка заполнена.
   // Без неё расхождение считается по всей команде, а не между контурами.
   const unitName = (u) => (u === 'other' ? 'другое' : u);
@@ -5006,30 +5019,38 @@ async function objLoadAnswers(id) {
   const ownerName = (choice, role) =>
     choice === 'role' ? (role || '—') : choice === 'outside' ? 'кто-то вне списка'
       : choice === 'unknown' ? 'не знает' : '—';
+  // Старый сервер не считает second_named — тогда только цель №1, по owner_role_2.
+  const secondNamed = (g) => (g.owner && g.owner.second_named != null) ? g.owner.second_named
+    : g.rank === 1 ? list.filter(a => a.owner_role_2).length : 0;
   const goalRows = goals.map(g => {
     const o = g.owner || {};
     return '<div style="padding:6px 0;border-top:1px solid var(--border)">' +
       '<div><b>№' + g.rank + '</b> ' + ssEsc(g.statement || '') + '</div>' +
       '<div style="color:var(--ink-soft);font-size:12px;margin-top:2px">ответили: ' + (o.answered != null ? o.answered : o.named_someone || 0) +
-      ' · назвали владельца: ' + (o.named_someone || 0) +
-      (o.declared ? ' · совпало с вашим («' + ssEsc(o.declared) + '»): <b>' + (o.same_as_declared || 0) + '</b>' : ' · в паспорте владелец не назван') +
+      ' · назвали ответственного: ' + (o.named_someone || 0) +
+      (o.declared ? ' · совпало с ответственным по паспорту («' + ssEsc(o.declared) + '»): <b>' + (o.same_as_declared || 0) + '</b>'
+        : ' · в паспорте ответственный не определён') +
+      // Попадание в состав: назван ответственный или один из соисполнителей.
+      ((o.co_owners || []).length && o.in_declared_team != null
+        ? ' · из состава ответственных: <b>' + o.in_declared_team + '</b>' : '') +
       (o.most_named ? ' · чаще всего: <b>' + ssEsc(o.most_named.role) + '</b> (' + o.most_named.count + ')' : '') +
       ' · вне списка: ' + (o.outside || 0) + ' · не знают: ' + (o.unknown || 0) +
-      (g.rank === 1 ? ' · назвали второго: <b>' + shared + '</b>' : '') + '</div></div>';
+      // Назвавшие второго — мера размывания ответственности, счётом, без порога.
+      ' · назвали второго: <b>' + secondNamed(g) + '</b>' + '</div></div>';
   }).join('');
 
   const rows = list.map(a => {
     const tasks = Array.isArray(a.tasks) && a.tasks.length ? a.tasks : (a.task_text ? [a.task_text] : []);
     const owners = goals.map(g => {
-      if (g.rank === 1) return '№1: ' + ownerName(a.owner_choice, a.owner_role) + (a.owner_role_2 ? ' + ' + ssEsc(a.owner_role_2) : '');
       const x = (a.goal_owners || []).find(y => Number(y.rank) === g.rank);
-      return '№' + g.rank + ': ' + (x ? ownerName(x.choice, x.role) : '—');
+      if (g.rank === 1) return '№1: ' + ownerName(a.owner_choice, a.owner_role) + (a.owner_role_2 ? ' + ' + ssEsc(a.owner_role_2) : '');
+      return '№' + g.rank + ': ' + (x ? ownerName(x.choice, x.role) + (x.role_2 ? ' + ' + ssEsc(x.role_2) : '') : '—');
     });
     return '<div style="padding:8px 0;border-top:1px solid var(--border)">' +
       (tasks.length
         ? '<ol style="margin:0;padding-left:20px">' + tasks.map(t => '<li>' + ssEsc(t) + '</li>').join('') + '</ol>'
         : '<i style="color:var(--ink-faint)">задачи не названы</i>') +
-      '<div style="font-size:12px;color:var(--ink-faint);margin-top:2px">владельцы — ' + owners.join(' · ') +
+      '<div style="font-size:12px;color:var(--ink-faint);margin-top:2px">ответственные — ' + owners.join(' · ') +
         ' · срок №1: ' + hzName(a.horizon) +
         (a.unit ? ' · ' + ssEsc(unitName(a.unit)) : '') +
         (a.own_part ? ' · от себя: ' + ssEsc(a.own_part) : '') + '</div></div>';
