@@ -189,6 +189,11 @@ td>.btn+.btn{margin-left:4px}
 .group-name{font-weight:500;font-size:14px;color:var(--ink)}
 .group-meta{font-size:12px;color:var(--ink-4);margin-top:3px}
 .group-card.dept{margin-left:28px;border-left:3px solid var(--navy)}
+.group-card.dept.collapsed{display:none}
+.group-toggle{cursor:pointer;user-select:none}
+.group-toggle .chev{display:inline-block;width:7px;height:7px;margin:0 10px 2px 2px;border-right:2px solid var(--ink-soft);border-bottom:2px solid var(--ink-soft);transform:rotate(-45deg);transition:transform .15s}
+.group-toggle:hover .group-name{color:var(--navy)}
+.group-toggle.open .chev{transform:rotate(45deg)}
 .group-stats{display:flex;gap:24px;flex-shrink:0}
 .gstat{text-align:center}
 .gstat-num{font-size:20px;font-weight:300;color:var(--ink)}
@@ -1353,9 +1358,24 @@ async function loadHome() {
 // ── GROUPS ────────────────────────────────────────────────────
 // Отделы: два уровня, компания → отдел (parent_id, решение 25.10.2026).
 // Отчёт по компании берёт людей компании и всех её отделов, отчёт по отделу —
-// только отдела и не меньше MIN_DEPARTMENT анкет (сервер проверяет сам).
-const MIN_DEPARTMENT = 4;
+// только отдела. Любой групповой отчёт — не меньше MIN_GROUP_REPORT анкет
+// (решение 30.10.2026, было 4 и только для отдела; сервер проверяет сам).
+const MIN_GROUP_REPORT = 5;
 let GROUPS = [];
+
+// Отделы компании свёрнуты; раскрытые компании помним в этом браузере.
+const GROUPS_OPEN_KEY = 'adin_groups_open';
+function openGroupIds() {
+  try { return new Set(JSON.parse(localStorage.getItem(GROUPS_OPEN_KEY) || '[]')); } catch (e) { return new Set(); }
+}
+function toggleGroupDepts(id) {
+  const open = openGroupIds();
+  const on = !open.has(id);
+  if (on) open.add(id); else open.delete(id);
+  try { localStorage.setItem(GROUPS_OPEN_KEY, JSON.stringify([...open])); } catch (e) {}
+  document.querySelectorAll('.group-card.dept[data-parent="' + id + '"]').forEach(el => el.classList.toggle('collapsed', !on));
+  document.querySelectorAll('.group-toggle[data-group="' + id + '"]').forEach(el => el.classList.toggle('open', on));
+}
 
 // Компания, за ней её отделы по алфавиту. Отдел без видимой компании
 // (например, компания в архиве, а отдел нет) стоит как обычная группа.
@@ -1395,13 +1415,13 @@ async function loadGroups() {
   }
   const active = d.filter(g => g.status === 'active');
   const archived = d.filter(g => g.status === 'archived');
+  const open = openGroupIds();
   const renderGroup = ({ g, depth }) => `
-    <div class="group-card${depth?' dept':''}" style="${g.status==='archived'?'opacity:.6':''}">
-      <div style="flex:1;min-width:0">
-        <div class="group-name">${depth?'<span style="font-size:11px;color:var(--ink-faint)">Отдел · </span>':''}${g.name}${g.status==='archived'?' <span style="font-size:11px;color:var(--ink-faint)">📦 Архив</span>':''}</div>
+    <div class="group-card${depth?' dept'+(open.has(g.parent_id)?'':' collapsed'):''}"${depth?` data-parent="${g.parent_id}"`:''} style="${g.status==='archived'?'opacity:.6':''}">
+      <div style="flex:1;min-width:0"${!depth&&g.department_count?` class="group-toggle${open.has(g.id)?' open':''}" data-group="${g.id}" title="Показать или скрыть отделы" onclick="toggleGroupDepts(${g.id})"`:''}>
+        <div class="group-name">${!depth&&g.department_count?'<span class="chev"></span>':''}${depth?'<span style="font-size:11px;color:var(--ink-faint)">Отдел · </span>':''}${g.name}${g.status==='archived'?' <span style="font-size:11px;color:var(--ink-faint)">📦 Архив</span>':''}</div>
         <div class="group-meta">${g.facilitator_name||''}${g.program_date?' · '+fmtDate(g.program_date):''}${g.description?' · '+g.description:''}</div>
         ${g.department_count?`<div class="group-meta">${g.department_count} отд. · вместе с отделами ${g.scope_participants||0} чел.</div>`:''}
-        ${depth&&(g.total_participants||0)<MIN_DEPARTMENT?`<div class="group-meta" style="color:var(--gold)">Меньше ${MIN_DEPARTMENT} человек: отдельного отчёта по отделу не будет, люди войдут в отчёт компании</div>`:''}
         <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
           <div class="progress"><div class="progress-fill" style="width:${g.total_participants>0?Math.round((g.completed||0)/g.total_participants*100):0}%;background:var(--green)"></div></div>
           <span style="font-size:12px;color:var(--ink-faint)">${g.completed||0}/${g.total_participants||0} завершили</span>
@@ -1438,7 +1458,7 @@ function fillGroupParent(self, parentId) {
   sel.disabled = !!(self && self.department_count > 0);
   $('g-parent-hint').textContent = sel.disabled
     ? 'У группы есть отделы — сама она отделом стать не может.'
-    : 'Отчёт по отделу строится только по его людям (от ' + MIN_DEPARTMENT + ' анкет), отчёт по компании — по всем её отделам вместе.';
+    : 'Отчёт по отделу строится только по его людям (от ' + MIN_GROUP_REPORT + ' анкет), отчёт по компании — по всем её отделам вместе.';
 }
 
 // Новая группа или, с parentId, новый отдел этой компании.
@@ -1465,6 +1485,11 @@ async function saveGroup() {
   if (!body.name) { toast('Введите название', true); return; }
   const d = id ? await api('/v2/groups/'+id, {method:'PUT', body}) : await api('/v2/groups', {method:'POST', body});
   if (d && (d.id || d.name)) {
+    // Новый или перенесённый отдел сразу виден: раскрываем его компанию.
+    if (body.parent_id && !openGroupIds().has(body.parent_id)) {
+      const open = openGroupIds(); open.add(body.parent_id);
+      try { localStorage.setItem(GROUPS_OPEN_KEY, JSON.stringify([...open])); } catch (e) {}
+    }
     closeModal('modal-group'); loadGroups(); loadGroupsFilter();
     toast(id ? 'Группа обновлена' : body.parent_id ? 'Отдел создан' : 'Группа создана');
     $('g-id').value=''; ['g-name','g-desc','g-facilitator','g-facilitator-email','g-date'].forEach(f => $(f).value='');
@@ -2891,19 +2916,20 @@ async function downloadNIPdf(sessionId, name, level) {
 // приходил почти пустым. Группа — UUID старой схемы или integer из /v2/groups,
 // приводит сервер (resolveGroupIds).
 //
-// Порог отдела: карту команды показывают группе, и по отделу меньше
-// MIN_DEPARTMENT человек профиль угадывается. Такой файл не отдаём — эти люди
-// есть в выгрузке по компании.
+// Порог: карту команды показывают группе, и при меньше чем MIN_GROUP_REPORT
+// человек профиль угадывается. Такой файл по группе или отделу не отдаём —
+// люди отдела есть в выгрузке по компании. Выгрузка без группы не ограничена.
 async function downloadTinCsv(group) {
   const url = API + '/admin/participants/export' + (group ? '?group=' + encodeURIComponent(group) : '');
   const r = await fetch(url, {headers:{'Authorization':'Bearer '+TOKEN}});
   if (!r.ok) { toast('Ошибка экспорта', true); return; }
   const text = await r.text();
-  const dept = GROUPS.find(g => String(g.id) === String(group) && g.parent_id != null);
-  if (dept) {
+  const grp = group ? GROUPS.find(g => String(g.id) === String(group)) : null;
+  if (group) {
     const rows = text.split(/\r?\n/).filter(l => l.trim()).length - 1;
-    if (rows < MIN_DEPARTMENT) {
-      toast('В отделе «' + dept.name + '» ' + Math.max(rows, 0) + ' TIN, для карты команды нужно минимум ' + MIN_DEPARTMENT + '. Выгрузите компанию целиком.', true);
+    const isDept = grp && grp.parent_id != null;
+    if (rows < MIN_GROUP_REPORT) {
+      toast((isDept ? 'В отделе «' + grp.name + '» ' : 'В группе ') + Math.max(rows, 0) + ' TIN, для карты команды нужно минимум ' + MIN_GROUP_REPORT + (isDept ? '. Выгрузите компанию целиком.' : '.'), true);
       return;
     }
   }
