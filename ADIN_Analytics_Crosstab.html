@@ -71,7 +71,10 @@
 </div>
 
 <script>
-const API = 'https://adin-ni-backend-production.up.railway.app/api';
+// Сервер — тот, с которого открыта страница: на RU-сервере это RU-бэкенд.
+// GitHub Pages и файл с диска — международный бэкенд, как в index.html.
+const API = (location.hostname.endsWith('github.io') || !/^https?:$/.test(location.protocol))
+  ? 'https://adin-ni-backend-production.up.railway.app/api' : '/api';
 let dashboardKey = localStorage.getItem('adin_dashboard_key') || '';
 
 const PALETTE = ['#c8432a', '#1e3a5f', '#2d6a4f', '#c9a84c', '#8888a8', '#2d5a8e', '#6a4a8e'];

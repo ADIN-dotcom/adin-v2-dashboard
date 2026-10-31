@@ -2029,7 +2029,12 @@ function openDashboardKeySettings() {
 // режимами исключены на уровне входных данных. При любой проблеме (нет ключа,
 // сервер недоступен, невалидный ответ) — остаёмся на уже показанном кратком
 // описании и просто сообщаем причину, не ломая экран.
-const GROUP_NARRATIVE_API = 'https://adin-ni-backend-production.up.railway.app/api/v2/groups/generate-narrative';
+// Сервер — тот, с которого открыт инструмент. Копия на RU-сервере (/admin/)
+// раньше слала запрос на международный бэкенд: средние баллы и тексты зон
+// с кодами участников уходили из российского контура (найдено 31.10.2026).
+// GitHub Pages и файл с диска — международный бэкенд, как в index.html.
+const GROUP_NARRATIVE_API = ((location.hostname.endsWith('github.io') || openedOffline())
+  ? 'https://adin-ni-backend-production.up.railway.app/api' : '/api') + '/v2/groups/generate-narrative';
 
 async function generateDeepNarrative() {
   const key = getDashboardKey();
