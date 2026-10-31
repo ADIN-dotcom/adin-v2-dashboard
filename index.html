@@ -1101,6 +1101,30 @@ td>.btn+.btn{margin-left:4px}
   </div>
 </div>
 
+<div class="modal-bg" id="modal-team-portrait">
+  <div class="modal" style="max-width:760px">
+    <div class="modal-title">
+      <span>Портрет команды · <b id="tp-group-name"></b></span>
+      <button class="modal-close" onclick="closeModal('modal-team-portrait')">×</button>
+    </div>
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:12px">
+      Среда команды по трём тестам — TIN, SN и Société — без паспорта цели: как команда мыслит, в какой истории живёт,
+      какую компанию хочет, где расходятся подразделения и люди. Выводы делают правила; модель только пишет связный текст,
+      числа в нём проверяет код. Портрет собирается, когда тесты прошли от пяти участников.
+    </p>
+    <div id="tp-page1" style="margin-bottom:12px"></div>
+    <div id="tp-status" style="font-size:12.5px;color:var(--ink-faint);margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-navy btn-sm" id="tp-text" onclick="tpText()">Собрать текст</button>
+      <button class="btn btn-ghost btn-sm" id="tp-pdf-f" onclick="tpPdf('facilitator')">PDF для ведущего</button>
+      <button class="btn btn-ghost btn-sm" id="tp-pdf-c" onclick="tpPdf('client')">PDF для заказчика</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-team-portrait')">Закрыть</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modal-feas-labels">
   <div class="modal" style="max-width:920px">
     <div class="modal-title">
@@ -1496,6 +1520,7 @@ async function loadGroups() {
         <button class="btn btn-navy btn-sm" onclick="openGroupParticipants(${g.id},'${g.name.replace(/'/g,"\\'")}')">Участники →</button>
         <button class="btn btn-ghost btn-sm" title="Выпустить коды всем участникам группы и скачать ключ-файл" onclick="openGroupCodes(${g.id},'${g.name.replace(/'/g,"\\'")}')">🔑 Коды всем</button>
         <button class="btn btn-ghost btn-sm" title="Паспорт цели и вопросы участникам о целях" onclick="openObjective(${g.id},'${g.name.replace(/'/g,"\\'")}')">🎯 Цель</button>
+        <button class="btn btn-ghost btn-sm" title="Портрет команды по TIN, SN и Société — без паспорта цели" onclick="openTeamPortrait(${g.id},'${g.name.replace(/'/g,"\\'")}')">🧩 Портрет</button>
         ${!depth&&g.parent_id==null&&g.status==='active'?`<button class="btn btn-ghost btn-sm" title="Создать отдел внутри этой группы" onclick="openGroupModal(${g.id})">+ Отдел</button>`:''}
         <button class="btn btn-ghost btn-sm" onclick="editGroup(${g.id})">✏️</button>
         <button class="btn btn-ghost btn-sm" onclick="toggleArchiveGroup(${g.id},'${g.name.replace(/'/g,"\\'")}','${g.status}')">${g.status==='active'?'📦':'📂'}</button>
@@ -5171,6 +5196,79 @@ async function frPdf(audience) {
     const blob = await r.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = filenameFromResponse(r, 'Исполнимость_' + FR.gid + '_' + audience + '.pdf'); a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (e) { toast('Ошибка соединения', true); }
+}
+
+// ── ПОРТРЕТ КОМАНДЫ (routes/team_portrait.js) ──────────────────────────────
+// Отчёт без паспорта цели: сводка здесь, текст модели собирается в фоне,
+// PDF заказчику — только когда тесты прошли от пяти и проверка текста без замечаний.
+let TP = { gid: null, timer: null };
+
+async function openTeamPortrait(gid, name) {
+  TP = { gid, timer: null };
+  $('tp-group-name').textContent = name;
+  $('tp-page1').innerHTML = '<div class="spinner"></div>';
+  $('tp-status').textContent = '';
+  openModal('modal-team-portrait');
+  const r = await api('/team-portrait/group/' + gid + '/report');
+  if (!r || r.error) { $('tp-page1').innerHTML = '<div style="color:var(--red)">' + ssEsc((r && r.error) || 'Не удалось собрать портрет') + '</div>'; return; }
+  const cv = r.coverage || {};
+  const units = (r.units && r.units.list) || [];
+  $('tp-page1').innerHTML =
+    '<div style="font-size:13px;margin-bottom:8px">Участников ' + (cv.members || 0) + ' · прошли тесты ' + (cv.measured || 0) +
+      ' · TIN ' + (cv.tin || 0) + ' · SN ' + (cv.sn || 0) + ' · Société ' + (cv.soc || 0) + '</div>' +
+    '<div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:8px">' +
+      (units.length ? 'Подразделения от пяти человек: ' + units.map(u => ssEsc(u.name) + ' (' + u.n + ')').join(', ') : 'Подразделений от пяти человек нет — сводка по всей команде') +
+      ' · пар с напряжением: ' + (r.pairs_total || 0) + '</div>' +
+    ((r.recommendations || []).length ? '<div style="font-weight:500;font-size:13px;margin:10px 0 4px">Меры</div>' +
+      r.recommendations.map(x => '<div style="font-size:12.5px;margin-bottom:4px"><b>' + ssEsc(x.title) + '</b> · ' + ssEsc(x.priority_name || '') +
+        '<div style="color:var(--ink-faint)">' + ssEsc(x.rubric_name || '') + '</div></div>').join('') : '');
+  await tpStatus();
+}
+
+async function tpStatus() {
+  const d = await api('/team-portrait/group/' + TP.gid + '/text');
+  if (!d || d.error) { $('tp-status').textContent = (d && d.error) || ''; return; }
+  const job = d.job, t = d.text;
+  const running = job && job.state === 'running';
+  const parts = [];
+  if (running) parts.push('Модель пишет текст…');
+  else if (job && job.state === 'error') parts.push('Ошибка при сборке текста: ' + job.error);
+  else if (!t) parts.push('Текст ещё не собран.');
+  else if (!d.current) parts.push('Данные изменились после сборки текста — соберите заново.');
+  else parts.push('Текст собран ' + fmtDate(t.created_at) + ((t.issues || []).length ? ' · проверка нашла: ' + t.issues.join('; ') : ' · проверка без замечаний'));
+  if (d.release_blocked) parts.push('Версию для заказчика выпускать нельзя: ' + d.release_blocked.join('; '));
+  $('tp-status').textContent = parts.join(' · ');
+  $('tp-text').disabled = !!running;
+  $('tp-text').textContent = t && d.current ? 'Пересобрать текст' : 'Собрать текст';
+  const ready = !!(t && d.current) && !running;
+  $('tp-pdf-f').disabled = !ready;
+  $('tp-pdf-c').disabled = !ready || !!d.release_blocked || !!(t && (t.issues || []).length);
+  clearTimeout(TP.timer);
+  if (running) TP.timer = setTimeout(tpStatus, 3000);
+}
+
+async function tpText() {
+  $('tp-text').disabled = true;
+  const cur = $('tp-text').textContent.startsWith('Пересобрать');
+  const d = await api('/team-portrait/group/' + TP.gid + '/text', { method: 'POST', body: { force: cur } });
+  if (!d || d.error) toast('Ошибка: ' + ((d && d.error) || ''), true);
+  await tpStatus();
+}
+
+async function tpPdf(audience) {
+  toast('Готовим PDF…');
+  try {
+    const r = await fetch(API + '/team-portrait/group/' + TP.gid + '/pdf?audience=' + audience, { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+    if (!r.ok) {
+      const e = await r.json().catch(() => ({}));
+      toast('Недоступно: ' + (e.error || r.status) + (e.problems ? ' — ' + e.problems.join('; ') : ''), true);
+      return;
+    }
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = filenameFromResponse(r, 'Портрет_команды_' + TP.gid + '_' + audience + '.pdf'); a.click();
     URL.revokeObjectURL(a.href);
   } catch (e) { toast('Ошибка соединения', true); }
 }
