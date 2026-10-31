@@ -1065,6 +1065,8 @@ td>.btn+.btn{margin-left:4px}
 
     <div id="obj-current" style="font-size:13px;color:var(--ink-faint);margin-bottom:12px"></div>
     <div id="obj-answers" style="font-size:13px;margin-bottom:12px"></div>
+    <button class="btn btn-ghost btn-sm" id="obj-feas-btn" style="display:none;margin-bottom:12px"
+      onclick="openFeasLabels(OBJ.gid, $('obj-group-name').textContent)">🏷 Разметка ответов для отчёта об исполнимости</button>
 
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-objective')">Закрыть</button>
@@ -1072,6 +1074,31 @@ td>.btn+.btn{margin-left:4px}
     </div>
   </div>
 </div>
+
+<div class="modal-bg" id="modal-feas-labels">
+  <div class="modal" style="max-width:920px">
+    <div class="modal-title">
+      <span>Разметка ответов · <b id="fl-group-name"></b></span>
+      <button class="modal-close" onclick="closeModal('modal-feas-labels')">×</button>
+    </div>
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:12px">
+      Модель относит свободные ответы к закрытому списку меток: задачи участников — к целям паспорта,
+      «что зависит от вас» — к виду вклада, препятствия — к нехватке умений. Выводы отчёта делают правила
+      по меткам, поэтому каждую метку можно исправить; число исправлений будет видно в отчёте.
+      Сомнительные метки подтверждаются только по одной.
+    </p>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+      <button class="btn btn-navy btn-sm" id="fl-run" onclick="flRun()">Разметить</button>
+      <button class="btn btn-ghost btn-sm" id="fl-confirm" onclick="flConfirmHigh()">Подтвердить однозначные</button>
+      <span id="fl-status" style="font-size:12.5px;color:var(--ink-faint)"></span>
+    </div>
+    <div id="fl-list" style="max-height:60vh;overflow-y:auto"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-feas-labels')">Закрыть</button>
+    </div>
+  </div>
+</div>
+
 
 <div class="modal-bg" id="modal-invite">
   <div class="modal">
@@ -4976,6 +5003,118 @@ function objGoalsOf(o) {
   return [o].concat(extra);
 }
 
+// ── РАЗМЕТКА ДЛЯ ОТЧЁТА ОБ ИСПОЛНИМОСТИ ─────────────────────────────────────
+// Шаг 2 docs/FEASIBILITY_REPORT.md: модель предлагает метку, ведущий видит
+// и правит каждую. Любое изменение сохраняется сразу (PUT /feasibility/labels/:id):
+// сервер сам решает, «подтверждено» это (совпало с моделью) или «исправлено».
+const FL_LABELS = {
+  task: { goal: 'это цель', means: 'средство для цели', other: 'другое' },
+  own_part: { action: 'конкретное действие', conditional: 'условно', nothing: 'ничего', vague: 'общая фраза' },
+  skills_gap: { yes: 'да, нехватка умений', no: 'нет' },
+};
+const FL_STATUS = { proposed: 'предложено', confirmed: 'подтверждено', edited: 'исправлено' };
+let FL = { gid: null, items: [], timer: null };
+
+async function openFeasLabels(gid, name) {
+  FL = { gid, items: [], timer: null };
+  $('fl-group-name').textContent = name;
+  $('fl-list').innerHTML = '<div class="spinner"></div>';
+  openModal('modal-feas-labels');
+  await flLoad();
+}
+
+function flKindTitle(it) {
+  if (it.kind === 'task') return 'Задача ' + (it.idx + 1);
+  return it.kind === 'own_part' ? 'Что зависит от него (цель №1)' : 'Пишет о нехватке умений';
+}
+
+function flRowHtml(it) {
+  const f = it.final || {};
+  const goals = objGoalsOf(OBJ.current);
+  const opts = Object.entries(FL_LABELS[it.kind]).map(([v, t]) =>
+    '<option value="' + v + '"' + (f.label === v ? ' selected' : '') + '>' + t + '</option>').join('');
+  let extra = '';
+  if (it.kind === 'task') {
+    extra = '<select class="fl-rank" style="width:auto"' + (f.label === 'other' ? ' disabled' : '') + ' onchange="flSave(' + it.id + ')">' +
+      goals.map((g, i) => '<option value="' + (i + 1) + '"' + (f.goal_rank === i + 1 ? ' selected' : '') + '>№' + (i + 1) + ' ' +
+        ssEsc(String(g.statement || '').slice(0, 40)) + '</option>').join('') + '</select>';
+  } else if (it.kind === 'own_part') {
+    const list = [...new Set([...(objGoalsOf(OBJ.current).flatMap(g => g.units || [])), ...OBJ.roles])];
+    extra = '<select class="fl-dep" style="width:auto"' + (f.label === 'conditional' ? '' : ' disabled') + ' onchange="flSave(' + it.id + ')">' +
+      '<option value="">— от кого —</option>' + list.map(x => '<option value="' + ssEsc(x) + '"' +
+        (f.depends_on === x ? ' selected' : '') + '>' + ssEsc(x) + '</option>').join('') + '</select>';
+  }
+  const doubt = it.confidence === 'low' ? ' <span style="color:var(--gold);font-size:11px">сомнительно</span>' : '';
+  const st = '<span style="font-size:11px;color:' + (it.status === 'proposed' ? 'var(--ink-faint)' : 'var(--green)') + '">' +
+    FL_STATUS[it.status] + '</span>';
+  return '<div id="fl-' + it.id + '" style="display:grid;grid-template-columns:150px 1fr;gap:4px 12px;padding:8px 0;border-top:1px solid var(--border)">' +
+    '<div style="font-size:12px;color:var(--ink-faint)">' + flKindTitle(it) + doubt + '<br>' + st + '</div>' +
+    '<div><div style="font-size:13px;white-space:pre-line">' + ssEsc(it.source_text) + '</div>' +
+    '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px">' +
+    '<select class="fl-label" style="width:auto" onchange="flSave(' + it.id + ')">' + opts + '</select>' + extra +
+    (it.status === 'proposed' ? '<button class="btn btn-ghost btn-sm" onclick="flSave(' + it.id + ')">✓ Подтвердить</button>' : '') +
+    '</div>' + (it.reason ? '<div style="font-size:11.5px;color:var(--ink-faint);margin-top:4px">Модель: ' + ssEsc(it.reason) + '</div>' : '') +
+    '</div></div>';
+}
+
+function flRender(d) {
+  FL.items = (d && d.items) || [];
+  const c = (d && d.counts) || {};
+  const job = d && d.job;
+  const high = FL.items.filter(i => i.status === 'proposed' && i.confidence === 'high').length;
+  $('fl-confirm').disabled = !high;
+  $('fl-confirm').textContent = 'Подтвердить однозначные' + (high ? ' (' + high + ')' : '');
+  $('fl-status').textContent = job && job.state === 'running'
+    ? 'Размечаем: ' + job.done + ' из ' + job.total + '…'
+    : (FL.items.length ? 'Меток: ' + FL.items.length + ' · подтверждено ' + (c.confirmed || 0) + ' · исправлено ' + (c.edited || 0) +
+       ' · ждут проверки ' + (c.proposed || 0) + (job && job.errors ? ' · с ошибкой участников: ' + job.errors : '')
+       : 'Разметки пока нет. Нажмите «Разметить» — модель обработает ответы о целях (около 3 секунд на участника).');
+  $('fl-run').disabled = !!(job && job.state === 'running');
+  if (!FL.items.length) { $('fl-list').innerHTML = ''; return; }
+  const by = new Map();
+  FL.items.forEach(i => { if (!by.has(i.participant_id)) by.set(i.participant_id, []); by.get(i.participant_id).push(i); });
+  $('fl-list').innerHTML = [...by.entries()].map(([pid, rows]) =>
+    '<div style="margin-bottom:14px"><div style="font-weight:500;font-size:13px">Участник #' + pid + '</div>' +
+    rows.map(flRowHtml).join('') + '</div>').join('');
+}
+
+async function flLoad() {
+  const d = await api('/feasibility/group/' + FL.gid + '/labels');
+  if (!d || d.error) { $('fl-list').innerHTML = '<div style="color:var(--red)">' + ssEsc((d && d.error) || 'Не удалось загрузить разметку') + '</div>'; return; }
+  flRender(d);
+  clearTimeout(FL.timer);
+  if (d.job && d.job.state === 'running') FL.timer = setTimeout(flLoad, 2000);
+}
+
+async function flRun() {
+  $('fl-run').disabled = true;
+  const d = await api('/feasibility/group/' + FL.gid + '/labels/run', { method: 'POST' });
+  if (!d || d.error) { toast('Ошибка: ' + ((d && d.error) || ''), true); $('fl-run').disabled = false; return; }
+  await flLoad();
+}
+
+async function flConfirmHigh() {
+  const d = await api('/feasibility/group/' + FL.gid + '/labels/confirm-high', { method: 'POST' });
+  if (d && !d.error) toast('Подтверждено меток: ' + d.confirmed);
+  await flLoad();
+}
+
+async function flSave(id) {
+  const row = $('fl-' + id); const it = FL.items.find(i => i.id === id);
+  if (!row || !it) return;
+  const label = row.querySelector('.fl-label').value;
+  const body = { label };
+  const rank = row.querySelector('.fl-rank'), dep = row.querySelector('.fl-dep');
+  if (rank) { rank.disabled = label === 'other'; body.goal_rank = Number(rank.value); }
+  if (dep) { dep.disabled = label !== 'conditional'; body.depends_on = dep.value || null; }
+  const r = await api('/feasibility/labels/' + id, { method: 'PUT', body });
+  if (!r || r.error) { toast('Ошибка: ' + ((r && r.error) || ''), true); return; }
+  Object.assign(it, r);
+  row.outerHTML = flRowHtml(it);
+  const counts = {}; FL.items.forEach(i => { counts[i.status] = (counts[i.status] || 0) + 1; });
+  flRender({ items: FL.items, counts, job: null });
+}
+
 async function openObjective(gid, name) {
   OBJ = { gid, roles: [], current: null };
   $('obj-group-name').textContent = name;
@@ -5004,11 +5143,13 @@ async function openObjective(gid, name) {
   if (o) {
     $('obj-ask-in-sn').checked = o.ask_in_sn !== false;
     $('obj-save').textContent = 'Сохранить как новую версию';
+    $('obj-feas-btn').style.display = '';
     $('obj-current').innerHTML = 'Текущая версия <b>' + o.version + '</b>, создана ' + fmtDate(o.created_at) +
       '. Правка цели не меняет эту версию, а создаёт следующую: иначе дельта повторного замера ложная.';
     objLoadAnswers(o.id);
   } else {
     $('obj-save').textContent = 'Сохранить цель';
+    $('obj-feas-btn').style.display = 'none';
     $('obj-current').textContent = 'Цель пока не задана. Пока её нет, вопросы о целях участникам не задаются.';
   }
 }
