@@ -1067,6 +1067,7 @@ td>.btn+.btn{margin-left:4px}
     <div id="obj-answers" style="font-size:13px;margin-bottom:12px"></div>
     <button class="btn btn-ghost btn-sm" id="obj-feas-btn" style="display:none;margin-bottom:12px"
       onclick="openFeasLabels(OBJ.gid, $('obj-group-name').textContent)">🏷 Разметка ответов для отчёта об исполнимости</button>
+    <div id="obj-links" style="display:none;margin-bottom:12px"></div>
 
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-objective')">Закрыть</button>
@@ -5003,6 +5004,79 @@ function objGoalsOf(o) {
   return [o].concat(extra);
 }
 
+// ── ОТВЕТСТВЕННЫЕ СРЕДИ УЧАСТНИКОВ (шаг 3 отчёта об исполнимости) ───────────
+// Кто из участников — ответственный за цель и кто ещё отвечает. Только эти
+// должности и только по сохранённому паспорту. Имя видно только здесь, из
+// ключ-файла этого браузера; на сервер уходит id участника. Связку ставят до
+// замера: тогда форма предупредит человека, что его профиль войдёт в отчёт.
+// Поставленная после прохождения — профиль в отчёт не идёт, пока не отмечено
+// «предупреждён иначе».
+let OBJ_LINKS = { people: [], links: [] };
+
+function objPersonLabel(p) {
+  const code = (p.invitations || []).map(i => i && i.code).find(Boolean);
+  return kfName(p) || p.name || p.email || ('Участник #' + p.id + (code ? ' · ' + code : ''));
+}
+
+async function objLoadLinks() {
+  const box = $('obj-links');
+  box.style.display = '';
+  box.innerHTML = '<div style="font-size:12px;color:var(--ink-faint)">Загружаем ответственных…</div>';
+  const [people, d] = await Promise.all([
+    api('/v2/groups/' + OBJ.gid + '/participants'),
+    api('/feasibility/group/' + OBJ.gid + '/owners'),
+  ]);
+  if (!Array.isArray(people) || !d || d.error) {
+    box.innerHTML = '<div style="font-size:12px;color:var(--red)">Не удалось загрузить ответственных: ' + ssEsc((d && d.error) || '') + '</div>';
+    return;
+  }
+  OBJ_LINKS = { people, links: d.links || [] };
+  objRenderLinks();
+}
+
+function objRenderLinks() {
+  const goals = objGoalsOf(OBJ.current);
+  const people = OBJ_LINKS.people.slice().sort((a, b) => objPersonLabel(a).localeCompare(objPersonLabel(b), 'ru'));
+  const rows = [];
+  goals.forEach((g, i) => {
+    const rank = i + 1;
+    const roles = (g.owner ? [['owner', g.owner]] : []).concat((g.co_owners || []).map(r => ['co_owner', r]));
+    roles.forEach(([kind, role]) => {
+      const l = OBJ_LINKS.links.find(x => x.rank === rank && x.kind === kind && x.role === role) || null;
+      const late = l && !l.measured_after_link;
+      rows.push('<div class="obj-link" data-rank="' + rank + '" data-kind="' + kind + '" data-role="' + ssEsc(role) + '" ' +
+        'style="display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;align-items:center;padding:6px 0;border-top:1px solid var(--border)">' +
+        '<div style="font-size:13px">Цель №' + rank + ' · ' + (kind === 'owner' ? '<b>' + ssEsc(role) + '</b>' : ssEsc(role) +
+          ' <span style="color:var(--ink-faint);font-size:12px">кто ещё отвечает</span>') + '</div>' +
+        '<select class="obj-link-pid" style="width:100%"><option value="">— не связан —</option>' +
+        people.map(p => '<option value="' + p.id + '"' + (l && l.participant_id === p.id ? ' selected' : '') + '>' + ssEsc(objPersonLabel(p)) + '</option>').join('') +
+        '</select>' +
+        (late ? '<div style="grid-column:1 / -1;font-size:12px;color:var(--gold)">Тесты пройдены раньше связки: личный профиль в отчёт не пойдёт. ' +
+          '<label style="display:inline-flex;align-items:center;gap:6px;text-transform:none;letter-spacing:normal;font-weight:400;color:var(--ink);margin:0">' +
+          '<input type="checkbox" class="obj-link-informed" style="width:auto;margin:0"' + (l.informed_otherwise ? ' checked' : '') + '> предупреждён иначе</label></div>' : '') +
+        '</div>');
+    });
+  });
+  $('obj-links').innerHTML = '<div style="font-weight:500;font-size:13px;margin-bottom:4px">Ответственные среди участников</div>' +
+    '<div style="font-size:12px;color:var(--ink-faint);margin-bottom:6px">Для отчёта об исполнимости: чей профиль сопоставляется с целью. ' +
+    'Свяжите до замера — форма предупредит участника. Должности — из сохранённой версии паспорта.</div>' +
+    (rows.length ? rows.join('') + '<button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="objSaveLinks()">Сохранить ответственных</button>'
+      : '<div style="font-size:12px;color:var(--ink-faint)">В паспорте не указан ни ответственный, ни кто ещё отвечает.</div>');
+}
+
+async function objSaveLinks() {
+  const links = [...document.querySelectorAll('#obj-links .obj-link')].map(el => {
+    const pid = el.querySelector('.obj-link-pid').value;
+    const inf = el.querySelector('.obj-link-informed');
+    return pid ? { rank: Number(el.dataset.rank), kind: el.dataset.kind, role: el.dataset.role, participant_id: Number(pid), informed_otherwise: !!(inf && inf.checked) } : null;
+  }).filter(Boolean);
+  const d = await api('/feasibility/group/' + OBJ.gid + '/owners', { method: 'PUT', body: { links } });
+  if (!d || d.error) { toast('Ошибка: ' + ((d && d.error) || ''), true); return; }
+  OBJ_LINKS.links = d.links || [];
+  objRenderLinks();
+  toast('Ответственные сохранены');
+}
+
 // ── РАЗМЕТКА ДЛЯ ОТЧЁТА ОБ ИСПОЛНИМОСТИ ─────────────────────────────────────
 // Шаг 2 docs/FEASIBILITY_REPORT.md: модель предлагает метку, ведущий видит
 // и правит каждую. Любое изменение сохраняется сразу (PUT /feasibility/labels/:id):
@@ -5144,12 +5218,14 @@ async function openObjective(gid, name) {
     $('obj-ask-in-sn').checked = o.ask_in_sn !== false;
     $('obj-save').textContent = 'Сохранить как новую версию';
     $('obj-feas-btn').style.display = '';
+    objLoadLinks();
     $('obj-current').innerHTML = 'Текущая версия <b>' + o.version + '</b>, создана ' + fmtDate(o.created_at) +
       '. Правка цели не меняет эту версию, а создаёт следующую: иначе дельта повторного замера ложная.';
     objLoadAnswers(o.id);
   } else {
     $('obj-save').textContent = 'Сохранить цель';
     $('obj-feas-btn').style.display = 'none';
+    $('obj-links').style.display = 'none';
     $('obj-current').textContent = 'Цель пока не задана. Пока её нет, вопросы о целях участникам не задаются.';
   }
 }
