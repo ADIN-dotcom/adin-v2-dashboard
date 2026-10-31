@@ -1118,6 +1118,8 @@ td>.btn+.btn{margin-left:4px}
       <button class="btn btn-navy btn-sm" id="tp-text" onclick="tpText()">Собрать текст</button>
       <button class="btn btn-ghost btn-sm" id="tp-pdf-f" onclick="tpPdf('facilitator')">PDF для ведущего</button>
       <button class="btn btn-ghost btn-sm" id="tp-pdf-c" onclick="tpPdf('client')">PDF для заказчика</button>
+      <button class="btn btn-ghost btn-sm" id="tp-named" onclick="tpPrintNamed()"
+        title="Пары и оси участников с именами из вашего ключ-файла: страница собирается в браузере, имена на сервер не уходят. PDF — через печать">С именами (печать)</button>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-team-portrait')">Закрыть</button>
@@ -4919,7 +4921,7 @@ td{padding:1.2mm 1mm;border-bottom:.3px solid var(--border);vertical-align:top}.
 <div class="toolbar"><button onclick="print()">Печать / сохранить как PDF</button><span class="muted">В диалоге печати выберите «Сохранить как PDF». Колонтитулы браузера лучше выключить.</span></div>
 <div class="conf conf-top" style="margin-bottom:4mm">${CONF}</div>
 ${[cover, theses, schedule, stages, subgroups, before, map].join('').replace(/\((ADIN-[A-Z0-9]+)\)/g, '<span class="nw">($1)</span>')}
-<div class="conf">${CONF}</div>
+<div class="foot">${CONF}</div>
 </body></html>`;
 }
 
@@ -5227,6 +5229,72 @@ async function openTeamPortrait(gid, name) {
   await tpStatus();
 }
 
+// Служебная страница с именами: версия ведущего приходит с кодами участников,
+// имена подставляются здесь по ключ-файлу этого браузера и на сервер не уходят.
+const TP_PULL = { past: 'прошлое', fatal: 'фатализм', future: 'будущее', mixed: 'смешанно' };
+
+function tpNameOf(r, id) {
+  const p = (r.participants || []).find(x => x.participant_id === id) || {};
+  for (const c of p.codes || []) { const n = window.KEYFILE && window.KEYFILE[String(c).toUpperCase()]; if (n) return n; }
+  return (r.names || {})[String(id)] || '';
+}
+
+function tpPrintHTML(r) {
+  const e = ssEsc, missing = new Set();
+  const who = x => { const n = tpNameOf(r, x.participant_id); if (!n) missing.add(x.participant_id);
+    return n ? `<b>${e(n)}</b> <span class="m">· ${e(x.label)}</span>` : `${e(x.label)} <span class="m">(нет в ключ-файле)</span>`; };
+  const CONF = 'Конфиденциально. Только для ведущего. Содержит имена участников';
+  const date = new Date(r.generated_at || Date.now()).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+  const pairs = (r.pairs || []).map(p => `<div class="pair"><div>${who(p.a)} ↔ ${who(p.b)}<span class="score">балл ${p.score}</span></div>
+    <div class="m">расходятся: ${e((p.parts || []).join(', '))}</div></div>`).join('');
+  const rows = (r.participants || []).slice().sort((a, b) => a.n - b.n).map(p => {
+    const a = p.axes || {}, h = a.horizon || {}, st = a.story || {}, im = a.image || {}, at = a.attribution || {}, mi = a.mind || {};
+    return `<tr><td>${who({ participant_id: p.participant_id, label: 'участник ' + p.n })}</td><td>${e(p.unit || '—')}</td>
+      <td>${e(h.future || '—')}, из ${e(TP_PULL[h.pull] || '—')}</td><td>${e(st.narrative || '—')}</td><td>${e(im.dream || '—')}</td>
+      <td>${e(at.locus || '—')}</td><td>${e(mi.type_name || '—')}${mi.level ? ', ур. ' + e(mi.level) : ''}</td></tr>`;
+  }).join('');
+  const html = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>${e('Портрет команды · ' + r.group.name + ' · ведущий · с именами')}</title>
+<style>
+@page{size:A4;margin:16mm}
+body{font-family:'DejaVu Sans',Arial,sans-serif;color:#111827;font-size:10pt;line-height:1.45;margin:0}
+.kind{font-size:7.5pt;letter-spacing:.06em;color:#6b7280;text-transform:uppercase}
+h1{font-size:20pt;font-weight:600;margin:6mm 0 1mm}
+h2{font-size:13pt;font-weight:600;margin:8mm 0 3mm;padding-bottom:2mm;border-bottom:1px solid #dfe3e8}
+.m{color:#6b7280;font-size:9pt}
+.conf{background:#fef2f2;color:#dc2626;font-weight:600;font-size:8.5pt;padding:2mm 3mm;border-left:3px solid #dc2626;margin:4mm 0}
+.pair{padding:2mm 0;border-bottom:1px solid #eef0f3}
+.score{float:right;font-size:8pt;font-weight:600;color:#d97706}
+table{border-collapse:collapse;width:100%;font-size:8.6pt}
+th{text-align:left;font-size:7.5pt;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid #dfe3e8;padding:1.5mm 1.5mm}
+td{border-bottom:1px solid #eef0f3;padding:1.5mm;vertical-align:top}
+tr{break-inside:avoid}
+.foot{position:fixed;bottom:0;left:0;right:0;font-size:7.5pt;color:#dc2626}
+</style></head><body>
+<div class="kind">Портрет команды · служебная страница для ведущего</div>
+<h1>${e(r.group.name)}</h1>
+<div class="m">Собран: ${e(date.replace(/ г\.$/, ''))}. Дополняет PDF для ведущего: там те же пары и оси, но с номерами вместо имён.</div>
+<div class="conf">${CONF}</div>
+${pairs ? `<h2>Где расходятся люди</h2>${pairs}` : ''}
+${rows ? `<h2>Участники по осям</h2><table><thead><tr><th>Участник</th><th>Подразделение</th><th>Образ будущего</th><th>Нарратив</th><th>Мечта о компании</th><th>Объясняет разрыв</th><th>Способ мышления</th></tr></thead><tbody>${rows}</tbody></table>` : ''}
+<div class="foot">${CONF}</div>
+</body></html>`;
+  return { html, missing: missing.size };
+}
+
+async function tpPrintNamed() {
+  if (!ssHasKeyfile()) { toast('Загрузите ключ-файл (кнопка «📂 Имена» на странице участников)', true); return; }
+  // Окно открывается сразу по щелчку: после await браузер счёл бы его всплывающим.
+  const w = window.open('', '_blank');
+  if (!w) { toast('Браузер не дал открыть окно печати: разрешите всплывающие окна', true); return; }
+  w.document.write('<p style="font-family:sans-serif;padding:20px">Готовим страницу…</p>');
+  const r = await api('/team-portrait/group/' + TP.gid + '/report?audience=facilitator');
+  if (!r || r.error) { w.close(); toast('Портрет не загружен: ' + ((r && r.error) || 'ошибка'), true); return; }
+  const { html, missing } = tpPrintHTML(r);
+  w.document.open(); w.document.write(html); w.document.close();
+  if (missing) toast('Нет в ключ-файле: ' + missing + ' участник(ов), оставлены номера', true);
+  w.focus(); setTimeout(() => w.print(), 400);
+}
+
 async function tpStatus() {
   const d = await api('/team-portrait/group/' + TP.gid + '/text');
   if (!d || d.error) { $('tp-status').textContent = (d && d.error) || ''; return; }
@@ -5245,6 +5313,7 @@ async function tpStatus() {
   const ready = !!(t && d.current) && !running;
   $('tp-pdf-f').disabled = !ready;
   $('tp-pdf-c').disabled = !ready || !!d.release_blocked || !!(t && (t.issues || []).length);
+  $('tp-named').disabled = !ssHasKeyfile();
   clearTimeout(TP.timer);
   if (running) TP.timer = setTimeout(tpStatus, 3000);
 }
