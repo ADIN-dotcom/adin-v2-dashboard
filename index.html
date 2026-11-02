@@ -5007,6 +5007,59 @@ let OBJ = { gid: null, roles: [], current: null };
 // «Кто принимает решения по ходу» больше не спрашивается: решения принимает
 // ответственный или те, кого он назначил.
 const OBJ_GOALS = [1, 2, 3];
+
+// Срок достижения — два списка, а не <input type="month">. Месячное поле
+// поддерживают не все браузеры (в Safari на macOS это обычная текстовая
+// строка), и набранное руками «декабрь 2026» уходило на сервер как есть,
+// где колонка типа DATE отвечала «invalid input syntax for type date».
+// Два списка дают верный формат в любом браузере и не требуют разбора текста.
+const OBJ_MONTHS = ['январь','февраль','март','апрель','май','июнь',
+  'июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+
+// Годы: от прошлого на десять вперёд. Срок уже записанной цели может лежать
+// вне этого окна — такой год добавляет objDeadlineSet, иначе он молча
+// потерялся бы при открытии старой цели.
+function objYears() {
+  const now = new Date().getFullYear();
+  const list = [];
+  for (let y = now - 1; y <= now + 10; y++) list.push(y);
+  return list;
+}
+
+function objDeadlineHtml(k) {
+  const m = OBJ_MONTHS.map((n, i) =>
+    `<option value="${String(i + 1).padStart(2, '0')}">${n}</option>`).join('');
+  const y = objYears().map(v => `<option value="${v}">${v}</option>`).join('');
+  return `<div class="field"><label>2 · Срок достижения</label>
+      <div style="display:flex;gap:8px">
+        <select id="obj-g${k}-deadline-m" style="flex:1"><option value="">— месяц —</option>${m}</select>
+        <select id="obj-g${k}-deadline-y" style="flex:0 0 110px"><option value="">— год —</option>${y}</select>
+      </div></div>`;
+}
+
+// Хранится DATE («2026-12-01»), показывается двумя списками.
+function objDeadlineSet(k, value) {
+  const mm = $('obj-g' + k + '-deadline-m'), yy = $('obj-g' + k + '-deadline-y');
+  const s = value ? String(value) : '';
+  const match = s.match(/^(\d{4})-(\d{2})/);
+  if (!match) { mm.value = ''; yy.value = ''; return; }
+  if (!Array.from(yy.options).some(o => o.value === match[1])) {
+    // На своё место по порядку, а не в конец списка.
+    const after = Array.from(yy.options).find(o => o.value && +o.value > +match[1]);
+    const opt = new Option(match[1], match[1]);
+    yy.add(opt, after || null);
+  }
+  yy.value = match[1];
+  mm.value = match[2];
+}
+
+// Неполный срок (выбран только месяц или только год) — это не срок: отдаём
+// null, и сервер отвечает тем же понятным «Поле обязательно», что и на пустом.
+function objDeadlineGet(k) {
+  const m = $('obj-g' + k + '-deadline-m').value;
+  const y = $('obj-g' + k + '-deadline-y').value;
+  return (m && y) ? `${y}-${m}-01` : null;
+}
 const OBJ_SELECTS = {
   depth: ['5 · Характер требуемых изменений', [
     ['knowledge', 'Информирование: сотрудникам достаточно знать и понимать цель'],
@@ -5037,7 +5090,7 @@ function objGoalHtml(k) {
     <div style="font-weight:600;margin-bottom:10px">Цель № ${k}${k === 1 ? ' (высший приоритет)' : ''}</div>
     <div class="field"><label>1 · Формулировка цели</label>
       <textarea id="obj-g${k}-statement" rows="2" placeholder="Ожидаемый результат одним предложением"></textarea></div>
-    <div class="field"><label>2 · Срок достижения</label><input type="month" id="obj-g${k}-deadline"></div>
+    ${objDeadlineHtml(k)}
     <div class="field"><label>3 · Подразделения, участвующие в достижении цели — по одному в строке</label>
       <textarea id="obj-g${k}-units" rows="2" placeholder="Коммерческий контур&#10;Производство"></textarea>
       <div style="font-size:12px;color:var(--ink-faint);margin-top:4px">Заполняется, если нужен анализ по подразделениям.</div></div>
@@ -5472,7 +5525,7 @@ async function openObjective(gid, name) {
   OBJ_GOALS.forEach((k, i) => {
     const g = goals[i] || {};
     $('obj-g' + k + '-statement').value = g.statement || '';
-    $('obj-g' + k + '-deadline').value = g.deadline ? String(g.deadline).slice(0, 7) : '';
+    objDeadlineSet(k, g.deadline);
     $('obj-g' + k + '-units').value = (g.units || []).join('\n');
     Object.keys(OBJ_SELECTS).forEach(f => { if (g[f]) $('obj-g' + k + '-' + f).value = g[f]; });
   });
@@ -5556,7 +5609,7 @@ async function objSave() {
   const goal = (k) => {
     const g = {
       statement: $('obj-g' + k + '-statement').value.trim(),
-      deadline: $('obj-g' + k + '-deadline').value ? $('obj-g' + k + '-deadline').value + '-01' : null,
+      deadline: objDeadlineGet(k),
       units: $('obj-g' + k + '-units').value.split('\n').map(x => x.trim()).filter(Boolean),
       owner: $('obj-g' + k + '-owner').value || null,
       co_owners: objCheckedCo(k),
