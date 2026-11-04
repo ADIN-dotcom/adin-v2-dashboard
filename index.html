@@ -1502,21 +1502,27 @@ async function loadGroups() {
   const active = d.filter(g => g.status === 'active');
   const archived = d.filter(g => g.status === 'archived');
   const open = openGroupIds();
-  const renderGroup = ({ g, depth }) => `
+  const renderGroup = ({ g, depth }) => {
+    // Компания с отделами показывает всех вместе с отделами, остальные — своих.
+    const n = g.department_count
+      ? { total: g.scope_participants || 0, done: g.scope_completed || 0, going: g.scope_in_progress || 0 }
+      : { total: g.total_participants || 0, done: g.completed || 0, going: g.in_progress || 0 };
+    const own = Number(g.total_participants) || 0;
+    return `
     <div class="group-card${depth?' dept'+(open.has(g.parent_id)?'':' collapsed'):''}"${depth?` data-parent="${g.parent_id}"`:''} style="${g.status==='archived'?'opacity:.6':''}">
       <div style="flex:1;min-width:0"${!depth&&g.department_count?` class="group-toggle${open.has(g.id)?' open':''}" data-group="${g.id}" title="Показать или скрыть отделы" onclick="toggleGroupDepts(${g.id})"`:''}>
         <div class="group-name">${!depth&&g.department_count?'<span class="chev"></span>':''}${depth?'<span style="font-size:11px;color:var(--ink-faint)">Отдел · </span>':''}${g.name}${g.status==='archived'?' <span style="font-size:11px;color:var(--ink-faint)">📦 Архив</span>':''}</div>
         <div class="group-meta">${g.facilitator_name||''}${g.program_date?' · '+fmtDate(g.program_date):''}${g.description?' · '+g.description:''}</div>
-        ${g.department_count?`<div class="group-meta">${g.department_count} отд. · вместе с отделами ${g.scope_participants||0} чел.</div>`:''}
+        ${g.department_count?`<div class="group-meta">${g.department_count} отд. · цифры вместе с отделами${own?` · напрямую в группе ${own} чел.`:''}</div>`:''}
         <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
-          <div class="progress"><div class="progress-fill" style="width:${g.total_participants>0?Math.round((g.completed||0)/g.total_participants*100):0}%;background:var(--green)"></div></div>
-          <span style="font-size:12px;color:var(--ink-faint)">${g.completed||0}/${g.total_participants||0} завершили</span>
+          <div class="progress"><div class="progress-fill" style="width:${n.total>0?Math.round(n.done/n.total*100):0}%;background:var(--green)"></div></div>
+          <span style="font-size:12px;color:var(--ink-faint)">${n.done}/${n.total} завершили</span>
         </div>
       </div>
       <div class="group-stats">
-        <div class="gstat"><div class="gstat-num">${g.total_participants||0}</div><div class="gstat-lbl">Участников</div></div>
-        <div class="gstat"><div class="gstat-num" style="color:var(--green)">${g.completed||0}</div><div class="gstat-lbl">Завершили</div></div>
-        <div class="gstat"><div class="gstat-num" style="color:var(--gold)">${g.in_progress||0}</div><div class="gstat-lbl">В процессе</div></div>
+        <div class="gstat"><div class="gstat-num">${n.total}</div><div class="gstat-lbl">Участников</div></div>
+        <div class="gstat"><div class="gstat-num" style="color:var(--green)">${n.done}</div><div class="gstat-lbl">Завершили</div></div>
+        <div class="gstat"><div class="gstat-num" style="color:var(--gold)">${n.going}</div><div class="gstat-lbl">В процессе</div></div>
       </div>
       <div class="group-actions">
         <button class="btn btn-navy btn-sm" onclick="openGroupParticipants(${g.id},'${g.name.replace(/'/g,"\\'")}')">Участники →</button>
@@ -1529,6 +1535,7 @@ async function loadGroups() {
         <button class="btn btn-ghost-red btn-sm" onclick="deleteGroup(${g.id},'${g.name.replace(/'/g,"\\'")}')">🗑</button>
       </div>
     </div>`;
+  };
   let html = groupTree(active).map(renderGroup).join('');
   if (archived.length) html += `<div style="margin:20px 0 10px;font-size:11px;color:var(--ink-faint);letter-spacing:.08em;text-transform:uppercase">Архив</div>` + groupTree(archived).map(renderGroup).join('');
   $('groups-list').innerHTML = html;
