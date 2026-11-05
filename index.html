@@ -1521,7 +1521,7 @@ async function loadGroups() {
     <div class="group-card${depth?' dept'+(open.has(g.parent_id)?'':' collapsed'):''}"${depth?` data-parent="${g.parent_id}"`:''} style="${g.status==='archived'?'opacity:.6':''}">
       <div style="flex:1;min-width:0"${!depth&&g.department_count?` class="group-toggle${open.has(g.id)?' open':''}" data-group="${g.id}" title="Показать или скрыть отделы" onclick="toggleGroupDepts(${g.id})"`:''}>
         <div class="group-name">${!depth&&g.department_count?'<span class="chev"></span>':''}${depth?'<span style="font-size:11px;color:var(--ink-faint)">Отдел · </span>':''}${g.name}${g.status==='archived'?' <span style="font-size:11px;color:var(--ink-faint)">📦 Архив</span>':''}</div>
-        <div class="group-meta">${g.facilitator_name||''}${g.program_date?' · '+fmtDate(g.program_date):''}${g.description?' · '+g.description:''}</div>
+        ${g.facilitator_name||g.program_date?`<div class="group-meta">${[g.facilitator_name,g.program_date&&fmtDate(g.program_date)].filter(Boolean).join(' · ')}</div>`:''}
         ${g.department_count?`<div class="group-meta">${g.department_count} отд. · цифры вместе с отделами${own?` · напрямую в группе ${own} чел.`:''}</div>`:''}
         ${byTest?`<div class="group-meta">Завершили: ${byTest}</div>`:''}
         <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
