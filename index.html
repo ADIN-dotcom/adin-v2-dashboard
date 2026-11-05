@@ -948,7 +948,7 @@ td>.btn+.btn{margin-left:4px}
 
     <div class="field"><label>Тесты — можно выбрать несколько</label>
       <div id="ui-test-types" style="display:flex;flex-direction:column;gap:6px;padding:4px 0">
-        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" class="ui-test" value="ni_test" checked> TIN (НИ-тест)</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" class="ui-test" value="ni_test"> TIN (НИ-тест)</label>
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" class="ui-test" value="narrative_status"> SN (Нарративный статус)</label>
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" class="ui-test" value="personal_narrative"> Личный нарратив</label>
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" class="ui-test" value="profils_questionnaire"> Personne · PN</label>
@@ -994,11 +994,12 @@ td>.btn+.btn{margin-left:4px}
     </div>
     <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px">
       Выпускает код каждому участнику группы <b id="gc-group-name"></b> и собирает ключ-файл в браузере.
-      Письма не рассылаются — коды раздаёте сами. Те, у кого уже есть незавершённое приглашение
-      на выбранный тест, пропускаются.
+      Письма не рассылаются — коды раздаёте сами. Те, у кого уже есть приглашение
+      на выбранный тест или кто его завершил, пропускаются.
     </p>
     <div class="field"><label>Тип теста</label>
-      <select id="gc-test-type" onchange="updateGroupCodesPreview()">
+      <select id="gc-test-type" onchange="updateGroupCodesPreview();gcLoadExtra()">
+        <option value="">— выберите тест —</option>
         <option value="ni_test">НИ-тест</option>
         <option value="narrative_status">Нарративный статус</option>
         <option value="personal_narrative">Личный нарратив</option>
@@ -1016,9 +1017,10 @@ td>.btn+.btn{margin-left:4px}
       </select>
     </div>
     <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:8px;cursor:pointer">
-      <input type="checkbox" id="gc-force" onchange="updateGroupCodesPreview()"> Выпустить повторно и тем, у кого приглашение уже есть
+      <input type="checkbox" id="gc-force" onchange="updateGroupCodesPreview()"> Выпустить и тем, у кого приглашение уже есть или кто этот тест завершил
     </label>
     <div id="gc-preview" style="font-size:13px;color:var(--ink-faint);margin-bottom:12px"></div>
+    <div id="gc-extra" style="font-size:13px;margin-bottom:12px"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-group-codes')">Отмена</button>
       <button class="btn btn-navy" id="gc-btn" onclick="issueGroupCodes()">Выпустить коды</button>
@@ -2867,6 +2869,8 @@ async function openGroupCodes(gid, name) {
   GC_PARTICIPANTS = [];
   $('gc-group-name').textContent = name;
   $('gc-force').checked = false;
+  $('gc-test-type').value = '';
+  $('gc-extra').innerHTML = '';
   $('gc-preview').textContent = 'Загружаем состав группы…';
   openModal('modal-group-codes');
 
@@ -2880,33 +2884,71 @@ async function openGroupCodes(gid, name) {
   updateGroupCodesPreview();
 }
 
-// Кого пропускаем: у кого уже есть приглашение на этот тест, ещё не завершённое.
-// Завершившие получают новый код — повторное прохождение это осознанное действие.
+// Кого пропускаем: у кого уже есть приглашение на этот тест и кто его завершил.
+// Новый код завершившему — это повторное прохождение, только через галочку.
 function gcSelection() {
   const type = $('gc-test-type').value;
   const force = $('gc-force').checked;
   const skipped = [];
-  const target = GC_PARTICIPANTS.filter(p => {
-    if (force) return true;
-    const invs = Array.isArray(p.invitations) ? p.invitations : [];
-    const pending = invs.some(i => i && i.test_type === type && i.status !== 'completed');
-    if (pending) { skipped.push(p); return false; }
-    return true;
+  const completed = [];
+  const target = [];
+  if (!type) return { target, skipped, completed };
+  GC_PARTICIPANTS.forEach(p => {
+    const invs = (Array.isArray(p.invitations) ? p.invitations : []).filter(i => i && i.test_type === type);
+    const done = invs.some(i => i.status === 'completed');
+    if (done) completed.push(p);
+    if (force) { target.push(p); return; }
+    if (done) return;
+    if (invs.some(i => i.status !== 'expired')) { skipped.push(p); return; }
+    target.push(p);
   });
-  return { target, skipped };
+  return { target, skipped, completed };
 }
 
 function updateGroupCodesPreview() {
-  const { target, skipped } = gcSelection();
+  const { target, skipped, completed } = gcSelection();
   const total = GC_PARTICIPANTS.length;
   if (!total) { $('gc-preview').textContent = 'В группе нет участников.'; return; }
+  if (!$('gc-test-type').value) { $('gc-preview').textContent = 'Выберите тест.'; return; }
+  const force = $('gc-force').checked;
   const inDepts = target.filter(p => GC_MEMBER_GROUP[p.id]).length;
   $('gc-preview').innerHTML = 'В группе <b>' + total + '</b> — выпустим коды <b>' + target.length + '</b>'
     + (skipped.length ? ', пропустим ' + skipped.length + ' (приглашение уже есть)' : '')
-    + (inDepts ? '<br>Из них ' + inDepts + ' — в отделах: их коды запишем на отдел, в отчёт компании они войдут всё равно.' : '');
+    + (completed.length && !force ? ', пропустим ' + completed.length + ' (тест завершён)' : '')
+    + (completed.length && force ? '<br><span style="color:var(--red)">' + completed.length + ' уже завершили этот тест и получат код на повторное прохождение.</span>' : '')
+    + (inDepts ? '<br>Из них ' + inDepts + ' — в отделах: их коды запишем на отдел, в отчёт компании они войдут.' : '');
+}
+
+// Лишние коды выбранного теста: сколько их и кнопка удаления. Ответ по прежнему
+// выбору, пришедший позже, не должен подменить счёт по текущему.
+async function gcLoadExtra() {
+  const box = $('gc-extra');
+  const type = $('gc-test-type').value;
+  const gid = GC_GROUP_ID;
+  box.innerHTML = '';
+  if (!type) return;
+  const d = await api('/v2/groups/' + gid + '/extra-codes?test_type=' + encodeURIComponent(type));
+  if (GC_GROUP_ID !== gid || $('gc-test-type').value !== type) return;
+  if (!d || !d.count) return;
+  box.innerHTML = '<b>Лишних кодов: ' + d.count + '.</b> Эти люди тест уже завершили, а новым кодом не воспользовались. '
+    + '<button class="btn btn-ghost-red btn-sm" style="margin-top:6px" onclick="gcDeleteExtra(' + d.count + ')">Удалить лишние коды</button>';
+}
+
+async function gcDeleteExtra(count) {
+  const type = $('gc-test-type').value;
+  const label = $('gc-test-type').selectedOptions[0].textContent;
+  if (!confirm('Удалить лишние коды «' + label + '»: ' + count + '?\nЭти коды перестанут работать. Пройденные тесты и результаты не затрагиваются.')) return;
+  const d = await api('/v2/groups/' + GC_GROUP_ID + '/extra-codes/delete', { method: 'POST', body: { test_type: type } });
+  if (!d || d.error) { toast('Ошибка: ' + ((d && d.error) || 'запрос не прошёл'), true); return; }
+  toast('Удалено кодов: ' + d.deleted);
+  const m = await api('/v2/groups/' + GC_GROUP_ID + '/participants');
+  GC_PARTICIPANTS = Array.isArray(m) ? m : [];
+  updateGroupCodesPreview();
+  gcLoadExtra();
 }
 
 async function issueGroupCodes() {
+  if (!$('gc-test-type').value) { toast('Выберите тест', true); return; }
   const { target } = gcSelection();
   if (!target.length) { toast('Некому выпускать коды', true); return; }
 
