@@ -5787,7 +5787,9 @@ async function objLoadAnswers(id) {
   }).join('');
 
   $('obj-answers').innerHTML =
-    '<div style="font-weight:600;margin-bottom:6px">Ответов: ' + (d.answered || 0) + '</div>' +
+    '<div style="font-weight:600;margin-bottom:6px">' + (d.members != null
+      ? 'Ответили: ' + (d.answered_people || 0) + ' из ' + d.members
+      : 'Ответов: ' + (d.answered || 0)) + '</div>' +
     (d.answered
       ? '<div style="font-weight:600;margin:8px 0 2px">Кто отвечает за цели</div>' + goalRows +
         (tnParts.length ? '<div style="color:var(--ink-soft);margin-top:8px">Назвали задач — ' + tnParts.join(' · ') + '</div>' : '') +
