@@ -1524,19 +1524,22 @@ async function loadGroups() {
     const n = { total: g.scope_participants || 0, full: g.scope_full || 0, partial: g.scope_partial || 0 };
     const own = Number(g.total_participants) || 0;
     const byTest = groupTestsLine(g.scope_by_test);
+    // Подробности карточки — в подсказке при наведении, под названием только прогресс.
+    const hint = [
+      [g.facilitator_name, g.program_date && fmtDate(g.program_date)].filter(Boolean).join(' · '),
+      g.department_count && `${g.department_count} отд. · цифры вместе с отделами${own?` · напрямую в группе ${own} чел.`:''}`,
+      byTest && `Завершили: ${byTest}`,
+    ].filter(Boolean).join('\n').replace(/"/g, '&quot;');
     return `
     <div class="group-card${depth?' dept'+(open.has(g.parent_id)?'':' collapsed'):''}"${depth?` data-parent="${g.parent_id}"`:''} style="${g.status==='archived'?'opacity:.6':''}">
-      <div style="flex:1;min-width:0"${!depth&&g.department_count?` class="group-toggle${open.has(g.id)?' open':''}" data-group="${g.id}" title="Показать или скрыть отделы" onclick="toggleGroupDepts(${g.id})"`:''}>
+      <div style="flex:1;min-width:0"${!depth&&g.department_count?` class="group-toggle${open.has(g.id)?' open':''}" data-group="${g.id}" onclick="toggleGroupDepts(${g.id})"`:''} title="${hint}">
         <div class="group-name">${!depth&&g.department_count?'<span class="chev"></span>':''}${depth?'<span style="font-size:11px;color:var(--ink-faint)">Отдел · </span>':''}${g.name}${g.status==='archived'?' <span style="font-size:11px;color:var(--ink-faint)">📦 Архив</span>':''}</div>
-        ${g.facilitator_name||g.program_date?`<div class="group-meta">${[g.facilitator_name,g.program_date&&fmtDate(g.program_date)].filter(Boolean).join(' · ')}</div>`:''}
-        ${g.department_count?`<div class="group-meta">${g.department_count} отд. · цифры вместе с отделами${own?` · напрямую в группе ${own} чел.`:''}</div>`:''}
-        ${byTest?`<div class="group-meta">Завершили: ${byTest}</div>`:''}
         <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
           <div class="progress"><div class="progress-fill" style="width:${n.total>0?Math.round(n.full/n.total*100):0}%;background:var(--green)"></div></div>
           <span style="font-size:12px;color:var(--ink-faint)">${n.full}/${n.total} прошли всё</span>
         </div>
       </div>
-      <div class="group-stats">
+      <div class="group-stats" title="${hint}">
         <div class="gstat"><div class="gstat-num">${n.total}</div><div class="gstat-lbl">Участников</div></div>
         <div class="gstat"><div class="gstat-num" style="color:var(--green)" title="Завершили все выданные им тесты">${n.full}</div><div class="gstat-lbl">Прошли всё</div></div>
         <div class="gstat"><div class="gstat-num" style="color:var(--gold)" title="Завершили часть выданных им тестов">${n.partial}</div><div class="gstat-lbl">Частично</div></div>
