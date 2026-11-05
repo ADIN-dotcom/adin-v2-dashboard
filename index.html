@@ -1404,7 +1404,7 @@ function filenameFromResponse(r, fallback) {
 
 // Краткий результат в таблице «Последние завершённые тесты»: у каждого
 // инструмента он свой — балл и тип у НИ-теста, психотип у Profils, доминирующий
-// нарратив и агентность у Нарративного статуса.
+// нарратив и агентность у Нарративного статуса, образы компании и разрыв у Société.
 function homeResult(r) {
   if (r.test_type === 'ni_test') return `<strong>${fmt(r.overall_score)}</strong>/100 · ${fmt(r.dominant_type_name)}`;
   if (r.test_type === 'narrative_status') {
@@ -1417,6 +1417,13 @@ function homeResult(r) {
     const src = NARR_SOURCE_LABELS[r.dominant_source] || r.dominant_source;
     const conflict = r.conflict_source ? (NARR_SOURCE_LABELS[r.conflict_source] || r.conflict_source) : null;
     return conflict ? `${src} · конфликт: ${conflict}` : src;
+  }
+  if (r.test_type === 'profils_societe' && (r.dream_type || r.reality_type)) {
+    return [
+      r.dream_type && `Хочет: ${r.dream_type}`,
+      r.reality_type && `видит: ${r.reality_type}`,
+      r.gap_level && (r.gap_level === 'нет' ? 'разрыва нет' : `разрыв ${r.gap_level}`),
+    ].filter(Boolean).join(' · ');
   }
   return fmt(r.psychotype);
 }
@@ -1521,7 +1528,7 @@ async function loadGroups() {
     <div class="group-card${depth?' dept'+(open.has(g.parent_id)?'':' collapsed'):''}"${depth?` data-parent="${g.parent_id}"`:''} style="${g.status==='archived'?'opacity:.6':''}">
       <div style="flex:1;min-width:0"${!depth&&g.department_count?` class="group-toggle${open.has(g.id)?' open':''}" data-group="${g.id}" title="Показать или скрыть отделы" onclick="toggleGroupDepts(${g.id})"`:''}>
         <div class="group-name">${!depth&&g.department_count?'<span class="chev"></span>':''}${depth?'<span style="font-size:11px;color:var(--ink-faint)">Отдел · </span>':''}${g.name}${g.status==='archived'?' <span style="font-size:11px;color:var(--ink-faint)">📦 Архив</span>':''}</div>
-        <div class="group-meta">${g.facilitator_name||''}${g.program_date?' · '+fmtDate(g.program_date):''}${g.description?' · '+g.description:''}</div>
+        ${g.facilitator_name||g.program_date?`<div class="group-meta">${[g.facilitator_name,g.program_date&&fmtDate(g.program_date)].filter(Boolean).join(' · ')}</div>`:''}
         ${g.department_count?`<div class="group-meta">${g.department_count} отд. · цифры вместе с отделами${own?` · напрямую в группе ${own} чел.`:''}</div>`:''}
         ${byTest?`<div class="group-meta">Завершили: ${byTest}</div>`:''}
         <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
@@ -2353,7 +2360,7 @@ async function downloadNarrativeStatusPdf(sessionId, level) {
     const r = await fetch(API + '/narrative-status/report-pdf/' + sessionId + '?level=' + level, {
       headers: { 'Authorization': 'Bearer ' + TOKEN }
     });
-    if (!r.ok) { const e = await r.json().catch(() => ({})); toast(what + ' недоступен: ' + (e.error || r.status), true); return; }
+    if (!r.ok) { const e = await r.json().catch(() => ({})); toast('PDF недоступен: ' + (e.error || r.status), true); return; }
     const blob = await r.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -3740,7 +3747,7 @@ function showNarrativeDetail(r) {
       ${r.bridge_formula_seed ? `<div style="padding:10px 14px;background:var(--green-s);border-left:2px solid var(--green);border-radius:4px;font-size:13px;margin-bottom:12px">💡 Зерно формулы моста: <em>${r.bridge_formula_seed}</em></div>` : ''}
       ${tips ? `<div class="card" style="padding:12px"><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Советы фасилитатору</div><ul style="padding-left:16px">${tips}</ul></div>` : ''}
       <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-navy btn-sm" id="ns-deep-btn" onclick="runDeepAnalysis('${r.session_id}')">🔬 Глубокий анализ</button>
+        <button class="btn btn-navy btn-sm" id="ns-deep-btn" style="display:none" onclick="runDeepAnalysis('${r.session_id}')">🔬 Повторить глубокий анализ</button>
         <button class="btn btn-ghost btn-sm" onclick="downloadNarrativeStatusPdf('${r.session_id}','short')">📄 Краткий PDF</button>
         <button class="btn btn-ghost btn-sm" onclick="downloadNarrativeStatusPdf('${r.session_id}','deep')">📄 Развёрнутый PDF</button>
       </div>
@@ -3749,24 +3756,43 @@ function showNarrativeDetail(r) {
   `;
   openModal('modal-narrative-detail');
 
+  // Глубокий анализ считается сам после отправки анкеты. Если его ещё нет
+  // (старая анкета, сбой, перезапуск сервера), расчёт запускается здесь же.
+  NS_DEEP_SESSION = r.session_id;
   api('/narrative-status/deep/' + r.session_id).then(d => {
+    if (NS_DEEP_SESSION !== r.session_id) return;
     if (d && !d.error) renderDeepAnalysis(d);
-  }).catch(() => {});
+    else if (r.dominant_narrative) runDeepAnalysis(r.session_id);
+  }).catch(() => { if (NS_DEEP_SESSION === r.session_id) showDeepError('Не удалось получить глубокий анализ'); });
+}
+
+// Какая сессия открыта в карточке: ответ по прежней сессии, пришедший позже,
+// не должен появиться в карточке другого участника.
+let NS_DEEP_SESSION = null;
+
+function showDeepError(message) {
+  const wrap = document.getElementById('ns-deep-wrap');
+  const btn = document.getElementById('ns-deep-btn');
+  if (btn) btn.style.display = '';
+  if (wrap) wrap.innerHTML = `<div style="padding:12px;background:var(--danger-subtle);border-radius:6px;font-size:13px;color:var(--red)">${message}</div>`;
 }
 
 async function runDeepAnalysis(sessionId) {
   const wrap = document.getElementById('ns-deep-wrap');
   const btn = document.getElementById('ns-deep-btn');
-  btn.disabled = true; btn.textContent = 'Анализируем… (может занять минуту)';
-  wrap.innerHTML = '<div class="spinner"></div>';
+  btn.style.display = 'none';
+  wrap.innerHTML = '<div style="font-size:13px;color:var(--ink-faint);margin-bottom:8px">Считаем глубокий анализ, это может занять пару минут…</div><div class="spinner"></div>';
 
-  const d = await api('/narrative-status/deep/' + sessionId, { method: 'POST' });
-  btn.disabled = false; btn.textContent = '🔬 Глубокий анализ';
-
-  if (!d || d.error) {
-    wrap.innerHTML = `<div style="padding:12px;background:var(--danger-subtle);border-radius:6px;font-size:13px;color:var(--red)">${(d && d.error) || 'Ошибка запроса'}</div>`;
+  let d;
+  try {
+    d = await api('/narrative-status/deep/' + sessionId, { method: 'POST' });
+  } catch (e) {
+    // Расчёт на сервере не прерывается: ответ мог просто не дойти.
+    if (NS_DEEP_SESSION === sessionId) showDeepError('Ответ не дошёл. Анализ мог досчитаться: закройте и снова откройте карточку.');
     return;
   }
+  if (NS_DEEP_SESSION !== sessionId) return;
+  if (!d || d.error) { showDeepError((d && d.error) || 'Ошибка запроса'); return; }
   renderDeepAnalysis(d);
 }
 
