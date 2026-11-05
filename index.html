@@ -1524,7 +1524,7 @@ async function loadGroups() {
     const n = { total: g.scope_participants || 0, full: g.scope_full || 0, partial: g.scope_partial || 0 };
     const own = Number(g.total_participants) || 0;
     const byTest = groupTestsLine(g.scope_by_test);
-    // Подробности карточки — в подсказке при наведении, под названием только прогресс.
+    // Подробности карточки — в подсказке при наведении: на карточке название и три цифры.
     const hint = [
       [g.facilitator_name, g.program_date && fmtDate(g.program_date)].filter(Boolean).join(' · '),
       g.department_count && `${g.department_count} отд. · цифры вместе с отделами${own?` · напрямую в группе ${own} чел.`:''}`,
@@ -1534,10 +1534,6 @@ async function loadGroups() {
     <div class="group-card${depth?' dept'+(open.has(g.parent_id)?'':' collapsed'):''}"${depth?` data-parent="${g.parent_id}"`:''} style="${g.status==='archived'?'opacity:.6':''}">
       <div style="flex:1;min-width:0"${!depth&&g.department_count?` class="group-toggle${open.has(g.id)?' open':''}" data-group="${g.id}" onclick="toggleGroupDepts(${g.id})"`:''} title="${hint}">
         <div class="group-name">${!depth&&g.department_count?'<span class="chev"></span>':''}${depth?'<span style="font-size:11px;color:var(--ink-faint)">Отдел · </span>':''}${g.name}${g.status==='archived'?' <span style="font-size:11px;color:var(--ink-faint)">📦 Архив</span>':''}</div>
-        <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
-          <div class="progress"><div class="progress-fill" style="width:${n.total>0?Math.round(n.full/n.total*100):0}%;background:var(--green)"></div></div>
-          <span style="font-size:12px;color:var(--ink-faint)">${n.full}/${n.total} прошли всё</span>
-        </div>
       </div>
       <div class="group-stats" title="${hint}">
         <div class="gstat"><div class="gstat-num">${n.total}</div><div class="gstat-lbl">Участников</div></div>
