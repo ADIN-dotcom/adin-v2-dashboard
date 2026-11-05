@@ -1404,7 +1404,7 @@ function filenameFromResponse(r, fallback) {
 
 // Краткий результат в таблице «Последние завершённые тесты»: у каждого
 // инструмента он свой — балл и тип у НИ-теста, психотип у Profils, доминирующий
-// нарратив и агентность у Нарративного статуса.
+// нарратив и агентность у Нарративного статуса, образы компании и разрыв у Société.
 function homeResult(r) {
   if (r.test_type === 'ni_test') return `<strong>${fmt(r.overall_score)}</strong>/100 · ${fmt(r.dominant_type_name)}`;
   if (r.test_type === 'narrative_status') {
@@ -1417,6 +1417,13 @@ function homeResult(r) {
     const src = NARR_SOURCE_LABELS[r.dominant_source] || r.dominant_source;
     const conflict = r.conflict_source ? (NARR_SOURCE_LABELS[r.conflict_source] || r.conflict_source) : null;
     return conflict ? `${src} · конфликт: ${conflict}` : src;
+  }
+  if (r.test_type === 'profils_societe' && (r.dream_type || r.reality_type)) {
+    return [
+      r.dream_type && `Хочет: ${r.dream_type}`,
+      r.reality_type && `видит: ${r.reality_type}`,
+      r.gap_level && (r.gap_level === 'нет' ? 'разрыва нет' : `разрыв ${r.gap_level}`),
+    ].filter(Boolean).join(' · ');
   }
   return fmt(r.psychotype);
 }
