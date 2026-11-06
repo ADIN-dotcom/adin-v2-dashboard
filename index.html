@@ -1317,6 +1317,36 @@ async function api(path, opts = {}) {
   return r.json();
 }
 
+// Анализы Société и PN идут на сервере в фоне: дашборд только читает их ход,
+// поэтому обрыв связи или перезагрузка страницы анализ не останавливают.
+const GROUP_JOB_POLL_MS = 4000;
+const GROUP_JOB_MAX_ERRORS = 15; // около минуты без связи
+
+function groupJobLabel(job) {
+  if (job.stage === 'synth') return 'Собираем отчёт…';
+  return 'Разбираем анкеты: ' + (job.done || 0) + ' из ' + (job.total || 0);
+}
+
+// Возвращает итог ('done' или 'failed') либо null, если следить уже не нужно.
+async function pollGroupJob(statusPath, { isCurrent, onProgress }) {
+  let errors = 0;
+  while (isCurrent()) {
+    await new Promise(resolve => setTimeout(resolve, GROUP_JOB_POLL_MS));
+    if (!isCurrent()) return null;
+    let job;
+    try { job = await api(statusPath); } catch (e) { job = undefined; }
+    if (!isCurrent() || job === null) return null; // null: сессия закончилась, api уже вывел из системы
+    if (job === undefined || (job.error && job.status !== 'failed')) {
+      if (++errors < GROUP_JOB_MAX_ERRORS) continue;
+      return { status: 'failed', error: 'Нет связи с сервером. Анализ может ещё идти: откройте группу заново, чтобы увидеть его ход' };
+    }
+    errors = 0;
+    if (job.status !== 'running') return job;
+    onProgress(job);
+  }
+  return null;
+}
+
 const fmtDate = d => d ? new Date(d).toLocaleDateString('ru-RU', {day:'numeric',month:'short',year:'numeric'}) : '—';
 const fmt = v => v == null ? '—' : v;
 
@@ -3323,15 +3353,36 @@ const pnCap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : '—';
 async function loadPnGroupReport(groupId) {
   const wrap = $('pn-group-report'); const btn = $('btn-pn-group');
   wrap.style.display = 'none'; wrap.innerHTML = ''; PN_SAVED_REPORT_AT = null;
-  if (btn) btn.textContent = '🧠 Групповой анализ';
+  PN_WATCH_TOKEN++; // слежение за другой группой больше не трогает кнопку
+  if (btn) { btn.disabled = false; btn.textContent = '🧠 Групповой анализ'; }
   if (!groupId) return;
+  const job = await api('/pn-group/group/' + groupId + '/analyze-status');
+  if (job && job.status === 'running') watchPnJob(groupId, job);
   const row = await api('/pn-group/group/' + groupId + '/report');
   if (!row || row.error) return;
   let r = row.raw_content; if (typeof r === 'string') { try { r = JSON.parse(r); } catch (e) { r = null; } }
   if (!r) return;
   PN_SAVED_REPORT_AT = row.generated_at || null;
-  if (btn) btn.textContent = '🧠 Обновить анализ';
+  if (btn && !btn.disabled) btn.textContent = '🧠 Обновить анализ';
   renderPnGroup(r, row.generated_at);
+}
+
+let PN_WATCH_TOKEN = 0;
+
+async function watchPnJob(groupId, firstStatus) {
+  const token = ++PN_WATCH_TOKEN;
+  const btn = $('btn-pn-group');
+  btn.disabled = true;
+  btn.textContent = groupJobLabel(firstStatus);
+  const job = await pollGroupJob('/pn-group/group/' + groupId + '/analyze-status', {
+    isCurrent: () => token === PN_WATCH_TOKEN,
+    onProgress: j => { btn.textContent = groupJobLabel(j); },
+  });
+  if (!job) return;
+  if (job.status === 'done') { await loadPnGroupReport(groupId); return; }
+  btn.disabled = false;
+  btn.textContent = PN_SAVED_REPORT_AT ? '🧠 Обновить анализ' : '🧠 Групповой анализ';
+  toast(job.error || 'Ошибка группового анализа', true);
 }
 
 async function generatePnGroup() {
@@ -3339,17 +3390,17 @@ async function generatePnGroup() {
   if (!groupId) { toast('Выберите группу для группового анализа'); return; }
   if (PN_SAVED_REPORT_AT && !confirm('Свод по этой группе уже есть (от ' + fmtDate(PN_SAVED_REPORT_AT) + ').\nЗапустить анализ заново? Это платный вызов ИИ; уже размеченные анкеты повторно не размечаются.')) return;
   const btn = $('btn-pn-group');
-  btn.disabled = true; btn.textContent = 'Анализируем… (до 2 минут)';
+  btn.disabled = true; btn.textContent = 'Запускаем анализ…';
   $('pn-group-report').style.display = 'none'; $('pn-group-report').innerHTML = '';
-  const d = await api('/pn-group/group/' + groupId + '/analyze', { method: 'POST' });
-  btn.disabled = false;
+  let d = null;
+  try { d = await api('/pn-group/group/' + groupId + '/analyze', { method: 'POST' }); }
+  catch (e) { d = { error: 'Нет связи с сервером' }; }
   if (!d || !d.success) {
+    btn.disabled = false;
     btn.textContent = PN_SAVED_REPORT_AT ? '🧠 Обновить анализ' : '🧠 Групповой анализ';
     toast((d && d.error) || 'Ошибка группового анализа', true); return;
   }
-  PN_SAVED_REPORT_AT = new Date().toISOString();
-  btn.textContent = '🧠 Обновить анализ';
-  renderPnGroup(d.result, PN_SAVED_REPORT_AT);
+  watchPnJob(groupId, d);
 }
 
 async function downloadPnGroupPdf(format) {
@@ -4399,16 +4450,45 @@ async function loadSocieteLeaderOptions(groupId) {
 async function loadSocieteGroupReport(groupId) {
   const wrap = $('soc-group-report'); const btn = $('btn-societe-group');
   wrap.style.display = 'none'; wrap.innerHTML = ''; SOC_SAVED_REPORT_AT = null;
-  if (btn) btn.textContent = '🏛️ Групповой анализ';
+  SOC_WATCH_TOKEN++; // слежение за другой группой больше не трогает кнопку
+  if (btn) { btn.disabled = false; btn.textContent = '🏛️ Групповой анализ'; }
   await loadSocieteLeaderOptions(groupId);
   if (!groupId) return;
+  // Анализ идёт на сервере, поэтому после перезагрузки страницы он продолжается.
+  const job = await api('/societe-group/group/' + groupId + '/analyze-status');
+  if (job && job.status === 'running') watchSocieteJob(groupId, job);
   const row = await api('/societe-group/group/' + groupId + '/report');
   if (!row || row.error) return;
   let r = row.raw_content; if (typeof r === 'string') { try { r = JSON.parse(r); } catch (e) { r = null; } }
   if (!r) return;
   SOC_SAVED_REPORT_AT = row.generated_at || null;
-  if (btn) btn.textContent = '🏛️ Обновить анализ';
+  if (btn && !btn.disabled) btn.textContent = '🏛️ Обновить анализ';
   renderSocieteGroup(r, row.generated_at);
+}
+
+let SOC_WATCH_TOKEN = 0;
+
+async function watchSocieteJob(groupId, firstStatus) {
+  const token = ++SOC_WATCH_TOKEN;
+  const btn = $('btn-societe-group');
+  const restore = () => {
+    btn.disabled = false;
+    btn.textContent = SOC_SAVED_REPORT_AT ? '🏛️ Обновить анализ' : '🏛️ Групповой анализ';
+  };
+  btn.disabled = true;
+  btn.textContent = groupJobLabel(firstStatus);
+  const job = await pollGroupJob('/societe-group/group/' + groupId + '/analyze-status', {
+    isCurrent: () => token === SOC_WATCH_TOKEN,
+    onProgress: j => { btn.textContent = groupJobLabel(j); },
+  });
+  if (!job) return;
+  if (job.status === 'done') {
+    await loadSocieteGroupReport(groupId);
+    if (job.needs_review) toast('Отчёт готов, но в тексте есть числа, которых нет в своде — проверьте', true);
+    return;
+  }
+  restore();
+  toast(job.error || 'Ошибка группового анализа', true);
 }
 
 async function generateSocieteGroup() {
@@ -4416,19 +4496,18 @@ async function generateSocieteGroup() {
   if (!groupId) { toast('Выберите группу для группового анализа'); return; }
   if (SOC_SAVED_REPORT_AT && !confirm('Отчёт по этой группе уже есть (от ' + fmtDate(SOC_SAVED_REPORT_AT) + ').\nЗапустить анализ заново? Это платный вызов ИИ.')) return;
   const btn = $('btn-societe-group');
-  btn.disabled = true; btn.textContent = 'Анализируем…';
+  btn.disabled = true; btn.textContent = 'Запускаем анализ…';
   $('soc-group-report').style.display = 'none'; $('soc-group-report').innerHTML = '';
   const leader = $('soc-leader').value;
-  const d = await api('/societe-group/group/' + groupId + '/analyze', { method: 'POST', body: { leader_participant_id: leader || null } });
-  btn.disabled = false;
+  let d = null;
+  try { d = await api('/societe-group/group/' + groupId + '/analyze', { method: 'POST', body: { leader_participant_id: leader || null } }); }
+  catch (e) { d = { error: 'Нет связи с сервером' }; }
   if (!d || !d.success) {
+    btn.disabled = false;
     btn.textContent = SOC_SAVED_REPORT_AT ? '🏛️ Обновить анализ' : '🏛️ Групповой анализ';
     toast((d && d.error) || 'Ошибка группового анализа', true); return;
   }
-  SOC_SAVED_REPORT_AT = new Date().toISOString();
-  btn.textContent = '🏛️ Обновить анализ';
-  if (d.needs_review) toast('Отчёт готов, но в тексте есть числа, которых нет в своде — проверьте', true);
-  renderSocieteGroup(d.result, SOC_SAVED_REPORT_AT);
+  watchSocieteJob(groupId, d);
 }
 
 // Карточка в дашборде — сжатая: ключевые числа, итог и проверка. Полный отчёт — PDF.
@@ -4557,7 +4636,16 @@ function ssRenderCoverage() {
 async function ssAnalyze(test) {
   const btn = $('ss-an-' + test);
   if (btn) { btn.disabled = true; btn.textContent = 'Идёт анализ…'; }
-  const r = await api(SS_ANALYZE[test].replace('%', SS.groupId), { method: 'POST' });
+  const groupId = SS.groupId;
+  let r = await api(SS_ANALYZE[test].replace('%', groupId), { method: 'POST' });
+  if (r && r.status === 'running') {
+    r = await pollGroupJob(SS_ANALYZE[test].replace('%', groupId).replace(/analyze$/, 'analyze-status'), {
+      isCurrent: () => SS.groupId === groupId,
+      onProgress: j => { if (btn) btn.textContent = groupJobLabel(j); },
+    });
+    if (!r) return; // пользователь перешёл к другой группе
+    if (r.status === 'failed') r = { error: r.error };
+  }
   if (!r || r.error) { toast('Анализ не выполнен: ' + ((r && r.error) || 'ошибка'), true); if (btn) { btn.disabled = false; btn.textContent = 'Запустить групповой анализ'; } return; }
   toast('Групповой анализ готов');
   ssSelectGroup();
