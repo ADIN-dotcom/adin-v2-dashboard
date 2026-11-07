@@ -1374,6 +1374,12 @@ function renderMatrix() {
       ⚠ нет сырых баллов по архетипам в файле — показаны точки по типу, не по человеку</div>` : ''}
   `;
 
+  // На большой группе точки меньше, иначе закрывают друг друга.
+  const dotSize = DATA.length > 100 ? 18 : DATA.length > 40 ? 22 : 28;
+  const dotFont = dotSize < 20 ? 8 : dotSize < 28 ? 9 : 10;
+  // Крайние значения показываем у рамки, а не обрезаем ею половину точки.
+  const inside = percent => `clamp(${dotSize / 2}px, ${percent}%, calc(100% - ${dotSize / 2}px))`;
+
   DATA.forEach(r => {
     if (!r.type) return;
     const pos = continuousPos(r);
@@ -1382,8 +1388,8 @@ function renderMatrix() {
     const y = pos.qy * 100;
 
     html += `<div class="matrix-dot" style="
-      left:${x}%;top:${y}%;
-      background:${color};width:28px;height:28px;font-size:10px"
+      left:${inside(x)};top:${inside(y)};
+      background:${color};width:${dotSize}px;height:${dotSize}px;font-size:${dotFont}px"
       data-tip="${r.name||r.email}<br>Тип: ${r.type}<br>Уровень: ${r.level}<br>Балл: ${r.score}${
         hasContinuousData ? `<br>А:${r.scoreAnalytic||0}% С:${r.scoreStrateg||0}% К:${r.scoreCritic||0}% Д:${r.scoreDramaturg||0}%` : ''
       }">
