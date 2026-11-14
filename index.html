@@ -5379,8 +5379,24 @@ async function openFeasReport(gid, name) {
     (r.page1.risks.length ? '<div style="font-weight:500;font-size:13px;margin:10px 0 4px">Три главных риска</div>' +
       r.page1.risks.map((x, i) => '<div style="font-size:12.5px;margin-bottom:6px"><b>' + (i + 1) + '. ' + ssEsc(x.title) + '</b> · цель №' + x.goal_rank + ' · ' + ssEsc(x.place || '') +
         '<div style="color:var(--ink-faint)">' + ssEsc(x.evidence || '') + '</div><div>→ ' + ssEsc(x.decision) + '</div></div>').join('') : '') +
+    frAnswersFrom(r) +
     (r.unconfirmed_labels ? '<div style="font-size:12.5px;color:var(--gold)">Неподтверждённых меток разметки: ' + r.unconfirmed_labels + '</div>' : '');
   await frStatus();
+}
+
+// Ответы собраны по прежней редакции паспорта: сохранение новой версии
+// переносит их на неё, и без этой строки было не видно, что люди отвечали,
+// глядя на другой текст цели.
+function frAnswersFrom(r) {
+  const a = (r.coverage || {}).answers_from;
+  if (!a) return '';
+  const when = a.created_at ? ' от ' + new Date(a.created_at).toLocaleDateString('ru-RU',
+    { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  const what = a.changed && a.changed.length
+    ? 'с тех пор изменились: ' + a.changed.join(', ')
+    : 'формулировки целей и перечень подразделений с тех пор не менялись';
+  return '<div style="font-size:12.5px;color:var(--gold);margin-top:8px">Ответы о целях собраны по редакции №' +
+    a.version + ' паспорта' + ssEsc(when) + '; ' + ssEsc(what) + '.</div>';
 }
 
 async function frStatus() {
