@@ -5804,6 +5804,8 @@ async function objSave() {
   const d = await api('/objectives/group/' + OBJ.gid, { method: 'POST', body });
   btn.disabled = false;
   if (d && d.error) { alert(d.error); return; }
+  // Сохранение без правок версию не создаёт: сервер возвращает прежнюю.
+  if (d && d.objective && d.objective.unchanged) toast('Изменений нет — версия паспорта осталась прежней');
   openObjective(OBJ.gid, $('obj-group-name').textContent);
 }
 
