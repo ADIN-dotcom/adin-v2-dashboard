@@ -957,7 +957,15 @@ td>.btn+.btn{margin-left:4px}
       </div>
     </div>
     <div class="field"><label>Группа (необязательно)</label>
-      <select id="ui-group"><option value="">Без группы</option></select>
+      <select id="ui-group" onchange="uiWaveLoad()"><option value="">Без группы</option></select>
+    </div>
+    <!-- Волна замера: в какую волну уйдут эти коды. Повторный замер той же
+         команды — новая волна; из неё собирается «Сдвиг с прошлого замера». -->
+    <div class="field" id="ui-wave-field" style="display:none"><label>Волна замера</label>
+      <div style="display:flex;align-items:center;gap:10px;font-size:13px;text-transform:none;font-weight:400;letter-spacing:normal">
+        <span id="ui-wave-text" style="color:var(--ink-soft)"></span>
+        <button type="button" class="btn btn-ghost" style="padding:4px 10px;font-size:12px" onclick="uiWaveStart()">Начать новую волну</button>
+      </div>
     </div>
     <div class="field"><label>Язык теста</label>
       <select id="ui-lang">
@@ -2578,11 +2586,40 @@ async function openUnifiedInvite() {
   $('ui-search').value = '';
   $('ui-send-email').checked = false;
   uiSetMode('new');
+  uiWaveLoad();
   openModal('modal-unified-invite');
 
   const d = await api('/v2/participants?limit=1000&page=1');
   UI_ALL = (d && d.participants) || [];
   uiRenderPicker();
+}
+
+// ── Волна замера (расхождение №6) ──────────────────────────────────────────
+// Коды уходят в текущую волну компании. Повторный замер той же команды —
+// новая волна: прежние ответы и метки остаются на месте, и из них собирается
+// раздел «Сдвиг с прошлого замера». У отдела своей волны нет — он живёт в
+// волне компании, поэтому номер показываем тот, что вернул сервер.
+async function uiWaveLoad() {
+  const gid = $('ui-group').value;
+  $('ui-wave-field').style.display = gid ? '' : 'none';
+  if (!gid) return;
+  $('ui-wave-text').textContent = 'загружаем…';
+  const d = await api('/v2/groups/' + gid + '/waves');
+  const cur = d && d.current;
+  $('ui-wave-text').textContent = cur
+    ? 'Коды уйдут в волну ' + cur.n + (cur.label ? ' «' + cur.label + '»' : '') +
+      (cur.n > 1 ? ', начатую ' + new Date(cur.started_at).toLocaleDateString('ru-RU') : ' — первый замер')
+    : 'не удалось узнать волну';
+}
+
+async function uiWaveStart() {
+  const gid = $('ui-group').value;
+  if (!gid) return;
+  const typed = prompt('Подпись волны (необязательно): чем этот замер отличается от прошлого');
+  if (typed === null) return;                       // отменили — волну не начинаем
+  const d = await api('/v2/groups/' + gid + '/waves', { method: 'POST', body: { label: typed.trim() } });
+  if (d && d.wave) toast('Начата волна ' + d.wave.n + ': коды и ответы пойдут в неё');
+  await uiWaveLoad();
 }
 
 function uiSetMode(mode) {
