@@ -5361,6 +5361,10 @@ async function objSaveLinks() {
 // для ведущего и для заказчика. Заказчику — только без release_blocked и с
 // текстом без замечаний проверки; причины показываются здесь же.
 const FR_COLOR = { match: 'var(--green)', tension: 'var(--gold)', divergence: 'var(--red)' };
+// Два уровня вывода (расхождение №13): у цели — заключение, у девяти точек
+// проверки — состояние. Прежде окно показывало только состояние точек, и
+// заключение, которое считает отчёт, в дашборде было не видно.
+const FR_VERDICT = { feasible: 'var(--green)', with_risks: 'var(--gold)', not_feasible: 'var(--red)', insufficient: 'var(--ink-faint)' };
 let FR = { gid: null, timer: null };
 
 async function openFeasReport(gid, name) {
@@ -5374,8 +5378,12 @@ async function openFeasReport(gid, name) {
   $('fr-page1').innerHTML =
     r.page1.goals.map(g => '<div style="padding:6px 0;border-top:1px solid var(--border)"><div style="display:flex;justify-content:space-between;gap:12px">' +
       '<b style="font-size:13px">Цель №' + g.rank + '. ' + ssEsc(g.statement || '') + '</b>' +
-      '<span style="font-size:11px;font-weight:600;white-space:nowrap;color:' + (FR_COLOR[g.state] || 'var(--ink-faint)') + '">' + ssEsc(g.state_name || '—').toUpperCase() + '</span></div>' +
-      '<div style="font-size:12.5px;color:var(--ink-soft)">' + ssEsc(g.sentence) + '</div></div>').join('') +
+      '<span style="font-size:11px;font-weight:600;white-space:nowrap;color:' + (FR_VERDICT[g.verdict] || 'var(--ink-faint)') + '">' + ssEsc(g.verdict_name || '—').toUpperCase() + '</span></div>' +
+      '<div style="font-size:12.5px;color:var(--ink-soft)">' +
+        (g.state_name ? '<span style="font-weight:600;color:' + (FR_COLOR[g.state] || 'var(--ink-faint)') + '">' + ssEsc(g.state_name).toUpperCase() + '</span> · ' : '') +
+        ssEsc(g.sentence) + '</div>' +
+      (g.conditions && g.conditions.length ? '<div style="font-size:12px;color:var(--ink-faint)">' + ssEsc(g.conditions.join('; ')) + '</div>' : '') +
+      '</div>').join('') +
     (r.page1.risks.length ? '<div style="font-weight:500;font-size:13px;margin:10px 0 4px">Три главных риска</div>' +
       r.page1.risks.map((x, i) => '<div style="font-size:12.5px;margin-bottom:6px"><b>' + (i + 1) + '. ' + ssEsc(x.title) + '</b> · цель №' + x.goal_rank + ' · ' + ssEsc(x.place || '') +
         '<div style="color:var(--ink-faint)">' + ssEsc(x.evidence || '') + '</div><div>→ ' + ssEsc(x.decision) + '</div></div>').join('') : '') +
