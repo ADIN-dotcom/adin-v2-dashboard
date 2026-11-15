@@ -5388,7 +5388,11 @@ async function openFeasReport(gid, name) {
       r.page1.risks.map((x, i) => '<div style="font-size:12.5px;margin-bottom:6px"><b>' + (i + 1) + '. ' + ssEsc(x.title) + '</b> · цель №' + x.goal_rank + ' · ' + ssEsc(x.place || '') +
         '<div style="color:var(--ink-faint)">' + ssEsc(x.evidence || '') + '</div><div>→ ' + ssEsc(x.decision) + '</div></div>').join('') : '') +
     frAnswersFrom(r) +
-    (r.unconfirmed_labels ? '<div style="font-size:12.5px;color:var(--gold)">Неподтверждённых меток разметки: ' + r.unconfirmed_labels + '</div>' : '');
+    (r.unconfirmed_labels ? '<div style="font-size:12.5px;color:var(--gold)">Неподтверждённых меток разметки: ' + r.unconfirmed_labels + '</div>' : '') +
+    // Сколько решений разметки принял человек (расхождение №18): правила у
+    // любого специалиста дают одно и то же, рукой правится только разметка.
+    (r.labels_total ? '<div style="font-size:12.5px;color:var(--ink-faint)">Меток разметки исправлено ведущим: ' +
+      (r.corrected_labels || 0) + ' из ' + r.labels_total + '; из них сопоставление задачи с целью — ' + (r.corrected_tasks || 0) + '</div>' : '');
   await frStatus();
 }
 
