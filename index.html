@@ -1106,6 +1106,8 @@ td>.btn+.btn{margin-left:4px}
       <button class="btn btn-navy btn-sm" id="fr-text" onclick="frText()">Собрать текст</button>
       <button class="btn btn-ghost btn-sm" id="fr-pdf-f" onclick="frPdf('facilitator')">PDF для ведущего</button>
       <button class="btn btn-ghost btn-sm" id="fr-pdf-c" onclick="frPdf('client')">PDF для заказчика</button>
+      <button class="btn btn-ghost btn-sm" id="fr-doc-f" onclick="frPdf('facilitator', 'docx')">Word ведущему</button>
+      <button class="btn btn-ghost btn-sm" id="fr-doc-c" onclick="frPdf('client', 'docx')">Word заказчику</button>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-feas-report')">Закрыть</button>
@@ -5464,8 +5466,10 @@ async function frStatus() {
   $('fr-text').disabled = !!running;
   $('fr-text').textContent = t && d.current ? 'Пересобрать текст' : 'Собрать текст';
   const ready = !!(t && d.current) && !running;
-  $('fr-pdf-f').disabled = !ready;
-  $('fr-pdf-c').disabled = !ready || !!d.release_blocked || !!(t && (t.issues || []).length);
+  // Word — тот же отчёт и те же условия выпуска, поэтому кнопки гаснут вместе.
+  const clientBlocked = !ready || !!d.release_blocked || !!(t && (t.issues || []).length);
+  $('fr-pdf-f').disabled = $('fr-doc-f').disabled = !ready;
+  $('fr-pdf-c').disabled = $('fr-doc-c').disabled = clientBlocked;
   clearTimeout(FR.timer);
   if (running) FR.timer = setTimeout(frStatus, 3000);
 }
@@ -5478,10 +5482,14 @@ async function frText() {
   await frStatus();
 }
 
-async function frPdf(audience) {
-  toast('Готовим PDF…');
+// format='docx' — тот же отчёт в Word (routes/feasibility.js): те же проверки
+// выпуска, другой носитель.
+async function frPdf(audience, format) {
+  const what = format === 'docx' ? 'Word' : 'PDF';
+  toast('Готовим ' + what + '…');
   try {
-    const r = await fetch(API + '/feasibility/group/' + FR.gid + '/pdf?audience=' + audience, { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+    const q = '?audience=' + audience + (format === 'docx' ? '&format=docx' : '');
+    const r = await fetch(API + '/feasibility/group/' + FR.gid + '/pdf' + q, { headers: { 'Authorization': 'Bearer ' + TOKEN } });
     if (!r.ok) {
       const e = await r.json().catch(() => ({}));
       toast('Недоступно: ' + (e.error || r.status) + (e.problems ? ' — ' + e.problems.join('; ') : ''), true);
@@ -5489,7 +5497,9 @@ async function frPdf(audience) {
     }
     const blob = await r.blob();
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = filenameFromResponse(r, 'Исполнимость_' + FR.gid + '_' + audience + '.pdf'); a.click();
+    a.href = URL.createObjectURL(blob);
+    a.download = filenameFromResponse(r, 'Исполнимость_' + FR.gid + '_' + audience + '.' + (format === 'docx' ? 'docx' : 'pdf'));
+    a.click();
     URL.revokeObjectURL(a.href);
   } catch (e) { toast('Ошибка соединения', true); }
 }
