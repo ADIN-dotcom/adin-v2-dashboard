@@ -533,6 +533,7 @@ td>.btn+.btn{margin-left:4px}
             <select id="ni-group-filter" onchange="loadNIAnalytics()" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px">
               <option value="">Все группы</option>
             </select>
+            <button class="btn btn-primary btn-sm" onclick="openTinGroupReport()" title="Карта команды по выбранной группе или отделу — без скачивания CSV">📊 Групповой отчёт TIN</button>
           </div>
         </div>
         <div class="metrics" id="ni-metrics"></div>
@@ -3244,6 +3245,15 @@ async function downloadTinCsv(group) {
 }
 
 function exportGroupCSV() { return downloadTinCsv($('ni-group-filter').value); }
+
+// Групповой отчёт TIN прямо из дашборда: карта команды лежит рядом, на том же
+// адресе, сама забирает выгрузку по группе токеном этого входа. Порог 5 и
+// сообщения о нём — в самой карте.
+function openTinGroupReport() {
+  const group = $('ni-group-filter').value;
+  if (!group) { toast('Выберите группу или отдел', true); return; }
+  window.open('ADIN_Team_Dashboard_v21.html?group=' + encodeURIComponent(group), '_blank');
+}
 
 async function exportCSV() {
   if (!GROUPS.length) { const d = await api('/v2/groups'); if (Array.isArray(d)) GROUPS = d; }

@@ -55,6 +55,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
 .tab.active{background:var(--navy);color:#fff}
 .tab:hover:not(.active){background:var(--cream)}
 .tab-content{display:none}.tab-content.active{display:block}
+/* Режим показа группе: вкладка с людьми скрыта и на экране, и в печати
+   (печатное правило .tab-content{display:block !important} слабее по специфичности). */
+.tab.safe-hidden,.tab-content.safe-hidden{display:none !important}
+.safe-toggle{margin-left:16px;font-size:13px;color:#fff;cursor:pointer;user-select:none}
+.safe-toggle input{vertical-align:middle;margin-right:4px}
 
 /* ── ПЕЧАТЬ / PDF ── */
 @page {
@@ -248,6 +253,9 @@ svg.radar{overflow:visible}
   <div class="header-right">
     Аналитическая карта команды<br>
     <span id="team-name" style="color:#fff;font-weight:600"></span>
+    <label class="safe-toggle" title="Для показа на экране перед группой: вместо имён и кодов — число людей, вкладка «Участники» скрыта, в AI-заключение люди не попадают">
+      <input type="checkbox" id="safe-mode" onchange="setGroupSafe(this.checked)">Показ группе
+    </label>
     <button id="keyfile-btn" onclick="document.getElementById('keyfile-input').click()"
       style="margin-left:16px;padding:6px 14px;background:rgba(255,255,255,.15);
       color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:6px;
@@ -278,6 +286,7 @@ svg.radar{overflow:visible}
 
 <!-- ЗАГРУЗКА -->
 <div class="upload-zone" id="upload-zone">
+  <div id="remote-status" style="display:none;max-width:640px;margin:0 auto 20px;padding:14px 18px;border-radius:10px;font-size:14px;line-height:1.5;text-align:left"></div>
   <div class="upload-box" onclick="document.getElementById('file-input').click()"
        ondragover="e=>{e.preventDefault();this.style.borderColor='var(--navy)'}"
        ondragleave="this.style.borderColor=''"
@@ -314,7 +323,7 @@ svg.radar{overflow:visible}
     <button class="tab" onclick="switchTab('temporal')">⏱ Ориентация</button>
     <button class="tab" onclick="switchTab('competencies')">⭐ Компетенции</button>
     <button class="tab" onclick="switchTab('zones')">⚠️ Зоны анализа</button>
-    <button class="tab" onclick="switchTab('participants')">👥 Участники</button>
+    <button class="tab" id="tab-btn-participants" onclick="switchTab('participants')">👥 Участники</button>
     <button class="tab" onclick="switchTab('narrative')">📋 Заключение</button>
   </div>
 
@@ -513,6 +522,7 @@ svg.radar{overflow:visible}
 // ═══════════════════════════════════════════════════════════
 let DATA = [];
 let KEYMAP = {};        // код -> {name, email} из ключ-файла фасилитатора
+let GROUP_SAFE = true;  // режим показа группе; включён по умолчанию, выбор помнится в браузере
 let LAST_RAW = null;    // последний распарсенный CSV с данными (для повторной сшивки после загрузки ключ-файла)
 
 const TYPE_COLOR = {
@@ -833,10 +843,12 @@ function handleKeyfile(file) {
 function handleFile(file) {
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = e => {
-    // Определяем кодировку (UTF-8 BOM или Windows-1251)
-    let text = e.target.result;
-    // Попробуем как UTF-8, если нечитаемо — попробуем cp1251
+  reader.onload = e => loadCsvText(e.target.result);
+  reader.readAsText(file, 'utf-8');
+}
+
+// Общий разбор выгрузки: из файла (handleFile) и с сервера (loadFromDashboard).
+function loadCsvText(text) {
     LAST_RAW = parseCSV(text);
     DATA = buildData();
 
@@ -877,8 +889,6 @@ function handleFile(file) {
     banner.textContent = groupWarning;
 
     renderAll();
-  };
-  reader.readAsText(file, 'utf-8');
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1136,7 +1146,7 @@ function exportReportRtf() {
         body += rtfRow([{ text: 'Участник', w: RTF_WIDTH * 0.5, bold: true, fill: pal.add('E8E4DC') },
                         { text: 'Тип', w: RTF_WIDTH * 0.3, bold: true, fill: pal.add('E8E4DC') },
                         { text: 'Уровень', w: RTF_WIDTH * 0.2, bold: true, fill: pal.add('E8E4DC') }]);
-        DATA.forEach(r => {
+        if (!GROUP_SAFE) DATA.forEach(r => {
           body += rtfRow([{ text: r.name || r.code || '—', w: RTF_WIDTH * 0.5 },
                           { text: r.type || '—', w: RTF_WIDTH * 0.3 },
                           { text: String(r.level || '—'), w: RTF_WIDTH * 0.2 }]);
@@ -1162,7 +1172,7 @@ function exportReportRtf() {
     }
   };
 
-  const tabs = [...src.querySelectorAll('.tab-content')];
+  const tabs = [...src.querySelectorAll('.tab-content')].filter(t => !t.classList.contains('safe-hidden'));
   tabs.forEach((tab, i) => {
     if (i) body += '\\page\n';
     const title = tab.getAttribute('data-print-title');
@@ -1390,7 +1400,7 @@ function renderMatrix() {
     html += `<div class="matrix-dot" style="
       left:${inside(x)};top:${inside(y)};
       background:${color};width:${dotSize}px;height:${dotSize}px;font-size:${dotFont}px"
-      data-tip="${r.name||r.email}<br>Тип: ${r.type}<br>Уровень: ${r.level}<br>Балл: ${r.score}${
+      data-tip="${GROUP_SAFE ? '' : (r.name||r.email) + '<br>'}Тип: ${r.type}<br>Уровень: ${r.level}<br>Балл: ${r.score}${
         hasContinuousData ? `<br>А:${r.scoreAnalytic||0}% С:${r.scoreStrateg||0}% К:${r.scoreCritic||0}% Д:${r.scoreDramaturg||0}%` : ''
       }">
       ${r.level||'?'}
@@ -1485,6 +1495,9 @@ function renderLevels() {
   const cp = document.getElementById('critical-profiles');
   if (critical.length === 0) {
     cp.innerHTML = '<p style="color:var(--green);font-size:14px">✅ Нет участников на уровне 1 — отличный результат!</p>';
+  } else if (GROUP_SAFE) {
+    cp.innerHTML = `<p style="font-size:13px;color:var(--ink-faint)">
+      На уровне 1 (Пассивный): ${critical.length} чел. Список — вне режима «Показ группе».</p>`;
   } else {
     cp.innerHTML = `<p style="font-size:13px;color:var(--ink-faint);margin-bottom:12px">
       ${critical.length} участников на уровне 1 (Пассивный) — приоритет работы:</p>
@@ -1755,7 +1768,7 @@ function computeZones() {
   const narrowed = (n > 0 && lvl34.length / n > 0.5 && lvl4.length > 0);
   const multipliers = narrowed ? lvl4 : lvl34;
   if (multipliers.length > 0)
-    resources.push(`<b>Зрелые участники (${narrowed ? 'ур.4' : 'ур.3–4'}):</b> ${multipliers.map(r=>r.name||r.email).join(', ')} — потенциальные мультипликаторы развития`);
+    resources.push(`<b>Зрелые участники (${narrowed ? 'ур.4' : 'ур.3–4'}):</b> ${who(multipliers)} — потенциальные мультипликаторы развития`);
 
   // Сильные компетенции и высокий PP — из тех же шкал, а не отдельными порогами.
   const strongComps = evals.filter(e => COMP_SCALE_KEYS.includes(e.key) && e.status === 'РЕСУРС');
@@ -1783,7 +1796,7 @@ function computeZones() {
       const members = DATA.filter(r => r.type === t && r.level >= 3);
       if (!members.length) return;
       entry.by_type[t] = { count: members.length, healthy_sign: DYSFUNCTION_INFO[t].healthy };
-      resources.push(`<b>Здоровый режим: ${t} в паре ${pair}:</b> ${members.map(r=>r.name||r.email).join(', ')} ` +
+      resources.push(`<b>Здоровый режим: ${t} в паре ${pair}:</b> ${who(members)} ` +
         `— ${DYSFUNCTION_INFO[t].healthy}; использовать как медиатора` +
         (tense ? ' именно в этой напряжённой паре' : ' в этой паре'));
     });
@@ -2005,6 +2018,9 @@ function renderKeyState() {
   if (openedOffline()) {
     el.textContent = 'открыто с диска — AI недоступен';
     el.style.color = 'var(--red, #c8432a)';
+  } else if (adminToken()) {
+    el.textContent = 'вход через дашборд';
+    el.style.color = 'var(--teal, #2D6A4F)';
   } else if (n) {
     el.textContent = 'ключ задан (' + n + ')';
     el.style.color = 'var(--teal, #2D6A4F)';
@@ -2015,6 +2031,88 @@ function renderKeyState() {
 }
 
 document.addEventListener('DOMContentLoaded', renderKeyState);
+
+// ── РЕЖИМ ПОКАЗА ГРУППЕ ──────────────────────────────────────────────────────
+// Карту показывают на экране той самой группе, и по именам или кодам в
+// «Скрытых ресурсах», здоровых режимах и списке уровня 1 люди узнают друг
+// друга. В режиме показа вместо людей — число, вкладка «Участники» скрыта
+// (и в печати, и в Word), а в AI-заключение уходят только числа.
+function readGroupSafe() {
+  try { return localStorage.getItem('adin_group_safe') !== '0'; } catch { return true; }
+}
+function who(list) {
+  return GROUP_SAFE ? list.length + ' чел.' : list.map(r => r.name || r.email).join(', ');
+}
+function applyGroupSafeChrome() {
+  const box = document.getElementById('safe-mode');
+  if (box) box.checked = GROUP_SAFE;
+  ['tab-btn-participants', 'tab-participants'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('safe-hidden', GROUP_SAFE);
+  });
+  const active = document.querySelector('.tab-content.active');
+  if (GROUP_SAFE && active && active.id === 'tab-participants') switchTab('overview');
+}
+function setGroupSafe(on) {
+  GROUP_SAFE = !!on;
+  try { localStorage.setItem('adin_group_safe', GROUP_SAFE ? '1' : '0'); } catch {}
+  applyGroupSafeChrome();
+  // Перерисовка заменяет и AI-заключение кратким: текст, полученный вне
+  // режима показа, мог содержать людей.
+  if (DATA && DATA.length) renderAll();
+}
+GROUP_SAFE = readGroupSafe();
+document.addEventListener('DOMContentLoaded', applyGroupSafeChrome);
+
+// ── ЗАГРУЗКА ПО ГРУППЕ ИЗ ДАШБОРДА ──────────────────────────────────────────
+// Кнопка «Групповой отчёт TIN» в дашборде открывает карту с ?group=<id>.
+// Карта лежит на том же адресе, что и дашборд (Pages или /admin/ на RU), и
+// берёт его токен входа — выгрузка та же, что у «⬇ Скачать CSV», без файла.
+const API_BASE = (location.hostname.endsWith('github.io') || openedOffline())
+  ? 'https://adin-ni-backend-production.up.railway.app/api' : '/api';
+const MIN_GROUP_REPORT = 5;   // как в дашборде: меньше — профиль угадывается
+
+function adminToken() {
+  try { return localStorage.getItem('adin_token'); } catch { return null; }
+}
+function remoteStatus(html, kind) {
+  const el = document.getElementById('remote-status');
+  if (!el) return;
+  el.style.display = html ? 'block' : 'none';
+  el.style.background = kind === 'error' ? '#fbeae6' : '#eef3f8';
+  el.style.border = '1px solid ' + (kind === 'error' ? '#e7b9ad' : '#c9d8e6');
+  el.innerHTML = html || '';
+}
+async function loadFromDashboard() {
+  const group = new URLSearchParams(location.search).get('group');
+  if (!group) return;
+  const token = adminToken();
+  if (!token) {
+    remoteStatus('Нет входа в дашборд на этом адресе. Войдите в дашборд и снова нажмите «Групповой отчёт TIN» — или загрузите CSV вручную.', 'error');
+    return;
+  }
+  remoteStatus('⏳ Загружаю данные группы…');
+  try {
+    const r = await fetch(API_BASE + '/admin/participants/export?group=' + encodeURIComponent(group),
+      { headers: { 'Authorization': 'Bearer ' + token } });
+    if (r.status === 401) {
+      remoteStatus('Вход в дашборд истёк. Войдите заново и снова нажмите «Групповой отчёт TIN».', 'error');
+      return;
+    }
+    if (!r.ok) { remoteStatus('Сервер не отдал данные группы (' + r.status + '). Можно загрузить CSV вручную.', 'error'); return; }
+    const text = await r.text();
+    const rows = text.split(/\r?\n/).filter(l => l.trim()).length - 1;
+    if (rows < MIN_GROUP_REPORT) {
+      remoteStatus('В группе ' + Math.max(rows, 0) + ' TIN — для группового отчёта нужно минимум ' + MIN_GROUP_REPORT + '. Для отдела откройте отчёт по компании целиком.', 'error');
+      return;
+    }
+    remoteStatus('');
+    loadCsvText(text);
+  } catch (e) {
+    remoteStatus('Не удалось связаться с сервером. Можно загрузить CSV вручную.', 'error');
+  }
+}
+document.addEventListener('DOMContentLoaded', loadFromDashboard);
 
 function openDashboardKeySettings() {
   const current = getDashboardKey() || '';
@@ -2049,17 +2147,18 @@ const GROUP_NARRATIVE_API = ((location.hostname.endsWith('github.io') || openedO
 
 async function generateDeepNarrative() {
   const key = getDashboardKey();
+  const token = adminToken();
   const statusEl = document.getElementById('narrative-ai-status');
   const btn = document.getElementById('ai-narrative-btn');
 
-  if (!key) {
+  if (!key && !token) {
     // Причины разные, и действие тоже разное: ввести ключ или вообще открыть
     // инструмент по-другому. Прежний текст предлагал нажать ⚙ и в том случае,
     // когда это заведомо не помогло бы.
     const why = openedOffline()
       ? 'Инструмент открыт как файл с диска — в этом режиме ключ не сохраняется, а запрос к серверу блокирует браузер. Откройте инструмент по адресу: ' +
         `<a href="${TOOL_WEB_URL}" style="color:inherit">${TOOL_WEB_URL}</a>`
-      : 'Не задан ключ доступа — нажмите ⚙ и введите ключ, чтобы использовать AI-описание.';
+      : 'Нет входа в дашборд на этом адресе и не задан ключ ⚙. Откройте отчёт из дашборда кнопкой «Групповой отчёт TIN» или введите ключ.';
     statusEl.style.display = 'block';
     statusEl.innerHTML = `<div class="zone zone-risk"><div class="zone-items">⚠️ ${why}</div></div>`;
     return;
@@ -2106,7 +2205,9 @@ async function generateDeepNarrative() {
 
     const response = await fetch(GROUP_NARRATIVE_API, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-dashboard-key': key },
+      headers: Object.assign({ 'Content-Type': 'application/json' },
+        token ? { 'Authorization': 'Bearer ' + token } : {},
+        key ? { 'x-dashboard-key': key } : {}),
       body: JSON.stringify({ zonesData, seedId: teamLabel })
     });
 
@@ -2171,6 +2272,8 @@ function downloadNarrativeTxt() {
 }
 
 function renderParticipants() {
+  // В режиме показа вкладка скрыта; строки с людьми не строим вовсе.
+  if (GROUP_SAFE) { document.getElementById('participants-tbody').innerHTML = ''; return; }
   const typeFilter  = document.getElementById('filter-type').value;
   const levelFilter = document.getElementById('filter-level').value;
 
