@@ -737,6 +737,25 @@ function parseCSV(text) {
   }).filter(r => Object.values(r).some(v => v && String(v).trim() !== ''));
 }
 
+// Тип и ориентация приходят названием на языке анкеты: участник, прошедший TIN
+// по-английски, попадал в отчёт отдельным типом «Strategist». Название берём
+// по коду (A–D, PN…F), язык анкеты на отчёт не влияет.
+const TYPE_BY_KEY = { A:'Аналитик', B:'Стратег', C:'Критик', D:'Драматург' };
+const TYPE_BY_EN = { analyst:'Аналитик', strategist:'Стратег', critic:'Критик', dramatist:'Драматург', dramaturg:'Драматург' };
+const TEMPORAL_BY_KEY = { PN:'Прошлое-негативное', PP:'Прошлое-позитивное', NF:'Настоящее-фаталистическое',
+                          NH:'Настоящее-гедонистическое', F:'Будущее' };
+function normType(name, key) {
+  const k = String(key || '').trim().toUpperCase();
+  if (TYPE_BY_KEY[k]) return TYPE_BY_KEY[k];
+  return TYPE_BY_EN[String(name || '').trim().toLowerCase()] || name;
+}
+function normTemporal(name, key) {
+  const n = String(name || '').trim();
+  if (/^сбаланс|^balanced/i.test(n)) return 'Сбалансированный профиль';
+  if (/[а-яё]/i.test(n)) return n;
+  return TEMPORAL_BY_KEY[String(key || '').trim().toUpperCase()] || n;
+}
+
 function mapRow(row) {
   // Ищем колонки по возможным названиям
   const get = (...keys) => {
@@ -762,12 +781,12 @@ function mapRow(row) {
     email:       get('email','mail'),
     code:        get('код','code'),
     group:       get('группа','group'),
-    type:        get('название типа','type_name','тип'),
+    type:        normType(get('название типа','type_name','тип'), get('доминирующий тип','dominant_type')),
     typeKey:     get('доминирующий тип','dominant_type','тип key'),
     level:       getNum('уровень зрелости','maturity_level') ||
                  parseInt(get('уровень (название)','уровень зрелости')) || 0,
     levelName:   get('уровень (название)','maturity_level_name','уровень'),
-    temporal:    get('название ориентации','temporal_dominant_name','ориентация'),
+    temporal:    normTemporal(get('название ориентации','temporal_dominant_name','ориентация'), get('врем. ориентация')),
     pn:          getNum('pn','PN'),
     pp:          getNum('pp','PP'),
     nf:          getNum('nf','NF'),
@@ -1331,9 +1350,9 @@ function renderMatrix() {
   };
 
   // Непрерывное положение по реальным баллам участника (не фиксированная точка типа).
-  // X = доля «синтетических» архетипов (Стратег+Драматург) от суммы всех четырёх баллов.
-  // Y = доля «внешних» архетипов (Критик+Стратег) от суммы всех четырёх баллов.
-  // Если сырых баллов по архетипам нет в CSV (старый экспорт) — используется
+  // X = доля «синтетических» типов (Стратег+Драматург) от суммы всех четырёх баллов.
+  // Y = доля «внешних» типов (Критик+Стратег) от суммы всех четырёх баллов.
+  // Если сырых баллов по типам нет в CSV (старый экспорт) — используется
   // прежняя фиксированная точка по доминирующему типу, чтобы не ломать совместимость.
   function continuousPos(r) {
     const total = (r.scoreAnalytic||0) + (r.scoreStrateg||0) + (r.scoreCritic||0) + (r.scoreDramaturg||0);
@@ -1381,7 +1400,7 @@ function renderMatrix() {
     <div class="matrix-watermark" style="position:absolute;bottom:28px;right:16px;font-size:16px;opacity:.06;font-weight:900;text-align:right">СТРАТЕГ</div>
     ${!hasContinuousData ? `<div style="position:absolute;top:8px;right:8px;background:#FFF8E1;color:#7B5800;
       font-size:10px;padding:4px 8px;border-radius:6px;font-weight:600">
-      ⚠ нет сырых баллов по архетипам в файле — показаны точки по типу, не по человеку</div>` : ''}
+      ⚠ нет сырых баллов по типам в файле — показаны точки по типу, не по человеку</div>` : ''}
   `;
 
   // На большой группе точки меньше, иначе закрывают друг друга.
@@ -1884,7 +1903,7 @@ function renderNarrative() {
 
   // 2. Матрица типов
   const typeCounts = ['Аналитик','Стратег','Критик','Драматург'].map(t => `${t} — ${z.types[t]||0} чел.`).join(', ');
-  let p2 = `Распределение по архетипам: ${typeCounts}`;
+  let p2 = `Распределение по типам: ${typeCounts}`;
   const absNotable = (z.absences || []).filter(a => a.notable === true).map(a => a.type);
   const absExpected = (z.absences || []).filter(a => a.notable === false);
   if (absNotable.length) {
