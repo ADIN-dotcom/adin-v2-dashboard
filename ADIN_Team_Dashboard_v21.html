@@ -565,19 +565,19 @@ svg.radar{overflow:visible}
 
   <!-- ЗОНЫ -->
   <div id="tab-zones" class="tab-content" data-print-title="6. Зоны анализа — риски, напряжения, ресурсы">
-    <div class="grid-3">
-      <div class="card">
-        <div class="card-title" style="color:var(--red)">⚠️ Зоны риска</div>
-        <div id="zones-risk"></div>
-      </div>
-      <div class="card">
-        <div class="card-title" style="color:var(--orange)">🔥 Зоны напряжения</div>
-        <div id="zones-conflict"></div>
-      </div>
-      <div class="card">
-        <div class="card-title" style="color:var(--green)">💎 Скрытые ресурсы</div>
-        <div id="zones-resource"></div>
-      </div>
+    <!-- Риски, напряжения и ресурсы — во всю ширину, одно под другим:
+         в три колонки тексты вытягивались в узкие высокие столбцы. -->
+    <div class="card">
+      <div class="card-title" style="color:var(--red)">⚠️ Зоны риска</div>
+      <div id="zones-risk"></div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--orange)">🔥 Зоны напряжения</div>
+      <div id="zones-conflict"></div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--green)">💎 Скрытые ресурсы</div>
+      <div id="zones-resource"></div>
     </div>
     <div class="card">
       <div class="card-title">Сводная таблица анализа</div>
