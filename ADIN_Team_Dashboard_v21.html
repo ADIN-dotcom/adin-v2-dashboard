@@ -55,6 +55,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
 .tab.active{background:var(--navy);color:#fff}
 .tab:hover:not(.active){background:var(--cream)}
 .tab-content{display:none}.tab-content.active{display:block}
+.print-cover{display:none}
+.section-conclusion{margin-top:16px;background:#F6F8FB}
+.concl-text{font-size:14px;line-height:1.7;color:var(--ink)}
+.concl-text p{margin:0 0 8px}
+.concl-src{font-size:11px;color:var(--ink-faint);margin-top:6px}
+.donut-box{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.donut-legend{display:flex;flex-direction:column;gap:8px;font-size:14px}
+.donut-legend span.dot{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:8px;vertical-align:-1px}
+.donut-data{display:none}
+.guide p{font-size:14px;line-height:1.6;margin:0 0 8px}
+.guide-table td,.guide-table th{font-size:13px;vertical-align:top}
+.guide-note{font-size:13px;color:var(--ink-soft);margin-top:10px}
 /* Режим показа группе: вкладка с людьми скрыта и на экране, и в печати
    (печатное правило .tab-content{display:block !important} слабее по специфичности). */
 .tab.safe-hidden,.tab-content.safe-hidden{display:none !important}
@@ -64,7 +76,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
 /* ── ПЕЧАТЬ / PDF ── */
 @page {
   size: landscape;
-  margin: 12mm;
+  margin: 12mm 12mm 14mm;
+  @bottom-left { content: "© Association de l'Intelligence Narrative® · Документ конфиденциален"; font-size: 8pt; color: #8888a8; }
+  @bottom-right { content: "стр. " counter(page); font-size: 8pt; color: #8888a8; }
 }
 
 /* Печатные шапка/подвал — на экране не показываются, встраиваются в поток
@@ -126,10 +140,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
      экране, крупный шрифт из renderMatrix() накладывается друг на друга */
   .matrix-watermark { font-size:11px !important; max-width:45% !important; line-height:1.2 !important; }
   /* Показываем ВСЕ вкладки сразу, а не только активную */
-  .tab-content { display:block !important; page-break-after: always; break-after: page; }
-  .tab-content:last-child { page-break-after: auto; break-after: auto; }
+  /* Разделы идут потоком; с нового листа — только крупные части */
+  .tab-content { display:block !important; page-break-after: auto; break-after: auto; margin-bottom: 14px; }
+  #tab-guide, #tab-overview, #tab-narrative, #tab-participants { break-before: page; page-break-before: always; }
+  .grid-2 { display:grid !important; grid-template-columns: 1fr 1fr !important; gap: 12px !important; margin-bottom: 12px !important; }
+  .card { padding: 12px 14px !important; margin-bottom: 12px !important; }
+  .metrics { margin-bottom: 12px !important; }
+  .guide p { font-size: 12px; } .guide-table td, .guide-table th { font-size: 11px !important; padding: 4px 6px !important; }
   /* Заголовок каждой вкладки — чтобы в PDF было видно, где какой раздел начинается */
   .tab-content::before {
+    break-after: avoid; page-break-after: avoid;
     content: attr(data-print-title);
     display: block;
     font-family: 'Segoe UI', Arial, sans-serif;
@@ -145,7 +165,37 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
      через injectPrintChrome() в правильном порядке (после шапки/линии),
      обычный автозаголовок здесь отключаем, чтобы не дублировался и не
      выезжал раньше шапки. */
-  #tab-overview::before, #tab-narrative::before { content: none; display: none; }
+  #tab-narrative::before { content: none; display: none; }
+  .no-print { display:none !important; }
+  .section-conclusion { break-inside: avoid; }
+  .participants-table { font-size: 10px; }
+  .participants-table { width: 100% !important; table-layout: auto; }
+  .participants-table th { letter-spacing: 0 !important; font-size: 8.5px !important; white-space: normal !important; }
+  .participants-table td:first-child { min-width: 105px; }
+  .participants-table .badge { padding: 2px 5px !important; font-size: 9px !important; }
+  #tab-participants div[style*="overflow-x:auto"] { overflow: visible !important; }
+  /* Матрица в печати — квадрат 140 мм, иначе на всю ширину страницы она
+     не помещается вместе с заголовком и уходит на следующий лист */
+  .matrix-box { width: 112mm; padding-bottom: 112mm !important; margin: 0 auto; }
+  .participants-table th, .participants-table td { padding: 4px 5px !important; }
+  /* Титульный лист */
+  .print-cover { display:block !important; break-after: page; page-break-after: always; font-family: 'Segoe UI', Arial, sans-serif; color: var(--ink); }
+  .print-cover .cv-logos { display:flex; justify-content:space-between; align-items:center; }
+  .print-cover .cv-logos img { height: 52px; }
+  .print-cover .cv-body { display: grid; grid-template-columns: 1.15fr 1fr; gap: 36px; align-items: start; }
+  .print-cover .cv-kicker { margin-top: 28px; font-size: 14px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-faint); }
+  .print-cover .cv-title { font-size: 34px; font-weight: 800; color: var(--navy); margin: 8px 0 4px; }
+  .print-cover .cv-sub { font-size: 16px; color: var(--ink-soft); }
+  .print-cover .cv-company { font-size: 28px; font-weight: 700; margin: 28px 0 14px; padding-top: 18px; border-top: 2px solid var(--navy); }
+  .print-cover table.cv-meta { border-collapse: collapse; font-size: 14px; }
+  .print-cover table.cv-meta td { padding: 4px 18px 4px 0; vertical-align: top; }
+  .print-cover table.cv-meta td:first-child { color: var(--ink-faint); }
+  .print-cover .cv-toc { margin-top: 28px; padding-top: 18px; border-top: 2px solid var(--navy); }
+  .print-cover .cv-toc h3 { font-size: 16px; color: var(--navy); margin: 0 0 8px; }
+  .print-cover .cv-guide { font-size: 14px; margin: 4px 0 0; }
+  .print-cover .cv-toc ol { margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.8; }
+  .print-cover .cv-note { margin-top: 18px; font-size: 12px; color: var(--ink-faint); }
+  .print-cover .cv-motto { margin-top: 10px; font-size: 13px; font-style: italic; color: var(--ink-faint); }
   body { background:#fff; }
   .card { box-shadow:none !important; border:1px solid var(--cream-d); break-inside: avoid; }
   .matrix-dot[data-tip] { position:absolute !important; } /* точки матрицы не должны съезжать */
@@ -316,6 +366,8 @@ svg.radar{overflow:visible}
 
 <!-- ДАШБОРД -->
 <div id="dashboard">
+  <!-- Титульный лист: только в печати и в Word -->
+  <div id="print-cover" class="print-cover"></div>
   <div class="tabs">
     <button class="tab active" onclick="switchTab('overview')">🏠 Обзор</button>
     <button class="tab" onclick="switchTab('matrix')">🗺 Матрица типов</button>
@@ -325,49 +377,59 @@ svg.radar{overflow:visible}
     <button class="tab" onclick="switchTab('zones')">⚠️ Зоны анализа</button>
     <button class="tab" id="tab-btn-participants" onclick="switchTab('participants')">👥 Участники</button>
     <button class="tab" onclick="switchTab('narrative')">📋 Заключение</button>
+    <button class="tab" onclick="switchTab('guide')">ℹ Как читать</button>
   </div>
 
   <!-- ОБЗОР -->
-  <div id="tab-overview" class="tab-content active" data-print-title="Обзор команды">
+  <div id="tab-overview" class="tab-content active" data-print-title="1. Обзор команды">
     <div class="metrics" id="metrics-overview"></div>
     <div class="grid-2">
       <div class="card">
-        <div class="card-title">Распределение типов</div>
+        <div class="card-title">Ведущий тип мышления</div>
         <div id="chart-types"></div>
       </div>
+      <div class="card">
+        <div class="card-title">Второй после ведущего тип</div>
+        <div id="chart-types2"></div>
+      </div>
+    </div>
+    <div class="grid-2">
       <div class="card">
         <div class="card-title">Уровни зрелости</div>
         <div id="chart-levels-mini"></div>
       </div>
-    </div>
-    <div class="grid-2">
       <div class="card">
         <div class="card-title">Компетенции команды — средние баллы</div>
         <div id="chart-comps-mini"></div>
       </div>
-      <div class="card">
-        <div class="card-title">Временная ориентация — средние значения</div>
-        <div id="chart-temporal-mini"></div>
-      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Временная ориентация — средние значения</div>
+      <div id="chart-temporal-mini"></div>
+    </div>
+
+    <div class="card section-conclusion">
+      <div class="card-title">Аналитическое заключение</div>
+      <div id="concl-overview" class="concl-text"></div>
     </div>
   </div>
 
   <!-- МАТРИЦА -->
-  <div id="tab-matrix" class="tab-content" data-print-title="Матрица нарративных типов">
+  <div id="tab-matrix" class="tab-content" data-print-title="2. Матрица нарративных типов">
     <div class="grid-2">
       <div class="card">
         <div class="card-title">Матрица нарративных типов</div>
-        <div style="position:relative;padding-bottom:100%">
+        <div class="matrix-box" style="position:relative;padding-bottom:100%">
           <div style="position:absolute;inset:0">
             <div class="matrix" id="matrix-chart" style="position:absolute;inset:0;padding:0"></div>
           </div>
         </div>
         <div style="margin-top:12px;display:flex;gap:12px;flex-wrap:wrap">
           <span style="font-size:12px;color:var(--ink-faint)">
-            <span style="color:var(--navy);font-weight:700">●</span> Аналитик
-            <span style="color:var(--green);font-weight:700;margin-left:8px">●</span> Стратег
-            <span style="color:var(--red);font-weight:700;margin-left:8px">●</span> Критик
-            <span style="color:var(--purple);font-weight:700;margin-left:8px">●</span> Драматург
+            <span style="color:#2A78D6;font-weight:700">●</span> Аналитик
+            <span style="color:#008300;font-weight:700;margin-left:8px">●</span> Стратег
+            <span style="color:#6250D6;font-weight:700;margin-left:8px">●</span> Критик
+            <span style="color:#E34948;font-weight:700;margin-left:8px">●</span> Драматург
           </span>
         </div>
       </div>
@@ -376,10 +438,14 @@ svg.radar{overflow:visible}
         <div id="matrix-detail"></div>
       </div>
     </div>
+    <div class="card section-conclusion">
+      <div class="card-title">Аналитическое заключение</div>
+      <div id="concl-matrix" class="concl-text"></div>
+    </div>
   </div>
 
   <!-- УРОВНИ -->
-  <div id="tab-levels" class="tab-content" data-print-title="Уровни зрелости">
+  <div id="tab-levels" class="tab-content" data-print-title="3. Уровни зрелости">
     <div class="grid-2">
       <div class="card">
         <div class="card-title">Распределение по уровням</div>
@@ -394,10 +460,14 @@ svg.radar{overflow:visible}
       <div class="card-title">Критические профили (уровень 1)</div>
       <div id="critical-profiles"></div>
     </div>
+    <div class="card section-conclusion">
+      <div class="card-title">Аналитическое заключение</div>
+      <div id="concl-levels" class="concl-text"></div>
+    </div>
   </div>
 
   <!-- ОРИЕНТАЦИЯ -->
-  <div id="tab-temporal" class="tab-content" data-print-title="Временная ориентация (ZTPI)">
+  <div id="tab-temporal" class="tab-content" data-print-title="4. Временная ориентация (ZTPI)">
     <div class="grid-2">
       <div class="card">
         <div class="card-title">Командный профиль ZTPI</div>
@@ -408,10 +478,14 @@ svg.radar{overflow:visible}
         <div id="temporal-interpretation"></div>
       </div>
     </div>
+    <div class="card section-conclusion">
+      <div class="card-title">Аналитическое заключение</div>
+      <div id="concl-temporal" class="concl-text"></div>
+    </div>
   </div>
 
   <!-- КОМПЕТЕНЦИИ -->
-  <div id="tab-competencies" class="tab-content" data-print-title="Компетенции">
+  <div id="tab-competencies" class="tab-content" data-print-title="5. Компетенции">
     <div class="grid-2">
       <div class="card">
         <div class="card-title">Радар команды</div>
@@ -422,10 +496,14 @@ svg.radar{overflow:visible}
         <div id="comps-by-type"></div>
       </div>
     </div>
+    <div class="card section-conclusion">
+      <div class="card-title">Аналитическое заключение</div>
+      <div id="concl-competencies" class="concl-text"></div>
+    </div>
   </div>
 
   <!-- ЗОНЫ -->
-  <div id="tab-zones" class="tab-content" data-print-title="Зоны анализа — риски, напряжения, ресурсы">
+  <div id="tab-zones" class="tab-content" data-print-title="6. Зоны анализа — риски, напряжения, ресурсы">
     <div class="grid-3">
       <div class="card">
         <div class="card-title" style="color:var(--red)">⚠️ Зоны риска</div>
@@ -444,47 +522,14 @@ svg.radar{overflow:visible}
       <div class="card-title">Сводная таблица анализа</div>
       <div id="zones-summary"></div>
     </div>
-  </div>
-
-  <!-- УЧАСТНИКИ -->
-  <div id="tab-participants" class="tab-content" data-print-title="Участники">
-    <div class="card" style="padding:0;overflow:hidden">
-      <div style="padding:16px 20px;display:flex;gap:12px;align-items:center;
-           border-bottom:1px solid var(--cream-d);flex-wrap:wrap">
-        <select id="filter-type" onchange="renderParticipants()"
-          style="padding:7px 10px;border:1px solid var(--cream-d);border-radius:6px;
-          font-size:13px;font-family:inherit">
-          <option value="">Все типы</option>
-          <option value="Аналитик">Аналитик</option>
-          <option value="Стратег">Стратег</option>
-          <option value="Критик">Критик</option>
-          <option value="Драматург">Драматург</option>
-        </select>
-        <select id="filter-level" onchange="renderParticipants()"
-          style="padding:7px 10px;border:1px solid var(--cream-d);border-radius:6px;
-          font-size:13px;font-family:inherit">
-          <option value="">Все уровни</option>
-          <option value="1">Уровень 1</option>
-          <option value="2">Уровень 2</option>
-          <option value="3">Уровень 3</option>
-          <option value="4">Уровень 4</option>
-        </select>
-        <span id="p-count" style="font-size:13px;color:var(--ink-faint);margin-left:auto"></span>
-      </div>
-      <div style="overflow-x:auto">
-        <table class="data-table">
-          <thead><tr>
-            <th>Имя</th><th>Тип</th><th>Уровень</th><th>Ориентация</th>
-            <th>Балл НИ</th><th>Осозн.</th><th>Авторство</th><th>Резонанс</th>
-            <th>Переосм.</th><th>Воплощ.</th>
-          </tr></thead>
-          <tbody id="participants-tbody"></tbody>
-        </table>
-      </div>
+    <div class="card section-conclusion">
+      <div class="card-title">Аналитическое заключение</div>
+      <div id="concl-zones" class="concl-text"></div>
     </div>
   </div>
 
-  <div id="tab-narrative" class="tab-content" data-print-title="Аналитическое заключение">
+  <!-- УЧАСТНИКИ -->
+  <div id="tab-narrative" class="tab-content" data-print-title="7. Полное аналитическое заключение">
     <div class="card" style="max-width:900px;margin:0 auto">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
         <div class="card-title" style="margin:0">Аналитическое заключение</div>
@@ -512,6 +557,123 @@ svg.radar{overflow:visible}
       <div id="narrative-content" style="font-size:14px;line-height:1.7;color:var(--ink)"></div>
     </div>
   </div>
+  <div id="tab-participants" class="tab-content" data-print-title="8. Участники и результаты исследования">
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="no-print" style="padding:16px 20px;display:flex;gap:12px;align-items:center;
+           border-bottom:1px solid var(--cream-d);flex-wrap:wrap">
+        <select id="filter-type" onchange="renderParticipants()"
+          style="padding:7px 10px;border:1px solid var(--cream-d);border-radius:6px;
+          font-size:13px;font-family:inherit">
+          <option value="">Все типы</option>
+          <option value="Аналитик">Аналитик</option>
+          <option value="Стратег">Стратег</option>
+          <option value="Критик">Критик</option>
+          <option value="Драматург">Драматург</option>
+        </select>
+        <select id="filter-level" onchange="renderParticipants()"
+          style="padding:7px 10px;border:1px solid var(--cream-d);border-radius:6px;
+          font-size:13px;font-family:inherit">
+          <option value="">Все уровни</option>
+          <option value="1">Уровень 1</option>
+          <option value="2">Уровень 2</option>
+          <option value="3">Уровень 3</option>
+          <option value="4">Уровень 4</option>
+        </select>
+        <span id="p-count" style="font-size:13px;color:var(--ink-faint);margin-left:auto"></span>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="data-table participants-table">
+          <thead><tr>
+            <th>Имя</th><th>Отдел</th><th>Ведущий тип</th><th>Второй тип</th><th>Уровень</th><th>Ориентация</th>
+            <th>Балл НИ</th><th>Осозн.</th><th>Авторство</th><th>Резонанс</th>
+            <th>Переосм.</th><th>Воплощ.</th>
+          </tr></thead>
+          <tbody id="participants-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- КАК ЧИТАТЬ ОТЧЁТ -->
+  <div id="tab-guide" class="tab-content" data-print-title="Приложение. Как читать этот отчёт">
+    <div class="card guide">
+      <p><b>Тест TIN™ отвечает на три вопроса.</b> Какой тип нарративного мышления у человека ведущий? Из какого времени
+        он строит свои истории? Насколько осознанно работает со своими нарративами? Групповой отчёт собирает ответы всех
+        участников и показывает команду как систему: из каких способов мышления она складывается, где эти способы
+        усиливают друг друга и где расходятся.</p>
+      <p>Профиль команды — рабочая гипотеза о её текущей точке: паттерны меняются, особенно при целенаправленной работе.
+        Тест не ранжирует: правильного типа, лучшей временной ориентации и обязательного уровня зрелости нет.
+        Отчёт показывает группу; выводы о конкретном человеке из него не делаются.</p>
+    </div>
+    <div class="grid-2">
+      <div class="card guide">
+        <div class="card-title">Четыре типа нарративного мышления</div>
+        <table class="data-table guide-table">
+          <tr><th>Тип</th><th>Главный вопрос</th><th>Как работает со смыслом</th></tr>
+          <tr><td><b style="color:#2A78D6">Аналитик</b></td><td>«Как это устроено?»</td><td>Разбирает смыслы изнутри, ищет закономерности и структуру</td></tr>
+          <tr><td><b style="color:#008300">Стратег</b></td><td>«Что здесь возможно?»</td><td>Видит возможности и переводит их в действие</td></tr>
+          <tr><td><b style="color:#6250D6">Критик</b></td><td>«Что здесь не так?»</td><td>Замечает несоответствия между заявленным и происходящим</td></tr>
+          <tr><td><b style="color:#E34948">Драматург</b></td><td>«Что это значит?»</td><td>Ищет смысл и собирает его в историю</td></tr>
+        </table>
+        <p class="guide-note"><b>Ведущий тип</b> — способ, которым человек работает с нарративом по умолчанию.
+          <b>Второй тип</b> — самый сильный из трёх остальных: к нему человек переходит, когда ведущего способа не хватает.</p>
+      </div>
+      <div class="card guide">
+        <div class="card-title">Как читать матрицу типов</div>
+        <p>Типы различаются по двум осям. <b>Ось ориентации:</b> внутренняя — сначала «что это значит?», потом «что делать?»;
+          внешняя — движение и результат первичны. <b>Ось способа:</b> аналитический — разобрать на элементы и найти структуру;
+          синтетический — собрать новые связи и возможности.</p>
+        <p>Аналитик — внутренний и аналитический, Драматург — внутренний и синтетический, Критик — внешний и аналитический,
+          Стратег — внешний и синтетический. На матрице точка — участник, цвет — его ведущий тип, цифра — уровень зрелости.
+          Чем ближе точка к центру, тем ровнее у человека представлены все четыре способа.</p>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="card guide">
+        <div class="card-title">Уровни нарративной зрелости</div>
+        <table class="data-table guide-table">
+          <tr><th>Уровень</th><th>Формула</th><th>Что это значит</th></tr>
+          <tr><td>1 · Пассивный</td><td>«Я внутри истории»</td><td>Нарратив воспринимается как сама реальность, интерпретация — как факт</td></tr>
+          <tr><td>2 · Осознанный</td><td>«Я вижу историю»</td><td>Различает факт и интерпретацию, замечает свои паттерны</td></tr>
+          <tr><td>3 · Активный</td><td>«Я управляю историей»</td><td>Осознанно строит и меняет свои нарративы</td></tr>
+          <tr><td>4 · Системный</td><td>«Я работаю с системами историй»</td><td>Видит, как взаимодействуют нарративы людей, команд и организации</td></tr>
+        </table>
+      </div>
+      <div class="card guide">
+        <div class="card-title">Временная ориентация (ZTPI, баллы 0–15)</div>
+        <table class="data-table guide-table">
+          <tr><th>Шкала</th><th>Откуда строится история</th></tr>
+          <tr><td>Прошлое-негативное (PN)</td><td>Из болезненного прошлого: ограничивающие интерпретации воспроизводятся автоматически</td></tr>
+          <tr><td>Прошлое-позитивное (PP)</td><td>Из хорошего опыта: прошлое служит опорой и ориентиром</td></tr>
+          <tr><td>Настоящее-фаталистическое (NF)</td><td>Происходящее кажется независящим от человека</td></tr>
+          <tr><td>Настоящее-гедонистическое (NH)</td><td>Яркое проживание момента, слабый горизонт</td></tr>
+          <tr><td>Будущее (F)</td><td>Настоящее объясняется тем, к чему оно ведёт</td></tr>
+        </table>
+        <p class="guide-note"><b>Сбалансированный профиль</b> — ни одна шкала заметно не преобладает.</p>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="card guide">
+        <div class="card-title">Пять компетенций нарративного интеллекта (%)</div>
+        <table class="data-table guide-table">
+          <tr><th>Компетенция</th><th>Что это за умение</th></tr>
+          <tr><td>Осознанность (инвентаризационная)</td><td>Видеть нарратив как конструкцию, различать факт и интерпретацию</td></tr>
+          <tr><td>Авторство (созидательная)</td><td>Осознанно строить историю: героя, путь и финал</td></tr>
+          <tr><td>Резонанс (эмоциональная)</td><td>Распознавать эмоциональное измерение своих и чужих историй</td></tr>
+          <tr><td>Переосмысление (трансформационная)</td><td>Менять смысл события, оставляя факт прежним</td></tr>
+          <tr><td>Воплощение (интеграционная)</td><td>Переводить новый нарратив в реальное поведение</td></tr>
+        </table>
+      </div>
+      <div class="card guide">
+        <div class="card-title">Зоны анализа и заключения</div>
+        <p><b>Зоны риска</b> — системные уязвимости команды: слепые зоны, монокультура, перекосы во времени.
+          <b>Зоны напряжения</b> — места, где к одному решению приходят разными путями: противоположные типы, разрыв уровней.
+          <b>Скрытые ресурсы</b> — то, что в команде есть, но используется не полностью.</p>
+        <p>После каждого раздела стоит <b>аналитическое заключение</b>, в конце — полное заключение с рекомендациями.
+          На титульном листе указано, какие заключения вошли в отчёт: глубокое описание (AI) или краткое описание.</p>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="tooltip" id="tooltip"></div>
@@ -525,9 +687,11 @@ let KEYMAP = {};        // код -> {name, email} из ключ-файла фа
 let GROUP_SAFE = true;  // режим показа группе; включён по умолчанию, выбор помнится в браузере
 let LAST_RAW = null;    // последний распарсенный CSV с данными (для повторной сшивки после загрузки ключ-файла)
 
+// Яркие цвета: прежние тёмные плохо различались в печати (Аналитик и Стратег
+// сливались). Те же цвета, что в графиках HENDERSON для слайдов.
 const TYPE_COLOR = {
-  'Аналитик':'#1E3A5F','Стратег':'#2D6A4F',
-  'Критик':'#C8432A','Драматург':'#5A2D82'
+  'Аналитик':'#2A78D6','Стратег':'#008300',
+  'Критик':'#6250D6','Драматург':'#E34948'
 };
 const TYPE_KEY = {
   'Аналитик':'A','Стратег':'B','Критик':'C','Драматург':'D'
@@ -823,7 +987,17 @@ function applyName(r) {
 // Строка проходит, если есть имя, email ИЛИ код (для обезличенных данных без ключ-файла).
 function buildData() {
   if (!LAST_RAW) return [];
-  return LAST_RAW.map(mapRow).map(applyName).filter(r => r.name || r.email || r.code);
+  return LAST_RAW.map(mapRow).map(applyName).map(withSecondType).filter(r => r.name || r.email || r.code);
+}
+
+// Второй тип — самый сильный из трёх остальных по баллам участника. Без сырых
+// баллов (старый экспорт) второго типа нет.
+function withSecondType(r) {
+  const sc = { 'Аналитик': r.scoreAnalytic, 'Стратег': r.scoreStrateg, 'Критик': r.scoreCritic, 'Драматург': r.scoreDramaturg };
+  delete sc[r.type];
+  const best = Object.entries(sc).sort((a, b) => (b[1] || 0) - (a[1] || 0))[0];
+  r.secondType = best && best[1] > 0 ? best[0] : '';
+  return r;
 }
 
 // Загрузка ключ-файла фасилитатора (код ↔ имя). Имена в общую базу не сохраняются —
@@ -879,7 +1053,9 @@ function loadCsvText(text) {
     // Проверка: файл должен относиться к одной группе, иначе групповой отчёт будет некорректным
     const groupValues = [...new Set(DATA.map(r => r.group).filter(g => g))];
     let groupWarning = '';
-    if (groupValues.length > 1) {
+    // Выгрузка по компании из дашборда законно содержит её отделы.
+    const fromDashboard = !!new URLSearchParams(location.search).get('group');
+    if (groupValues.length > 1 && !fromDashboard) {
       groupWarning = `⚠️ В файле обнаружено ${groupValues.length} разных групп (${groupValues.join(', ')}). ` +
         `Похоже, загружен не групповой CSV, а общий экспорт по нескольким группам — весь отчёт ниже будет ` +
         `посчитан по смешанным данным. Проверьте, что при выгрузке в разделе «Участники» была выбрана ровно одна группа.`;
@@ -892,7 +1068,7 @@ function loadCsvText(text) {
     document.getElementById('upload-zone').style.display = 'none';
     document.getElementById('dashboard').style.display = 'block';
     document.getElementById('team-name').textContent =
-      DATA[0].group ? 'Группа: ' + DATA[0].group : DATA.length + ' участников';
+      reportName() ? 'Группа: ' + reportName() : DATA.length + ' участников';
 
     // Постоянный баннер — виден, даже если alert() закрыли не читая
     let banner = document.getElementById('group-warning-banner');
@@ -915,7 +1091,7 @@ function loadCsvText(text) {
 // ═══════════════════════════════════════════════════════════
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t,i) => {
-    const tabs = ['overview','matrix','levels','temporal','competencies','zones','participants','narrative'];
+    const tabs = ['overview','matrix','levels','temporal','competencies','zones','participants','narrative','guide'];
     t.classList.toggle('active', tabs[i] === name);
   });
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -945,7 +1121,7 @@ function injectPrintChrome() {
     if (tab.classList.contains('print-chrome-injected')) return;
     tab.classList.add('print-chrome-injected');
 
-    const isOverview = tab.id === 'tab-overview';
+    const isOverview = false;   // логотип и название — на отдельном титульном листе
     const isNarrative = tab.id === 'tab-narrative';
 
     // Логотип ADIN — только на первой странице (Обзор). Логотип GTIN — только
@@ -953,13 +1129,7 @@ function injectPrintChrome() {
     // (Матрица, Уровни, Ориентация, Компетенции, Зоны, Участники) логотипа
     // и шапки нет вообще — только их обычный заголовок раздела через
     // data-print-title (см. .tab-content::before в CSS).
-    if (!isOverview && !isNarrative) {
-      const footer = document.createElement('div');
-      footer.className = 'print-footer';
-      footer.textContent = '© ' + new Date().getFullYear() + ' Association de l\'Intelligence Narrative®. Все права защищены. Документ конфиденциален — предназначен только для внутреннего использования заказчиком.';
-      tab.appendChild(footer);
-      return;
-    }
+    if (!isOverview && !isNarrative) return;   // подвал и номер страницы — в @page
 
     // --- Строка 1: логотип ---
     const header = document.createElement('div');
@@ -1003,11 +1173,6 @@ function injectPrintChrome() {
       tab.insertBefore(title, lastInserted.nextSibling);
     }
 
-    // --- Подвал — на каждой странице без исключения ---
-    const footer = document.createElement('div');
-    footer.className = 'print-footer';
-    footer.textContent = '© ' + new Date().getFullYear() + ' Association de l\'Intelligence Narrative®. Все права защищены. Документ конфиденциален — предназначен только для внутреннего использования заказчиком.';
-    tab.appendChild(footer);
   });
 }
 
@@ -1141,6 +1306,7 @@ function exportReportRtf() {
 
   const walk = el => {
     for (const node of el.children) {
+      if (node.classList.contains('rtf-skip') || node.classList.contains('no-print')) continue;
       if (node.classList.contains('bar-row')) { emitBar(node); continue; }
       if (node.tagName === 'TABLE') { emitTable(node); continue; }
       if (node.id === 'radar-chart' || node.querySelector(':scope > svg')) {
@@ -1191,9 +1357,32 @@ function exportReportRtf() {
     }
   };
 
+  // Титульный лист
+  renderCover();
+  body += rtfPara('ГРУППОВОЙ ОТЧЁТ TIN™', { size: 11, color: FAINT, after: 60 });
+  body += rtfPara('Карта команды', { size: 26, bold: true, color: NAVY, after: 60 });
+  body += rtfPara('Диагностика команды как системы: типы мышления, зрелость, время, компетенции', { size: 12, color: SOFT, after: 360 });
+  body += rtfPara(reportName() || 'Команда', { size: 20, bold: true, after: 200 });
+  const coverDepts = [...new Set(DATA.map(r => r.group).filter(Boolean))];
+  [['Дата отчёта', new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })],
+   ['Участников', String(DATA.length)],
+   ...(coverDepts.length > 1 ? [['Отделов', String(coverDepts.length)]] : []),
+   ['Заключения', window._deepResult ? 'глубокое описание (AI)' : 'краткое описание'],
+   ['Версия', reportVersion()]].forEach(([k, v]) => {
+    body += rtfRow([{ text: k, w: RTF_WIDTH * 0.3, color: FAINT }, { text: v, w: RTF_WIDTH * 0.7 }]);
+  });
+  body += rtfPara('', { after: 200 });
+  body += rtfPara('Содержание', { size: 13, bold: true, color: NAVY, after: 80 });
+  reportToc().forEach((t, i) => { body += rtfPara((i + 1) + '. ' + t, { size: 11, after: 40 }); });
+  body += rtfPara('Приложение. Как читать этот отчёт', { size: 11, after: 40 });
+  body += rtfPara('', { after: 200 });
+  body += rtfPara('Подготовлено: Association de l\u2019Intelligence Narrative\u00ae. Документ конфиденциален — предназначен только для внутреннего использования заказчиком.', { size: 9, color: FAINT });
+  body += '\\page\n';
+
   const tabs = [...src.querySelectorAll('.tab-content')].filter(t => !t.classList.contains('safe-hidden'));
+  const BREAK_BEFORE = ['tab-narrative', 'tab-participants', 'tab-guide'];
   tabs.forEach((tab, i) => {
-    if (i) body += '\\page\n';
+    if (i && BREAK_BEFORE.includes(tab.id)) body += '\\page\n';
     const title = tab.getAttribute('data-print-title');
     if (title) body += rtfPara(title, { size: 16, bold: true, color: NAVY, after: 160 });
     walk(tab);
@@ -1217,6 +1406,7 @@ function exportReportRtf() {
 }
 
 function printReport() {
+  renderCover();
   injectPrintChrome();
   window.print();
 }
@@ -1265,6 +1455,52 @@ function tooltip(el, text) {
 // ═══════════════════════════════════════════════════════════
 // РЕНДЕР
 // ═══════════════════════════════════════════════════════════
+// Название компании: из дашборда (?name=), иначе общая группа файла.
+function reportName() {
+  const fromUrl = new URLSearchParams(location.search).get('name');
+  if (fromUrl) return fromUrl;
+  const groups = [...new Set(DATA.map(r => r.group).filter(Boolean))];
+  return groups.length === 1 ? groups[0] : '';
+}
+function reportVersion() {
+  if (GROUP_SAFE) return 'Версия для показа группе — без имён и кодов участников';
+  if (Object.keys(KEYMAP).length) return 'Версия с именами участников — строго конфиденциально';
+  return 'Обезличенная версия — участники указаны кодами';
+}
+function reportToc() {
+  const toc = ['Обзор команды', 'Матрица нарративных типов', 'Уровни зрелости', 'Временная ориентация (ZTPI)',
+               'Компетенции', 'Зоны анализа — риски, напряжения, ресурсы', 'Полное аналитическое заключение'];
+  if (!GROUP_SAFE) toc.push('Участники и результаты исследования');
+  return toc;
+}
+function renderCover() {
+  const el = document.getElementById('print-cover');
+  if (!el || !DATA.length) return;
+  const name = reportName();
+  const depts = [...new Set(DATA.map(r => r.group).filter(Boolean))];
+  const date = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+  const conclusion = window._deepResult ? 'глубокое описание (AI)' : 'краткое описание';
+  el.innerHTML = `
+    <div class="cv-logos"><img src="${PRINT_LOGO_ADIN_B64}" alt="ADIN"><img src="${PRINT_LOGO_GTIN_B64}" alt="GTIN"></div>
+    <div class="cv-kicker">Групповой отчёт TIN™</div>
+    <div class="cv-title">Карта команды</div>
+    <div class="cv-sub">Диагностика команды как системы: типы мышления, зрелость, время, компетенции</div>
+    <div class="cv-body"><div>
+    <div class="cv-company">${name || 'Команда'}</div>
+    <table class="cv-meta">
+      <tr><td>Дата отчёта</td><td>${date}</td></tr>
+      <tr><td>Участников</td><td>${DATA.length}</td></tr>
+      ${depts.length > 1 ? `<tr><td>Отделов</td><td>${depts.length}</td></tr>` : ''}
+      <tr><td>Заключения</td><td>${conclusion}</td></tr>
+      <tr><td>Версия</td><td>${reportVersion()}</td></tr>
+    </table></div>
+    <div class="cv-toc"><h3>Содержание</h3><ol>${reportToc().map(t => `<li>${t}</li>`).join('')}</ol><div class="cv-guide">Приложение. Как читать этот отчёт</div></div>
+    </div>
+    <div class="cv-note">Подготовлено: Association de l'Intelligence Narrative®. Документ конфиденциален —
+      предназначен только для внутреннего использования заказчиком.</div>
+    <div class="cv-motto">«${PRINT_MOTTO}»</div>`;
+}
+
 function renderAll() {
   renderOverview();
   renderMatrix();
@@ -1274,6 +1510,40 @@ function renderAll() {
   renderZones();
   renderParticipants();
   renderNarrative();
+  renderCover();
+}
+
+// ── КОЛЬЦО ТИПОВ ───────────────────────────────────────────
+// Кольцо с подписями «тип — %» справа. Рядом скрытая таблица: её берёт
+// выгрузка в Word, где SVG не переносится.
+const TYPE_ORDER = ['Аналитик', 'Стратег', 'Критик', 'Драматург'];
+function donutChart(el, counts, emptyText) {
+  if (!el) return;
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  if (!total) { el.innerHTML = '<p style="color:var(--ink-faint);font-size:13px">' + (emptyText || 'Нет данных') + '</p>'; return; }
+  const items = TYPE_ORDER.map(t => ({ t, v: counts[t] || 0 }));
+  const R = 80, r = 50, cx = 100, cy = 100;
+  let a0 = -Math.PI / 2, paths = '';
+  items.filter(i => i.v).forEach(i => {
+    const frac = i.v / total, a1 = a0 + frac * 2 * Math.PI;
+    const large = frac > 0.5 ? 1 : 0;
+    const pt = (rad, ang) => (cx + rad * Math.cos(ang)).toFixed(2) + ' ' + (cy + rad * Math.sin(ang)).toFixed(2);
+    if (frac >= 0.9999) {
+      paths += `<circle cx="${cx}" cy="${cy}" r="${(R + r) / 2}" fill="none" stroke="${TYPE_COLOR[i.t]}" stroke-width="${R - r}"/>`;
+    } else {
+      paths += `<path d="M ${pt(R, a0)} A ${R} ${R} 0 ${large} 1 ${pt(R, a1)} L ${pt(r, a1)} A ${r} ${r} 0 ${large} 0 ${pt(r, a0)} Z"
+        fill="${TYPE_COLOR[i.t]}" stroke="#fff" stroke-width="2"/>`;
+    }
+    a0 = a1;
+  });
+  const pct = v => Math.round(100 * v / total) + '%';
+  el.innerHTML = `<div class="donut-box">
+      <div class="donut-svg"><svg width="200" height="200" viewBox="0 0 200 200">${paths}</svg></div>
+      <div class="donut-legend rtf-skip">${items.map(i =>
+        `<div><span class="dot" style="background:${TYPE_COLOR[i.t]}"></span><b>${i.t}</b> — ${pct(i.v)}</div>`).join('')}</div>
+      <table class="donut-data"><tr><th>Тип</th><th>Доля участников</th></tr>${items.map(i =>
+        `<tr><td>${i.t}</td><td>${pct(i.v)}</td></tr>`).join('')}</table>
+    </div>`;
 }
 
 // ── ОБЗОР ──────────────────────────────────────────────────
@@ -1299,12 +1569,10 @@ function renderOverview() {
       <div class="metric-sub">${m.s}</div>
     </div>`).join('');
 
-  // Типы
-  const typeItems = Object.entries(types).sort((a,b)=>b[1]-a[1]).map(([k,v])=>({
-    label:k, val:v, color:TYPE_COLOR[k]||'#888',
-    suffix: v+' ('+Math.round(v/n*100)+'%)'
-  }));
-  barChart(document.getElementById('chart-types'), typeItems, n);
+  // Типы: ведущий и второй — кольцами, только проценты
+  donutChart(document.getElementById('chart-types'), countBy(DATA, 'type'));
+  donutChart(document.getElementById('chart-types2'), countBy(DATA.filter(r => r.secondType), 'secondType'),
+    'Нет сырых баллов по типам — второй тип не вычисляется.');
 
   // Уровни
   const lvls = {1:0,2:0,3:0,4:0};
@@ -1963,6 +2231,13 @@ function renderNarrative() {
   const resourcesText = z.resources.map(stripTags).join(' ');
   paragraphs.push(['Скрытые ресурсы', resourcesText]);
 
+  // Краткие тексты по разделам — для заключений после каждого раздела,
+  // пока нет AI-описания. Перерисовка данных сбрасывает AI-тексты: они
+  // написаны по прежним данным или по прежнему режиму показа.
+  window._shortSections = { overview: p1, types: p2, levels: p3, temporal: p4, comps: p5,
+    risks: risksText, conflicts: conflictsText, resources: resourcesText };
+  window._deepResult = null;
+
   document.getElementById('narrative-content').innerHTML = paragraphs.map(([title, text]) => `
     <h3 style="font-size:15px;font-weight:700;color:var(--navy);margin:20px 0 8px">${title}</h3>
     <p style="margin:0 0 8px">${text}</p>
@@ -1974,6 +2249,28 @@ function renderNarrative() {
   window._narrativeMode = 'short';
   const modeLabel = document.getElementById('narrative-mode-label');
   if (modeLabel) modeLabel.textContent = 'Краткое описание';
+  fillConclusions();
+}
+
+// Заключение после каждого раздела: из AI-описания, если оно получено, иначе
+// краткие тексты, которые карта считает сама.
+function fillConclusions() {
+  const ai = window._deepResult, sh = window._shortSections || {};
+  const join = (...xs) => xs.filter(x => x && String(x).trim()).join(' ');
+  const map = {
+    overview:     ai ? ai.type_landscape        : join(sh.overview, sh.types),
+    matrix:       ai ? ai.conflicts_synthesis   : sh.conflicts,
+    levels:       ai ? ai.maturity_landscape    : sh.levels,
+    temporal:     ai ? ai.temporal_landscape    : sh.temporal,
+    competencies: ai ? ai.competency_landscape  : sh.comps,
+    zones:        ai ? join(ai.risks_synthesis, ai.resources_synthesis) : join(sh.risks, sh.resources),
+  };
+  Object.entries(map).forEach(([k, text]) => {
+    const el = document.getElementById('concl-' + k);
+    if (!el) return;
+    el.innerHTML = text ? `<p>${text}</p><div class="concl-src rtf-skip">${ai ? 'Глубокое описание (AI)' : 'Краткое описание'}</div>`
+                        : '<p style="color:var(--ink-faint)">Нет данных для заключения.</p>';
+  });
 }
 
 // ── КЛЮЧ ДОСТУПА К AI-ГЕНЕРАЦИИ ────────────────────────────────────────────────
@@ -2017,6 +2314,8 @@ function restoreShortNarrative() {
   document.getElementById('narrative-ai-status').style.display = 'none';
   window._narrativeMode = 'short';
   document.getElementById('narrative-mode-label').textContent = 'Краткое описание';
+  window._deepResult = null;
+  fillConclusions();
 }
 
 // Инструмент, открытый как файл с диска, до сервера не достучится: origin
@@ -2265,6 +2564,8 @@ async function generateDeepNarrative() {
 
     document.getElementById('narrative-content').innerHTML = html;
     window._narrativeMode = 'deep';
+    window._deepResult = result;
+    fillConclusions();
     document.getElementById('narrative-mode-label').textContent = 'Глубокое описание (AI)';
   } catch (err) {
     statusEl.style.display = 'block';
@@ -2307,7 +2608,9 @@ function renderParticipants() {
     filtered.map(r => `<tr>
       <td><strong>${r.name||r.email||'—'}</strong>${r.name&&r.email
         ? `<br><span style="font-size:11px;color:var(--ink-faint)">${r.email}</span>` : ''}</td>
+      <td style="font-size:12px">${r.group||'—'}</td>
       <td><span class="badge badge-${TYPE_KEY[r.type]||'A'}">${r.type||'—'}</span></td>
+      <td style="font-size:12px">${r.secondType||'—'}</td>
       <td><span class="badge badge-${r.level||1}">${r.levelName||'Ур.'+r.level||'—'}</span></td>
       <td style="font-size:12px">${r.temporal||'—'}</td>
       <td><strong>${r.score||'—'}</strong></td>
@@ -2317,7 +2620,7 @@ function renderParticipants() {
       <td>${r.reframing?r.reframing+'%':'—'}</td>
       <td>${r.embodiment?r.embodiment+'%':'—'}</td>
     </tr>`).join('') ||
-    '<tr><td colspan="10" style="text-align:center;color:var(--ink-faint);padding:32px">Нет данных</td></tr>';
+    '<tr><td colspan="12" style="text-align:center;color:var(--ink-faint);padding:32px">Нет данных</td></tr>';
 }
 </script>
 </body>

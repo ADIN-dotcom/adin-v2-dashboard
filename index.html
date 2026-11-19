@@ -3266,7 +3266,15 @@ function exportGroupCSV() { return downloadTinCsv($('ni-group-filter').value); }
 function openTinGroupReport() {
   const group = $('ni-group-filter').value;
   if (!group) { toast('Выберите группу или отдел', true); return; }
-  window.open('ADIN_Team_Dashboard_v21.html?group=' + encodeURIComponent(group), '_blank');
+  // Название — для титульного листа отчёта: в выгрузке по компании строки несут
+  // имена отделов. Отдел подписывается вместе с компанией.
+  const g = GROUPS.find(x => String(x.id) === String(group));
+  const parent = g && g.parent_id != null ? GROUPS.find(x => String(x.id) === String(g.parent_id)) : null;
+  const sel = $('ni-group-filter');
+  const name = g ? (parent ? parent.name.trim() + ' · ' + g.name.trim() : g.name.trim())
+                 : (sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].textContent.trim() : '');
+  window.open('ADIN_Team_Dashboard_v21.html?group=' + encodeURIComponent(group) +
+    (name ? '&name=' + encodeURIComponent(name) : ''), '_blank');
 }
 
 async function exportCSV() {
