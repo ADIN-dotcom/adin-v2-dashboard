@@ -74,12 +74,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
 .safe-toggle input{vertical-align:middle;margin-right:4px}
 
 /* ── ПЕЧАТЬ / PDF ── */
-@page {
-  size: landscape;
-  margin: 12mm 12mm 14mm;
-  @bottom-left { content: "© Association de l'Intelligence Narrative® · Документ конфиденциален"; font-size: 8pt; color: #8888a8; }
-  @bottom-right { content: "стр. " counter(page); font-size: 8pt; color: #8888a8; }
-}
+/* Общая часть для всех браузеров. Альбомная ориентация и подвал с номером
+   страницы — отдельным стилем только не для Safari (см. applyPageStyle):
+   19.11.2026 Safari дважды падал в окне печати и при «Экспортировать как PDF»
+   на этой странице (сбой раскладки окна печати macOS, PrintingUI). */
+@page { margin: 12mm 12mm 14mm; }
 
 /* Печатные шапка/подвал — на экране не показываются, встраиваются в поток
    каждой страницы через JS (injectPrintChrome) прямо перед печатью. Не
@@ -177,6 +176,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
   /* Матрица в печати — квадрат 140 мм, иначе на всю ширину страницы она
      не помещается вместе с заголовком и уходит на следующий лист */
   .matrix-box { width: 112mm; padding-bottom: 112mm !important; margin: 0 auto; }
+  html.print-portrait #tab-matrix .grid-2 { display:block !important; }
+  html.print-portrait .matrix-box { width: 120mm; padding-bottom: 120mm !important; }
+  html.print-portrait .donut-svg svg { width: 150px; height: 150px; }
+  html.print-portrait .donut-legend { font-size: 12px; }
+  html.print-portrait .print-cover .cv-body { grid-template-columns: 1fr; gap: 0; }
+  html.print-portrait .participants-table, html.print-portrait .participants-table td,
+  html.print-portrait .participants-table td * { font-size: 8px !important; }
+  html.print-portrait .participants-table th { font-size: 7px !important; }
+  html.print-portrait .participants-table th, html.print-portrait .participants-table td { padding: 3px 3px !important; }
+  html.print-portrait .participants-table td:first-child { min-width: 70px; }
+  html.print-portrait .participants-table .badge { font-size: 7.5px !important; padding: 1px 4px !important; }
   .participants-table th, .participants-table td { padding: 4px 5px !important; }
   /* Титульный лист */
   .print-cover { display:block !important; break-after: page; page-break-after: always; font-family: 'Segoe UI', Arial, sans-serif; color: var(--ink); }
@@ -2354,6 +2364,23 @@ function renderKeyState() {
 }
 
 document.addEventListener('DOMContentLoaded', renderKeyState);
+
+// Альбомный лист и подвал с номером страницы — только там, где они не роняют
+// печать. Safari (и ?portrait для проверки) печатает обычным книжным листом
+// без принудительной ориентации: вёрстка рассчитана и на него.
+const IS_SAFARI = /^((?!chrome|chromium|crios|fxios|android|edg).)*safari/i.test(navigator.userAgent);
+function applyPageStyle() {
+  if (IS_SAFARI || new URLSearchParams(location.search).has('portrait')) {
+    document.documentElement.classList.add('print-portrait');
+    return;
+  }
+  const st = document.createElement('style');
+  st.textContent = '@page { size: landscape; ' +
+    '@bottom-left { content: "© Association de l\'Intelligence Narrative® · Документ конфиденциален"; font-size: 8pt; color: #8888a8; } ' +
+    '@bottom-right { content: "стр. " counter(page); font-size: 8pt; color: #8888a8; } }';
+  document.head.appendChild(st);
+}
+applyPageStyle();
 
 // ── РЕЖИМ ПОКАЗА ГРУППЕ ──────────────────────────────────────────────────────
 // Карту показывают на экране той самой группе, и по именам или кодам в
