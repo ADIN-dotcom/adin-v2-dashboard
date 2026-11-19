@@ -1042,6 +1042,7 @@ function handleFile(file) {
 
 // Общий разбор выгрузки: из файла (handleFile) и с сервера (loadFromDashboard).
 function loadCsvText(text) {
+    window._deepResult = null;   // новые данные — прежний AI-текст к ним не относится
     LAST_RAW = parseCSV(text);
     DATA = buildData();
 
@@ -2232,11 +2233,14 @@ function renderNarrative() {
   paragraphs.push(['Скрытые ресурсы', resourcesText]);
 
   // Краткие тексты по разделам — для заключений после каждого раздела,
-  // пока нет AI-описания. Перерисовка данных сбрасывает AI-тексты: они
-  // написаны по прежним данным или по прежнему режиму показа.
+  // пока нет AI-описания.
   window._shortSections = { overview: p1, types: p2, levels: p3, temporal: p4, comps: p5,
     risks: risksText, conflicts: conflictsText, resources: resourcesText };
-  window._deepResult = null;
+  // AI-текст, полученный в режиме «Показ группе», построен только по числам —
+  // людей в нём нет, он годится и для версии с именами, поэтому загрузка
+  // ключ-файла и снятие галочки его не сбрасывают. Текст, полученный вне
+  // этого режима, мог назвать людей: при включении «Показ группе» он уходит.
+  if (window._deepResult && !window._deepSafe && GROUP_SAFE) window._deepResult = null;
 
   document.getElementById('narrative-content').innerHTML = paragraphs.map(([title, text]) => `
     <h3 style="font-size:15px;font-weight:700;color:var(--navy);margin:20px 0 8px">${title}</h3>
@@ -2249,6 +2253,7 @@ function renderNarrative() {
   window._narrativeMode = 'short';
   const modeLabel = document.getElementById('narrative-mode-label');
   if (modeLabel) modeLabel.textContent = 'Краткое описание';
+  if (window._deepResult) showDeepNarrative(window._deepResult);
   fillConclusions();
 }
 
@@ -2483,6 +2488,14 @@ async function generateDeepNarrative() {
   }
   if (!DATA || DATA.length === 0) return;
 
+  // С загруженным ключ-файлом и снятой галочкой в запрос к модели уходят
+  // имена из «Скрытых ресурсов». Тот же текст без людей получается в режиме
+  // «Показ группе» и потом сохраняется при загрузке имён.
+  if (!GROUP_SAFE && Object.keys(KEYMAP).length &&
+      !confirm('Загружены имена, а «Показ группе» выключен: имена участников попадут в запрос к модели.\n\n' +
+               'Рекомендуем: включить «Показ группе», получить AI-описание, затем снять галочку — ' +
+               'заключения сохранятся, а имена останутся только в вашем браузере.\n\nОтправить запрос с именами?')) return;
+
   btn.disabled = true;
   btn.textContent = '⏳ Генерируется…';
   statusEl.style.display = 'none';
@@ -2537,6 +2550,21 @@ async function generateDeepNarrative() {
       return;
     }
 
+    window._deepResult = result;
+    window._deepSafe = GROUP_SAFE;
+    showDeepNarrative(result);
+    fillConclusions();
+    renderCover();
+  } catch (err) {
+    statusEl.style.display = 'block';
+    statusEl.innerHTML = `<div class="zone zone-risk"><div class="zone-items">⚠️ Ошибка соединения с сервером — показано краткое описание.</div></div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🤖 Глубокое описание (AI)';
+  }
+}
+
+function showDeepNarrative(result) {
     const sections = [
       ['Портрет команды', result.team_essence],
       ['Распределение типов', result.type_landscape],
@@ -2564,17 +2592,10 @@ async function generateDeepNarrative() {
 
     document.getElementById('narrative-content').innerHTML = html;
     window._narrativeMode = 'deep';
-    window._deepResult = result;
-    fillConclusions();
-    document.getElementById('narrative-mode-label').textContent = 'Глубокое описание (AI)';
-  } catch (err) {
-    statusEl.style.display = 'block';
-    statusEl.innerHTML = `<div class="zone zone-risk"><div class="zone-items">⚠️ Ошибка соединения с сервером — показано краткое описание.</div></div>`;
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '🤖 Глубокое описание (AI)';
-  }
+    const label = document.getElementById('narrative-mode-label');
+    if (label) label.textContent = 'Глубокое описание (AI)';
 }
+
 
 function downloadNarrativeTxt() {
   const z = computeZones();
