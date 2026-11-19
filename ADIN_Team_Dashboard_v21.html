@@ -56,6 +56,44 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
 .tab:hover:not(.active){background:var(--cream)}
 .tab-content{display:none}.tab-content.active{display:block}
 .print-cover{display:none}
+/* Титульный лист: оформление общее для печати и для «Скачать PDF» */
+.print-cover .cv-logos { display:flex; justify-content:space-between; align-items:center; }
+.print-cover .cv-logos img { height: 52px; }
+.print-cover .cv-body { display: grid; grid-template-columns: 1.15fr 1fr; gap: 36px; align-items: start; }
+.print-cover .cv-kicker { margin-top: 28px; font-size: 14px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-faint); }
+.print-cover .cv-title { font-size: 34px; font-weight: 800; color: var(--navy); margin: 8px 0 4px; }
+.print-cover .cv-sub { font-size: 16px; color: var(--ink-soft); }
+.print-cover .cv-company { font-size: 28px; font-weight: 700; margin: 28px 0 14px; padding-top: 18px; border-top: 2px solid var(--navy); }
+.print-cover table.cv-meta { border-collapse: collapse; font-size: 14px; }
+.print-cover table.cv-meta td { padding: 4px 18px 4px 0; vertical-align: top; }
+.print-cover table.cv-meta td:first-child { color: var(--ink-faint); }
+.print-cover .cv-toc { margin-top: 28px; padding-top: 18px; border-top: 2px solid var(--navy); }
+.print-cover .cv-toc h3 { font-size: 16px; color: var(--navy); margin: 0 0 8px; }
+.print-cover .cv-guide { font-size: 14px; margin: 4px 0 0; }
+.print-cover .cv-toc ol { margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.8; }
+.print-cover .cv-note { margin-top: 18px; font-size: 12px; color: var(--ink-faint); }
+.print-cover .cv-motto { margin-top: 10px; font-size: 13px; font-style: italic; color: var(--ink-faint); }
+/* ── Сборка PDF на странице (downloadPdf): та же раскладка, что в печати ── */
+html.pdf-render body{background:#fff}
+html.pdf-render .tabs, html.pdf-render .header, html.pdf-render .upload-zone, html.pdf-render .no-print,
+html.pdf-render .narrative-toolbar, html.pdf-render #narrative-ai-status, html.pdf-render .tab-content.safe-hidden,
+html.pdf-render .tooltip, html.pdf-render #group-warning-banner, html.pdf-render #remote-status{display:none !important}
+html.pdf-render #dashboard{display:block !important}
+html.pdf-render .tab-content{display:block !important;margin-bottom:10px}
+html.pdf-render .print-cover{display:block !important;padding:28px 34px;background:#fff;font-family:'Segoe UI',Arial,sans-serif;color:var(--ink)}
+html.pdf-render .pdf-title{font-size:22px;font-weight:700;color:var(--navy);border-bottom:2px solid var(--navy);padding-bottom:8px;margin:0 0 14px;font-family:'Segoe UI',Arial,sans-serif}
+html.pdf-render .card{box-shadow:none !important;border:1px solid var(--cream-d)}
+html.pdf-render .grid-2{display:grid !important;grid-template-columns:1fr 1fr !important;gap:12px !important;margin-bottom:12px !important}
+html.pdf-render .matrix-box{width:430px;padding-bottom:430px !important;margin:0 auto}
+html.pdf-render.pdf-portrait #tab-matrix .grid-2{display:block !important}
+html.pdf-render.pdf-portrait .print-cover .cv-body{grid-template-columns:1fr;gap:0}
+html.pdf-render.pdf-portrait .donut-svg svg{width:150px;height:150px}
+html.pdf-render .participants-table{font-size:11px}
+html.pdf-render .participants-table th{letter-spacing:0 !important;font-size:9px !important;white-space:normal !important}
+html.pdf-render.pdf-portrait .participants-table, html.pdf-render.pdf-portrait .participants-table td,
+html.pdf-render.pdf-portrait .participants-table td *{font-size:9px !important}
+html.pdf-render #tab-participants div[style*="overflow-x:auto"]{overflow:visible !important}
+.pdf-footer{position:fixed;left:-9999px;top:0;font:11px 'Segoe UI',Arial,sans-serif;color:#8888a8;white-space:nowrap;background:#fff;padding:2px 0}
 .section-conclusion{margin-top:16px;background:#F6F8FB}
 .concl-text{font-size:14px;line-height:1.7;color:var(--ink)}
 .concl-text p{margin:0 0 8px}
@@ -96,7 +134,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
   }
   /* Скрываем всё интерактивное — кнопки, вкладки, загрузку, обычную экранную
      шапку и панель инструментов текстового отчёта (AI/скачать/ключ) */
-  .tabs, .upload-zone, #pdf-btn, #doc-btn, #keyfile-btn, .btn-upload, .header, .narrative-toolbar, #narrative-ai-status { display:none !important; }
+  .tabs, .upload-zone, #pdf-btn, #doc-btn, #pdfdl-btn, #pdf-orient, #keyfile-btn, .btn-upload, .header, .narrative-toolbar, #narrative-ai-status { display:none !important; }
 
   .print-header {
     display: flex !important;
@@ -330,8 +368,21 @@ svg.radar{overflow:visible}
       font-size:13px;font-weight:500;cursor:pointer;font-family:inherit"
       onmouseover="this.style.background='rgba(255,255,255,.25)'"
       onmouseout="this.style.background='rgba(255,255,255,.15)'">
-      📄 PDF-отчёт
+      🖨 Печать
     </button>
+    <button id="pdfdl-btn" onclick="downloadPdf()"
+      style="margin-left:8px;padding:6px 14px;background:#fff;
+      color:var(--navy);border:1px solid #fff;border-radius:6px;
+      font-size:13px;font-weight:600;cursor:pointer;font-family:inherit"
+      title="Готовый PDF-файл без окна печати браузера — работает и в Safari">
+      ⬇ Скачать PDF
+    </button>
+    <select id="pdf-orient" title="Ориентация листа PDF"
+      style="margin-left:4px;padding:5px 6px;border-radius:6px;border:1px solid rgba(255,255,255,.35);
+      background:rgba(255,255,255,.15);color:#fff;font-size:12px;font-family:inherit">
+      <option value="landscape" style="color:#000">A4 альбом</option>
+      <option value="portrait" style="color:#000">A4 книжный</option>
+    </select>
     <button id="doc-btn" onclick="exportReportRtf()"
       style="margin-left:8px;padding:6px 14px;background:rgba(255,255,255,.15);
       color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:6px;
@@ -1189,6 +1240,174 @@ function injectPrintChrome() {
 
 // Печать всех вкладок как единый PDF-отчёт. Перед вызовом системного диалога
 // печати вставляем шапку/подвал на каждую страницу (см. injectPrintChrome).
+
+// ═══════════════════════════════════════════════════════════
+// СКАЧАТЬ PDF — без окна печати браузера
+// ═══════════════════════════════════════════════════════════
+// 19.11.2026 Safari падал в своём окне печати и при «Экспортировать как PDF»
+// (сбой PrintingUI macOS), а WebKit ту же страницу печатает нормально. Здесь
+// PDF собирается на странице: каждый блок отчёта снимается картинкой
+// (html2canvas) и раскладывается по листам A4 (jsPDF). Библиотеки лежат рядом
+// (lib/), запросов наружу нет; имена из ключ-файла никуда не уходят.
+// Текст в таком PDF — картинка: читается и печатается, но не выделяется.
+const PDF_LIBS = { html2canvas: 'lib/html2canvas.min.js', jspdf: 'lib/jspdf.umd.min.js' };
+function loadScriptOnce(src) {
+  return new Promise((ok, fail) => {
+    const sc = document.createElement('script');
+    sc.src = src; sc.onload = ok; sc.onerror = () => fail(new Error('не загрузилась библиотека ' + src));
+    document.head.appendChild(sc);
+  });
+}
+async function ensurePdfLibs() {
+  if (!window.html2canvas) await loadScriptOnce(PDF_LIBS.html2canvas);
+  if (!(window.jspdf && window.jspdf.jsPDF)) await loadScriptOnce(PDF_LIBS.jspdf);
+}
+const PDF_BREAK_BEFORE = ['tab-overview', 'tab-narrative', 'tab-participants', 'tab-guide'];
+
+async function buildPdf(orientation) {
+  await ensurePdfLibs();
+  renderCover();
+  const portrait = orientation === 'portrait';
+  const root = document.documentElement, dash = document.getElementById('dashboard');
+  const CW = portrait ? 820 : 1180;                 // ширина вёрстки, px
+  const undo = [];
+  const prevDashStyle = dash.getAttribute('style') || '';
+  root.classList.add('pdf-render'); if (portrait) root.classList.add('pdf-portrait');
+  dash.setAttribute('style', prevDashStyle + ';width:' + CW + 'px;max-width:' + CW + 'px;padding:0;margin:0');
+  try {
+    // заголовки разделов — настоящими элементами
+    const tabs = [...dash.querySelectorAll(':scope > .tab-content')].filter(t => !t.classList.contains('safe-hidden'));
+    tabs.forEach(tab => {
+      const h = document.createElement('div');
+      h.className = 'pdf-title'; h.textContent = tab.getAttribute('data-print-title') || '';
+      tab.insertBefore(h, tab.firstChild); undo.push(() => h.remove());
+    });
+    await new Promise(r => setTimeout(r, 80));     // раскладка после смены ширины
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: portrait ? 'portrait' : 'landscape', unit: 'pt', format: 'a4', compress: true });
+    const PW = pdf.internal.pageSize.getWidth(), PH = pdf.internal.pageSize.getHeight();
+    const M = 28, FOOT = 14, AW = PW - 2 * M, AH = PH - 2 * M - FOOT, GAP = 8;
+    const k = AW / CW;
+    const left0 = dash.getBoundingClientRect().left;
+
+    // подвал: кириллицу jsPDF без шрифта не пишет — текст подвала картинкой, номер цифрами
+    const foot = document.createElement('div');
+    foot.className = 'pdf-footer';
+    foot.textContent = '© Association de l’Intelligence Narrative® · Документ конфиденциален' +
+      (reportName() ? ' · ' + reportName() : '');
+    document.body.appendChild(foot); undo.push(() => foot.remove());
+    const fc = await html2canvas(foot, { scale: 3, backgroundColor: '#ffffff', logging: false });
+    const fw = foot.offsetWidth * 0.62, fh = foot.offsetHeight * 0.62;
+    let page = 1;
+    const drawFooter = () => {
+      pdf.addImage(fc.toDataURL('image/png'), 'PNG', M, PH - M - fh + 4, fw, fh);
+      pdf.setFontSize(8); pdf.setTextColor(136, 136, 168);
+      pdf.text(String(page), PW - M, PH - M + 2, { align: 'right' });
+    };
+    let y = M;
+    const newPage = () => { drawFooter(); pdf.addPage(); page += 1; y = M; };
+
+    // Таблица выше листа режется по строкам: копии блока с частью строк.
+    const splitTable = el => {
+      const tableOf = n => n.matches('table') ? n : n.querySelector('table');
+      const tbl = tableOf(el);
+      if (!tbl || !tbl.tBodies[0] || tbl.tBodies[0].rows.length < 2) return null;
+      const total = tbl.tBodies[0].rows.length, chunks = [];
+      let start = 0;
+      while (start < total) {
+        const c = el.cloneNode(true);
+        c.removeAttribute('id'); c.querySelectorAll('[id]').forEach(n => n.removeAttribute('id'));
+        el.parentNode.insertBefore(c, el); undo.push(() => c.remove());
+        const rows = [...tableOf(c).tBodies[0].rows];
+        rows.slice(0, start).forEach(r => r.remove());
+        let rest = rows.slice(start);
+        // первая часть — под оставшееся место на листе, следующие — на целый лист
+        const room = chunks.length === 0 && y > M && (M + AH - y) > 120 ? (M + AH - y) : AH;
+        while (rest.length > 1 && c.getBoundingClientRect().height * k > room) rest.pop().remove();
+        chunks.push(c); start += rest.length;
+      }
+      const prev = el.style.display; el.style.display = 'none'; undo.push(() => { el.style.display = prev; });
+      return chunks;
+    };
+    const visibleKids = el => [...el.children].filter(c => c.getBoundingClientRect().height > 0);
+    // Колонки рядом (сетка карточек) — уменьшать целиком; текст друг под другом — делить.
+    const sideBySide = el => {
+      const kids = visibleKids(el);
+      if (kids.length < 2) return false;
+      const t0 = kids[0].getBoundingClientRect().top;
+      return kids.some(c => Math.abs(c.getBoundingClientRect().top - t0) < 4 && c !== kids[0]);
+    };
+
+    const place = async el => {
+      const r = el.getBoundingClientRect();
+      if (!r.height || !r.width) return;
+      const hpt = r.height * k;
+      // Выше листа: таблицу — по строкам; блок, которому хватит уменьшения
+      // до 55%, — целиком на лист (колонки остаются рядом); длинный текст — по частям.
+      if (hpt > AH) {
+        const kids = visibleKids(el);
+        const canSplit = kids.length > 1 && (!sideBySide(el) || AH / hpt < 0.55);
+        const parts = splitTable(el) || (canSplit ? kids : null);
+        if (parts) { for (const p of parts) await place(p); return; }
+      }
+      // Неделимый блок выше листа уменьшается; если на листе осталось ≥ 60% места —
+      // до этого места, чтобы заголовок раздела не остался один.
+      const room = M + AH - y;
+      let fit = Math.min(hpt, AH);
+      if (hpt > AH && y > M && room >= AH * 0.6) fit = room;
+      else if (y > M && y + fit > M + AH) newPage();
+      const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff', logging: false });
+      const s = fit / hpt;
+      const x = M + (r.left - left0) * k;
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', x, y, r.width * k * s, hpt * s);
+      y += hpt * s + GAP;
+    };
+
+    await place(document.getElementById('print-cover'));
+    newPage();                                      // после титульного листа
+    for (const tab of tabs) {
+      // крупные части — с нового листа, разделы 2–6 потоком, как в печати
+      if (PDF_BREAK_BEFORE.includes(tab.id) && y > M) newPage();
+      const blocks = visibleKids(tab);
+      for (let i = 0; i < blocks.length; i++) {
+        // заголовок раздела не остаётся один внизу листа: переносится со следующим блоком
+        if (blocks[i].classList.contains('pdf-title') && blocks[i + 1] && y > M) {
+          const next = blocks[i + 1], nextH = next.getBoundingClientRect().height * k;
+          // делимый длинный блок (таблица, текст) — хватит места под его начало;
+          // неделимый (колонки рядом) — нужен целиком
+          const divisible = nextH > AH && !!(next.querySelector('table') || !sideBySide(next));
+          const need = blocks[i].getBoundingClientRect().height * k + GAP + (divisible ? 140 : Math.min(nextH, AH));
+          if (y + need > M + AH) newPage();
+        }
+        await place(blocks[i]);
+      }
+    }
+    drawFooter();
+    return pdf;
+  } finally {
+    undo.reverse().forEach(f => { try { f(); } catch (e) {} });
+    dash.setAttribute('style', prevDashStyle);
+    root.classList.remove('pdf-render', 'pdf-portrait');
+  }
+}
+
+async function downloadPdf() {
+  if (!DATA || !DATA.length) { alert('Сначала загрузите данные команды.'); return; }
+  const btn = document.getElementById('pdfdl-btn'), label = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ Собираю PDF…';
+  try {
+    const orient = (document.getElementById('pdf-orient') || {}).value || 'landscape';
+    const pdf = await buildPdf(orient);
+    const day = new Date().toISOString().slice(0, 10);
+    pdf.save(('Групповой отчёт TIN ' + (reportName() || 'команда') + ' ' + day).replace(/[\\/:*?"<>|]+/g, ' ') + '.pdf');
+  } catch (e) {
+    alert('Не удалось собрать PDF: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = label;
+  }
+}
+
 // ═══════════════════════════════════════════════════════════
 // ВЫГРУЗКА В WORD (RTF)
 // ═══════════════════════════════════════════════════════════
