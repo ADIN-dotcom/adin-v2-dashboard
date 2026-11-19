@@ -1321,15 +1321,29 @@ function closeModal(id) { $(id).classList.remove('open'); }
 let debTimer;
 function debounce(fn, ms) { clearTimeout(debTimer); debTimer = setTimeout(fn, ms); }
 
+// Запрос к API мимо кэша браузера. Браузер хранил ответы (у них был ETag без
+// Cache-Control) и переспрашивал их условным запросом; на 304 он отдавал
+// странице пустое тело, разбор JSON падал, и вкладка молча оставалась пустой
+// (RU, Safari, 19.11.2026). Сервер теперь отвечает Cache-Control: no-store,
+// здесь — вторая опора: запрос мимо кэша, а на пустое тело один повтор и
+// понятное сообщение вместо тишины.
 async function api(path, opts = {}) {
   const headers = { 'Authorization': 'Bearer ' + TOKEN };
   if (opts.body) headers['Content-Type'] = 'application/json';
-  const r = await fetch(API + path, {
-    ...opts, headers,
+  const send = cache => fetch(API + path, {
+    cache, ...opts, headers,
     body: opts.body ? JSON.stringify(opts.body) : undefined
   });
+  let r = await send('no-store');
   if (r.status === 401) { logout(); return null; }
-  return r.json();
+  let body = (await r.text()).trim();
+  if (!body) {
+    r = await send('reload');
+    if (r.status === 401) { logout(); return null; }
+    body = (await r.text()).trim();
+  }
+  if (!body) { toast('Сервер вернул пустой ответ (' + r.status + '). Обновите страницу', true); return undefined; }
+  return JSON.parse(body);
 }
 
 // Анализы Société и PN идут на сервере в фоне: дашборд только читает их ход,
