@@ -796,7 +796,30 @@ svg.radar{overflow:visible}
 // ДАННЫЕ
 // ═══════════════════════════════════════════════════════════
 let DATA = [];
-let KEYMAP = {};        // код -> {name, email} из ключ-файла фасилитатора
+// Постоянный ключ-файл дашборда (localStorage, тот же адрес — значит доступен
+// и отсюда). Раньше карта о нём не знала: фасилитатор загружал имена на
+// странице участников, открывал карту и видел коды, не понимая почему.
+// Значение там — строка: имя или, если имени не было, email.
+// Объявлено до KEYMAP: константа ниже его объявления была бы во временной
+// мёртвой зоне, и ключ молча читался бы как пустой.
+const MASTER_KEYFILE_STORAGE = 'adin_master_keyfile_v1';
+function loadMasterKeyfile() {
+  try {
+    const raw = localStorage.getItem(MASTER_KEYFILE_STORAGE);
+    const map = raw ? JSON.parse(raw) : {};
+    const out = {};
+    Object.entries(map).forEach(([code, v]) => {
+      const val = String(v || '').trim();
+      if (!val) return;
+      out[String(code).trim().toUpperCase()] = /@/.test(val) ? { name: '', email: val } : { name: val, email: '' };
+    });
+    return out;
+  } catch (e) { return {}; }
+}
+// Код -> {name, email}. Коды держим в верхнем регистре: в выгрузке и в разных
+// ключ-файлах регистр бывает разный, а подстановка идёт точным совпадением.
+let KEYMAP = loadMasterKeyfile();
+
 let GROUP_SAFE = true;  // режим показа группе; включён по умолчанию, выбор помнится в браузере
 let LAST_RAW = null;    // последний распарсенный CSV с данными (для повторной сшивки после загрузки ключ-файла)
 
@@ -1087,9 +1110,10 @@ function mapRow(row) {
 // ═══════════════════════════════════════════════════════════
 // Подставляет имя/email из ключ-файла по коду, если в данных их нет (обезличенный CSV)
 function applyName(r) {
-  if ((!r.name && !r.email) && r.code && KEYMAP[r.code]) {
-    r.name  = KEYMAP[r.code].name  || r.name;
-    r.email = KEYMAP[r.code].email || r.email;
+  const key = r.code ? String(r.code).trim().toUpperCase() : '';
+  if ((!r.name && !r.email) && key && KEYMAP[key]) {
+    r.name  = KEYMAP[key].name  || r.name;
+    r.email = KEYMAP[key].email || r.email;
   }
   // Пока ключ-файл не загружен — показываем код, чтобы отчёт не был пустым
   if (!r.name && !r.email && r.code) r.name = 'Код ' + r.code;
@@ -1120,7 +1144,6 @@ function handleKeyfile(file) {
   const reader = new FileReader();
   reader.onload = e => {
     const rows = parseCSV(e.target.result);
-    KEYMAP = {};
     let n = 0;
     rows.forEach(row => {
       const find = (...keys) => {
@@ -1132,16 +1155,27 @@ function handleKeyfile(file) {
       };
       const code = find('код','code');
       if (!code) return;
-      KEYMAP[code] = { name: find('имя','name'), email: find('email','mail') };
+      // Дополняем, а не заменяем: в памяти уже может лежать постоянный ключ
+      // дашборда, и у участника бывает по коду на каждый тест.
+      KEYMAP[code.toUpperCase()] = { name: find('имя','name'), email: find('email','mail') };
       n++;
     });
-    const st = document.getElementById('keyfile-status');
-    if (st) st.textContent = n ? ('🔑 Ключ-файл: ' + n + ' имён загружено') : '';
-    // Если данные уже загружены — пересобрать и перерисовать с именами
+    if (!n) { alert('В ключ-файле не найдена колонка «Код»/«code». Проверьте файл.'); return; }
     if (LAST_RAW && DATA.length) { DATA = buildData(); renderAll(); }
-    alert(n
-      ? ('Ключ-файл загружен: ' + n + ' имён. ' + (LAST_RAW ? 'Имена подставлены в отчёт.' : 'Теперь загрузите CSV с данными группы.'))
-      : 'В ключ-файле не найдена колонка «Код»/«code». Проверьте файл.');
+    // Говорим не размер файла, а число совпадений: ключ-файл, собранный под
+    // другую рассылку, загружается успешно и не подставляет ни одного имени.
+    const matched = LAST_RAW && DATA.length ? namedCount() : null;
+    const st = document.getElementById('keyfile-status');
+    if (st) st.textContent = '🔑 Ключ-файл: ' + n + ' имён' +
+      (matched === null ? '' : ', совпало с отчётом ' + matched + ' из ' + DATA.length);
+    const lines = ['Ключ-файл загружен: ' + n + ' имён.'];
+    if (matched === null) lines.push('Теперь загрузите CSV с данными группы.');
+    else if (matched === 0) lines.push('Но с отчётом не совпал ни один код: похоже, ключ-файл собран под другую '
+      + 'рассылку или другой тест. Сравните код в ключ-файле с кодом в колонке «Участник».');
+    else lines.push('Совпало с отчётом: ' + matched + ' из ' + DATA.length + '.');
+    if (GROUP_SAFE) lines.push('Внимание: включён режим «Показ группе» — имена в отчёте не показываются. '
+      + 'Снимите галочку в шапке, чтобы увидеть их.');
+    alert(lines.join(' '));
   };
   reader.readAsText(file, 'utf-8');
 }
@@ -1753,9 +1787,17 @@ function reportName() {
   const groups = [...new Set(DATA.map(r => r.group).filter(Boolean))];
   return groups.length === 1 ? groups[0] : '';
 }
+// Сколько строк отчёта подписаны настоящим именем, а не «Код ADIN-…».
+// Размер ключ-файла об этом не говорит: коды в нём могут быть от другой
+// рассылки и не совпасть с отчётом ни разу.
+function namedCount() {
+  // Строка подписана, если у неё есть имя или email: в ключ-файле без имён
+  // участник узнаётся по адресу, и это тоже совпадение.
+  return DATA.filter(r => (r.name && !/^Код\s/.test(r.name)) || r.email).length;
+}
 function reportVersion() {
   if (GROUP_SAFE) return 'Версия для показа группе — без имён и кодов участников';
-  if (Object.keys(KEYMAP).length) return 'Версия с именами участников — строго конфиденциально';
+  if (namedCount()) return 'Версия с именами участников — строго конфиденциально';
   return 'Обезличенная версия — участники указаны кодами';
 }
 function reportToc() {
