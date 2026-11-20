@@ -205,6 +205,10 @@ html.pdf-render #tab-participants div[style*="overflow-x:auto"]{overflow:visible
   #tab-narrative::before { content: none; display: none; }
   .no-print { display:none !important; }
   .section-conclusion { break-inside: avoid; }
+  /* Пояснение «как считается» — в печати оно читается, а не серая дымка,
+     и не отрывается от своего графика. */
+  .chart-note { font-size: 9.5px !important; color: #4B5563 !important; break-inside: avoid;
+    margin-top: 8px !important; padding-top: 6px !important; }
   .participants-table { font-size: 10px; }
   .participants-table { width: 100% !important; table-layout: auto; }
   .participants-table th { letter-spacing: 0 !important; font-size: 8.5px !important; white-space: normal !important; }
@@ -292,12 +296,16 @@ html.pdf-render #tab-participants div[style*="overflow-x:auto"]{overflow:visible
   pointer-events:none}
 
 /* ── BAR CHARTS ── */
-.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-.bar-label{font-size:13px;color:var(--ink-soft);width:160px;flex-shrink:0}
-.bar-track{flex:1;height:24px;background:var(--cream);border-radius:4px;overflow:hidden}
-.bar-fill{height:100%;border-radius:4px;display:flex;align-items:center;
-  padding:0 8px;font-size:12px;font-weight:600;color:#fff;transition:width 1s ease}
-.bar-count{font-size:13px;color:var(--ink-soft);width:50px;text-align:right;flex-shrink:0}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.bar-label{font-size:13px;color:var(--ink);width:150px;flex-shrink:0;text-align:right;line-height:1.3}
+/* Серой дорожки нет: пустое место не красится, длина полосы и есть значение. */
+.bar-track{flex:1;display:flex;align-items:center;gap:8px;min-width:0}
+.bar-fill{height:18px;border-radius:2px;flex-shrink:0;transition:width 1s ease}
+.bar-value{font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap}
+.bar-count{font-size:11.5px;color:var(--ink-faint);width:54px;text-align:right;flex-shrink:0}
+/* Пояснение под графиком: как считается показатель. */
+.chart-note{font-size:11px;line-height:1.5;color:var(--ink-faint);margin-top:12px;
+  border-top:1px solid var(--cream-d);padding-top:8px}
 
 /* ── РАДАР ── */
 .radar-wrap{display:flex;justify-content:center;align-items:center;min-height:280px}
@@ -444,29 +452,47 @@ svg.radar{overflow:visible}
   <!-- ОБЗОР -->
   <div id="tab-overview" class="tab-content active" data-print-title="1. Обзор команды">
     <div class="metrics" id="metrics-overview"></div>
+    <div class="chart-note" style="margin:-8px 0 20px;border:0;padding:0">Балл НИ одного человека =
+      0,6 × среднее пяти компетенций + 0,4 × (номер уровня × 25). Пример: среднее компетенций 50 и Активный
+      уровень дают 0,6 × 50 + 0,4 × 75 = 60. В плитках — среднее по участникам группы.</div>
     <div class="grid-2">
       <div class="card">
         <div class="card-title">Ведущий тип мышления</div>
         <div id="chart-types"></div>
+        <div class="chart-note">В первом блоке теста 24 ситуации, в каждой человек выбирает один из четырёх
+          вариантов — по варианту на тип. Ведущий тип — тот, что выбран чаще других; доля на кольце — доля людей
+          с этим ведущим типом от всех участников группы.</div>
       </div>
       <div class="card">
         <div class="card-title">Второй после ведущего тип</div>
         <div id="chart-types2"></div>
+        <div class="chart-note">Второй тип — следующий по числу выборов из тех же 24 ситуаций. Отрыв ведущего
+          от второго даёт выраженность: 7 выборов и больше — выраженный, 4–6 — умеренный, меньше — смешанный.
+          При случайных ответах разброс счёта около двух, поэтому отрыв в 2 выбора и меньше считается шумом.</div>
       </div>
     </div>
     <div class="grid-2">
       <div class="card">
         <div class="card-title">Уровни зрелости</div>
         <div id="chart-levels-mini"></div>
+        <div class="chart-note">Четыре уровня, у каждого 3 утверждения с ответом от 1 до 5, сумма от 3 до 15.
+          Уровень «проходит» при сумме не меньше 11. Прошёл один — он и есть уровень; прошли несколько —
+          берётся средневзвешенный номер; не прошёл ни один — уровень 2 при общей сумме от 37, иначе уровень 1.</div>
       </div>
       <div class="card">
         <div class="card-title">Компетенции команды — средние баллы</div>
         <div id="chart-comps-mini"></div>
+        <div class="chart-note">Отдельных вопросов про компетенции в тесте нет: каждая считается формулой из
+          долей типов, сумм уровней и шкал времени и переводится в шкалу 0–100 по теоретическому минимуму и
+          максимуму формулы. 100 — предел, на практике почти недостижимый; балл не процент от нормы и не место
+          среди других людей. Здесь — среднее по участникам группы.</div>
       </div>
     </div>
     <div class="card">
       <div class="card-title">Временная ориентация — средние значения</div>
       <div id="chart-temporal-mini"></div>
+      <div class="chart-note">Второй блок теста — методика ZTPI Зимбардо: пять шкал по 3 утверждения, ответ от
+        1 до 5, сумма по шкале от 3 до 15. Здесь — среднее по участникам группы, а не доля людей.</div>
     </div>
 
     <div class="card section-conclusion">
@@ -511,10 +537,16 @@ svg.radar{overflow:visible}
       <div class="card">
         <div class="card-title">Распределение по уровням</div>
         <div id="chart-levels-full"></div>
+        <div class="chart-note">Доля людей от числа участников группы. Уровень человека: каждый из четырёх
+          уровней «проходит» при сумме не меньше 11 из 15; прошёл один — он и есть уровень, прошли несколько —
+          средневзвешенный номер, не прошёл ни один — уровень 2 при общей сумме от 37, иначе уровень 1.</div>
       </div>
       <div class="card">
         <div class="card-title">Уровень по типам</div>
         <div id="chart-levels-by-type"></div>
+        <div class="chart-note">Те же люди, разложенные по ведущему типу: доли уровней внутри каждого типа.
+          Разница между самым низким и самым высоким уровнем в команде от 2 — это разрыв зрелости, он попадает
+          в зоны напряжения.</div>
       </div>
     </div>
     <div class="card">
@@ -533,6 +565,10 @@ svg.radar{overflow:visible}
       <div class="card">
         <div class="card-title">Командный профиль ZTPI</div>
         <div id="chart-temporal-full"></div>
+        <div class="chart-note">Среднее по участникам, шкала 3–15. Пороги оценки: Прошлое-негативное норма
+          до 7, внимание 7–10, риск выше 10; Прошлое-позитивное выше 9 — ресурс; Настоящее-фаталистическое
+          норма до 9, выше — риск; Будущее норма 8–11, ниже 6 — риск, выше 11 — внимание (выгорание).
+          Настоящее-гедонистическое порога в методике не имеет и не оценивается.</div>
       </div>
       <div class="card">
         <div class="card-title">Интерпретация командного профиля</div>
@@ -551,10 +587,19 @@ svg.radar{overflow:visible}
       <div class="card">
         <div class="card-title">Радар команды</div>
         <div class="radar-wrap" id="radar-chart"></div>
+        <div class="chart-note">Средние баллы пяти компетенций, шкала 0–100. Складываются формулами: Осознанность —
+          Аналитик и Критик, уровни 2–3, минус уровень 1; Авторство — Стратег и Драматург, Будущее, уровень 3;
+          Резонанс — почти целиком доля Драматурга; Переосмысление — Драматург и уровень 3, Прошлое-позитивное,
+          минус Прошлое-негативное; Воплощение — Стратег, Будущее, уровень 3, минус Настоящее-фаталистическое.
+          Пороги: норма 50–60, внимание 35–50, риск ниже 35, ресурс выше 60; у Резонанса своя шкала —
+          норма 36–50, внимание 18–36, риск ниже 18, ресурс выше 50.</div>
       </div>
       <div class="card">
         <div class="card-title">Компетенции по типам</div>
         <div id="comps-by-type"></div>
+        <div class="chart-note">Те же пять компетенций, усреднённые внутри каждого ведущего типа. Разброс здесь
+          объясним: компетенции считаются в том числе из долей типов, поэтому у Драматурга выше Резонанс,
+          у Стратега — Воплощение.</div>
       </div>
     </div>
     <div class="card section-conclusion">
@@ -582,6 +627,13 @@ svg.radar{overflow:visible}
     <div class="card">
       <div class="card-title">Сводная таблица анализа</div>
       <div id="zones-summary"></div>
+      <div class="chart-note">Зоны считает код по фиксированным правилам. Риск: шкала в статусе «риск», больше
+        40% команды на уровне 1, один тип больше 60%, отсутствие типа — но только если при таком размере группы
+        оно случайно было бы реже чем в 20% случаев (базовые частоты: Стратег 52%, Аналитик 29%, Драматург 14%,
+        Критик 5%), среднее Прошлое-негативное выше 9 при Будущем ниже 7. Напряжение: противоположные типы от
+        двух человек с каждой стороны, разрыв зрелости от 2 уровней, монокультура, Прошлое-негативное выше 8 при
+        Авторстве ниже 40. Ресурсы: участники уровней 3–4, компетенции в статусе «ресурс», высокое
+        Прошлое-позитивное, редкие типы в одном лице.</div>
     </div>
     <div class="card section-conclusion">
       <div class="card-title">Аналитическое заключение</div>
@@ -1507,8 +1559,11 @@ function exportReportRtf() {
     let hex = '2D5A8E';
     if (m && m[1] && m[1].length === 6) hex = m[1];
     else if (m && m.length === 4) hex = [m[1], m[2], m[3]].map(x => (+x).toString(16).padStart(2, '0')).join('');
-    const value = (fill ? fill.textContent.trim() : '') ||
-                  (row.lastElementChild && row.lastElementChild !== fill ? row.lastElementChild.textContent.trim() : '');
+    // Значение переехало из заливки в отдельный элемент, число людей — в
+    // приписку; в таблицу Word идут оба, через точку.
+    const value = [(row.querySelector('.bar-value') || {}).textContent,
+                   (row.querySelector('.bar-count') || {}).textContent]
+      .map(x => (x || '').trim()).filter(Boolean).join(' · ');
     const lw = 4.2 * RTF_CM, vw = 2.2 * RTF_CM;
     const track = RTF_WIDTH - lw - vw;
     const filled = Math.max(28, track * Math.min(100, Math.max(0, pct)) / 100);
@@ -1655,20 +1710,26 @@ function countBy(arr, key) {
   return map;
 }
 
+// Полосы в том виде, в каком графики показывают группе: дорожки нет, значение
+// жирным сразу за концом полосы, число людей — бледной припиской справа.
+// Полоса занимает не больше 84% ширины: остаток держит место под значение,
+// иначе у самой длинной полосы оно выезжало бы за край.
 function barChart(container, items, maxVal=null) {
   const max = maxVal || Math.max(...items.map(i => i.val), 1);
-  container.innerHTML = items.map(item => `
+  container.innerHTML = items.map(item => {
+    const w = Math.round(item.val / max * 840) / 10;
+    const value = item.value != null ? item.value
+      : (Number.isInteger(item.val) ? item.val : item.val.toFixed(1));
+    return `
     <div class="bar-row">
       <div class="bar-label">${item.label}</div>
       <div class="bar-track">
-        <div class="bar-fill" style="width:${Math.round(item.val/max*100)}%;
-          background:${item.color||'var(--navy-mid)'}">
-          ${item.val > max*0.15 ? (Number.isInteger(item.val)?item.val:item.val.toFixed(1)) : ''}
-        </div>
+        <div class="bar-fill" style="width:${w}%;background:${item.color||'var(--navy-mid)'}"></div>
+        <span class="bar-value">${value}</span>
       </div>
-      <div class="bar-count">${item.suffix||item.val}</div>
-    </div>
-  `).join('');
+      <div class="bar-count">${item.suffix||''}</div>
+    </div>`;
+  }).join('');
 }
 
 function tooltip(el, text) {
@@ -1770,9 +1831,10 @@ function donutChart(el, counts, emptyText) {
   el.innerHTML = `<div class="donut-box">
       <div class="donut-svg"><svg width="200" height="200" viewBox="0 0 200 200">${paths}</svg></div>
       <div class="donut-legend rtf-skip">${items.map(i =>
-        `<div><span class="dot" style="background:${TYPE_COLOR[i.t]}"></span><b>${i.t}</b> — ${pct(i.v)}</div>`).join('')}</div>
-      <table class="donut-data"><tr><th>Тип</th><th>Доля участников</th></tr>${items.map(i =>
-        `<tr><td>${i.t}</td><td>${pct(i.v)}</td></tr>`).join('')}</table>
+        `<div><span class="dot" style="background:${TYPE_COLOR[i.t]}"></span><b>${i.t}</b> — ${pct(i.v)}
+          <span style="color:var(--ink-faint);font-size:12px">${i.v} чел.</span></div>`).join('')}</div>
+      <table class="donut-data"><tr><th>Тип</th><th>Доля участников</th><th>Человек</th></tr>${items.map(i =>
+        `<tr><td>${i.t}</td><td>${pct(i.v)}</td><td>${i.v}</td></tr>`).join('')}</table>
     </div>`;
 }
 
@@ -1807,20 +1869,23 @@ function renderOverview() {
   // Уровни
   const lvls = {1:0,2:0,3:0,4:0};
   DATA.forEach(r => { if(r.level>=1&&r.level<=4) lvls[r.level]++; });
+  // Доля — жирным за полосой, число людей — припиской: проценты без людей
+  // сравнивать нельзя, у отделов разный размер.
+  const pcN = v => Math.round(v / n * 100) + '%';
   barChart(document.getElementById('chart-levels-mini'), [
-    {label:'1 — Пассивный', val:lvls[1], color:'#C8432A', suffix:lvls[1]+' чел.'},
-    {label:'2 — Осознанный', val:lvls[2], color:'#E07B2A', suffix:lvls[2]+' чел.'},
-    {label:'3 — Активный',   val:lvls[3], color:'#2D6A4F', suffix:lvls[3]+' чел.'},
-    {label:'4 — Системный',  val:lvls[4], color:'#1E3A5F', suffix:lvls[4]+' чел.'},
+    {label:'1 — Пассивный', val:lvls[1], color:'#C8432A', value:pcN(lvls[1]), suffix:lvls[1]+' чел.'},
+    {label:'2 — Осознанный', val:lvls[2], color:'#E07B2A', value:pcN(lvls[2]), suffix:lvls[2]+' чел.'},
+    {label:'3 — Активный',   val:lvls[3], color:'#2D6A4F', value:pcN(lvls[3]), suffix:lvls[3]+' чел.'},
+    {label:'4 — Системный',  val:lvls[4], color:'#1E3A5F', value:pcN(lvls[4]), suffix:lvls[4]+' чел.'},
   ], n);
 
   // Компетенции
   barChart(document.getElementById('chart-comps-mini'), [
-    {label:'Осознанности',   val:Math.round(avg(DATA,'awareness')),   color:'#1E3A5F', suffix:Math.round(avg(DATA,'awareness'))+'%'},
-    {label:'Авторства',      val:Math.round(avg(DATA,'authorship')),  color:'#2D6A4F', suffix:Math.round(avg(DATA,'authorship'))+'%'},
-    {label:'Резонанса',      val:Math.round(avg(DATA,'resonance')),   color:'#5A2D82', suffix:Math.round(avg(DATA,'resonance'))+'%'},
-    {label:'Переосмысления', val:Math.round(avg(DATA,'reframing')),   color:'#E07B2A', suffix:Math.round(avg(DATA,'reframing'))+'%'},
-    {label:'Воплощения',     val:Math.round(avg(DATA,'embodiment')),  color:'#C8432A', suffix:Math.round(avg(DATA,'embodiment'))+'%'},
+    {label:'Осознанность',   val:Math.round(avg(DATA,'awareness')),   color:'#1E3A5F', value:Math.round(avg(DATA,'awareness'))+'%'},
+    {label:'Авторство',      val:Math.round(avg(DATA,'authorship')),  color:'#2D6A4F', value:Math.round(avg(DATA,'authorship'))+'%'},
+    {label:'Резонанс',       val:Math.round(avg(DATA,'resonance')),   color:'#5A2D82', value:Math.round(avg(DATA,'resonance'))+'%'},
+    {label:'Переосмысление', val:Math.round(avg(DATA,'reframing')),   color:'#E07B2A', value:Math.round(avg(DATA,'reframing'))+'%'},
+    {label:'Воплощение',     val:Math.round(avg(DATA,'embodiment')),  color:'#C8432A', value:Math.round(avg(DATA,'embodiment'))+'%'},
   ], 100);
 
   // Временная ориентация
@@ -1966,11 +2031,12 @@ function renderLevels() {
   const lvls = {1:0,2:0,3:0,4:0};
   DATA.forEach(r => { if(r.level>=1&&r.level<=4) lvls[r.level]++; });
 
+  const pcL = v => Math.round(v / Math.max(DATA.length, 1) * 100) + '%';
   barChart(document.getElementById('chart-levels-full'), [
-    {label:'1 — Пассивный',  val:lvls[1], color:'#C8432A', suffix:lvls[1]+' чел.'},
-    {label:'2 — Осознанный', val:lvls[2], color:'#E07B2A', suffix:lvls[2]+' чел.'},
-    {label:'3 — Активный',   val:lvls[3], color:'#2D6A4F', suffix:lvls[3]+' чел.'},
-    {label:'4 — Системный',  val:lvls[4], color:'#1E3A5F', suffix:lvls[4]+' чел.'},
+    {label:'1 — Пассивный',  val:lvls[1], color:'#C8432A', value:pcL(lvls[1]), suffix:lvls[1]+' чел.'},
+    {label:'2 — Осознанный', val:lvls[2], color:'#E07B2A', value:pcL(lvls[2]), suffix:lvls[2]+' чел.'},
+    {label:'3 — Активный',   val:lvls[3], color:'#2D6A4F', value:pcL(lvls[3]), suffix:lvls[3]+' чел.'},
+    {label:'4 — Системный',  val:lvls[4], color:'#1E3A5F', value:pcL(lvls[4]), suffix:lvls[4]+' чел.'},
   ], DATA.length);
 
   // Уровни по типам
@@ -2040,11 +2106,11 @@ function renderTemporal() {
   const avgF  = avg(DATA,'f');
 
   barChart(document.getElementById('chart-temporal-full'), [
-    {label:'Прошлое-негат. (PN)', val:parseFloat(avgPN.toFixed(1)), color:'#C8432A', suffix:avgPN.toFixed(1)+'/15'},
-    {label:'Прошлое-позит. (PP)', val:parseFloat(avgPP.toFixed(1)), color:'#2D6A4F', suffix:avgPP.toFixed(1)+'/15'},
-    {label:'Настоящ.-фатал. (NF)',val:parseFloat(avgNF.toFixed(1)), color:'#E07B2A', suffix:avgNF.toFixed(1)+'/15'},
-    {label:'Настоящ.-гедон. (NH)',val:parseFloat(avgNH.toFixed(1)), color:'#5A2D82', suffix:avgNH.toFixed(1)+'/15'},
-    {label:'Будущее (F)',         val:parseFloat(avgF.toFixed(1)),  color:'#1E3A5F', suffix:avgF.toFixed(1)+'/15'},
+    {label:'Прошлое-негат. (PN)', val:parseFloat(avgPN.toFixed(1)), color:'#C8432A'},
+    {label:'Прошлое-позит. (PP)', val:parseFloat(avgPP.toFixed(1)), color:'#2D6A4F'},
+    {label:'Настоящ.-фатал. (NF)',val:parseFloat(avgNF.toFixed(1)), color:'#E07B2A'},
+    {label:'Настоящ.-гедон. (NH)',val:parseFloat(avgNH.toFixed(1)), color:'#5A2D82'},
+    {label:'Будущее (F)',         val:parseFloat(avgF.toFixed(1)),  color:'#1E3A5F'},
   ], 15);
 
   // Интерпретация — из тех же SCALES, что и сводная таблица: разойтись они
@@ -2154,12 +2220,13 @@ function renderCompetencies() {
           ${keys.map((k,i) => {
             const v = Math.round(avg(members,k));
             const c = v>=70?'#2D6A4F':v>=50?'#E07B2A':'#C8432A';
-            return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-              <div style="width:70px;font-size:12px;color:var(--ink-faint)">${names[i]}</div>
-              <div style="flex:1;height:14px;background:var(--cream);border-radius:3px;overflow:hidden">
-                <div style="height:100%;width:${v}%;background:${c};border-radius:3px"></div>
+            // Без дорожки, как остальные полосы отчёта: значение сразу за концом.
+            return `<div class="bar-row" style="margin-bottom:5px">
+              <div class="bar-label" style="width:90px;font-size:12px;color:var(--ink-faint)">${names[i]}</div>
+              <div class="bar-track">
+                <div class="bar-fill" style="height:14px;width:${Math.round(v * 0.84)}%;background:${c}"></div>
+                <span class="bar-value" style="font-size:12px;color:${c}">${v}%</span>
               </div>
-              <div style="font-size:12px;font-weight:600;color:${c};width:32px">${v}%</div>
             </div>`;
           }).join('')}
         </div>`;
