@@ -2457,7 +2457,11 @@ function renderNarrative() {
   const avgLevel = avg(DATA, 'level');
   const avgReframing = avg(DATA, 'reframing');
   const avgEmbodiment = avg(DATA, 'embodiment');
-  const teamLabel = DATA[0] && DATA[0].group ? DATA[0].group : 'команда';
+  // Подпись команды в заключениях — то же название, что на обложке: из
+  // дашборда (?name=), иначе общая группа файла. Раньше бралась группа первой
+  // строки, и в выгрузке по компании вся компания называлась именем одного
+  // отдела: «Групповой отчёт построен по 58 участникам (Департамент развития)».
+  const teamLabel = reportName() || 'команда';
 
   const paragraphs = [];
 
@@ -2815,7 +2819,11 @@ async function generateDeepNarrative() {
 
   try {
     const z = computeZones();
-    const teamLabel = DATA[0] && DATA[0].group ? DATA[0].group : 'команда';
+    // Подпись команды в заключениях — то же название, что на обложке: из
+  // дашборда (?name=), иначе общая группа файла. Раньше бралась группа первой
+  // строки, и в выгрузке по компании вся компания называлась именем одного
+  // отдела: «Групповой отчёт построен по 58 участникам (Департамент развития)».
+  const teamLabel = reportName() || 'команда';
     const zonesData = {
       n: z.n, teamLabel,
       avgScore: avg(DATA, 'score'), avgLevel: avg(DATA, 'level'),
@@ -2913,7 +2921,11 @@ function showDeepNarrative(result) {
 function downloadNarrativeTxt() {
   const z = computeZones();
   const n = z.n;
-  const teamLabel = DATA[0] && DATA[0].group ? DATA[0].group : 'команда';
+  // Подпись команды в заключениях — то же название, что на обложке: из
+  // дашборда (?name=), иначе общая группа файла. Раньше бралась группа первой
+  // строки, и в выгрузке по компании вся компания называлась именем одного
+  // отдела: «Групповой отчёт построен по 58 участникам (Департамент развития)».
+  const teamLabel = reportName() || 'команда';
   const mode = window._narrativeMode === 'deep' ? 'AI' : 'краткое';
   const content = document.getElementById('narrative-content').innerText;
   const header = `Текстовое описание группового отчёта ADIN (${mode}) — ${teamLabel} (${n} чел.)\n${new Date().toLocaleDateString('ru-RU')}\n\n`;
