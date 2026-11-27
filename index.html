@@ -28,6 +28,7 @@
   --warning-subtle:#fffbeb;
   --danger:#dc2626;
   --danger-subtle:#fef2f2;
+  --decline:#92400e;
   --radius:6px;
   --radius-sm:4px;
   --sidebar:220px;
@@ -59,6 +60,7 @@
   --success:#4ade80;--success-subtle:#0b2e1a;
   --warning:#fbbf24;--warning-subtle:#3a2606;
   --danger:#f87171;--danger-subtle:#3f0d0d;
+  --decline:#d6a26e;
   color-scheme:dark;
 }
 :root[data-theme="dark"] .card,:root[data-theme="dark"] .metric,:root[data-theme="dark"] .group-card,
@@ -295,7 +297,7 @@ td>.btn+.btn{margin-left:4px}
 }
 
 @media print {
-  :root,:root[data-theme="dark"]{--bg:#fff;--bg-subtle:#f8f9fb;--bg-hover:#f3f4f6;--border:#dfe3e8;--border-strong:#c4cad3;--ink:#111827;--ink-2:#2f3542;--ink-3:#4b5563;--ink-4:#6b7280;--on-ink:#fff;--accent:#2563eb;--accent-subtle:#eff6ff;--accent-text:#1d4ed8;--success:#16a34a;--success-subtle:#f0fdf4;--warning:#d97706;--warning-subtle:#fffbeb;--danger:#dc2626;--danger-subtle:#fef2f2;color-scheme:light}
+  :root,:root[data-theme="dark"]{--bg:#fff;--bg-subtle:#f8f9fb;--bg-hover:#f3f4f6;--border:#dfe3e8;--border-strong:#c4cad3;--ink:#111827;--ink-2:#2f3542;--ink-3:#4b5563;--ink-4:#6b7280;--on-ink:#fff;--accent:#2563eb;--accent-subtle:#eff6ff;--accent-text:#1d4ed8;--success:#16a34a;--success-subtle:#f0fdf4;--warning:#d97706;--warning-subtle:#fffbeb;--danger:#dc2626;--danger-subtle:#fef2f2;--decline:#92400e;color-scheme:light}
   .card,.metric,.group-card{background:#fff!important}
   .sidebar,.page-header .btn,.btn,#toast{display:none!important}
   .main{width:100%!important}
@@ -3810,6 +3812,7 @@ const NS_NARRATIVE_LABELS = {
   'жертва':    '🟠 Жертва',
   'борьба':    '🟡 Борьба',
   'стагнация': '⚫ Стагнация',
+  'упадок':    '🟤 Упадок',
   'переход':   '🔵 Переход',
   'строительство': '🟢 Строительство',
   'миссия':    '⭐ Миссия',
@@ -4085,10 +4088,10 @@ let NS_SAVED_REPORT_AT = null;
 
 const NS_NARRATIVE_COLOR = {
   'выживание': 'var(--danger)', 'жертва': 'var(--warning)', 'борьба': 'var(--warning)',
-  'стагнация': 'var(--ink-2)', 'переход': 'var(--accent)', 'строительство': 'var(--success)',
+  'стагнация': 'var(--ink-2)', 'упадок': 'var(--decline, #92400e)', 'переход': 'var(--accent)', 'строительство': 'var(--success)',
   'миссия': 'var(--ink-3)',
 };
-const NS_NARRATIVE_ORDER = ['выживание','жертва','борьба','стагнация','переход','строительство','миссия'];
+const NS_NARRATIVE_ORDER = ['выживание','жертва','борьба','стагнация','упадок','переход','строительство','миссия'];
 const NS_LEVEL_COLOR = {
   'низкая': 'var(--danger)', 'средняя': 'var(--warning)', 'высокая': 'var(--success)',
   'отсутствует': 'var(--danger)', 'расплывчатый': 'var(--warning)', 'конкретный': 'var(--success)',
